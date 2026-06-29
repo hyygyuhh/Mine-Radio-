@@ -254,7 +254,9 @@ body.home-wallpaper-preview #canvas-container{filter:none}
 .home-hero-inner.home-construction-inner{display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:18px;padding:4px 2px;min-height:100%}
 .home-hero-inner.home-comment-inner{display:flex;flex-direction:column;justify-content:space-between;gap:16px;padding:4px 2px;min-height:100%}
 .home-comment-layout{display:grid;grid-template-columns:minmax(118px,148px) minmax(0,1fr);gap:18px;align-items:start;flex:1;min-height:0}
-.home-comment-cover{width:100%;aspect-ratio:1;border-radius:22px;background:linear-gradient(145deg,color-mix(in srgb,var(--home-accent) 28%,rgba(36,66,255,.18)),rgba(10,10,14,.42));background-size:cover;background-position:center;box-shadow:0 18px 48px rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.10);transition:transform .28s cubic-bezier(.16,1,.3,1),box-shadow .28s}
+.home-comment-cover{width:100%;aspect-ratio:1;border-radius:22px;background:linear-gradient(145deg,color-mix(in srgb,var(--home-accent) 28%,rgba(36,66,255,.18)),rgba(10,10,14,.42));background-size:cover;background-position:center;box-shadow:0 18px 48px rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.10);transition:transform .28s cubic-bezier(.16,1,.3,1),box-shadow .28s;overflow:hidden}
+.home-comment-cover img{width:100%;height:100%;object-fit:cover;display:block;border-radius:inherit;opacity:0;transition:opacity .32s ease}
+.home-comment-cover.has-cover img{opacity:1}
 .home-comment-cover.has-cover{cursor:pointer}
 .home-comment-cover.has-cover:hover{transform:translateY(-2px) scale(1.02);box-shadow:0 22px 56px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,255,255,.16)}
 .home-comment-cover.home-skeleton{animation:home-card-float 2.8s ease-in-out infinite}
@@ -1957,7 +1959,7 @@ html.control-glass-svg-ok #visual-guide-btn:hover{
         <div class="home-kicker" id="home-comment-kicker">精选乐评</div>
         <div class="home-comment-layout">
           <div class="home-comment-cover-wrap">
-            <div class="home-comment-cover home-skeleton" id="home-comment-cover" role="button" tabindex="0" title="查看歌曲详情" onclick="openHomeSpotlightCommentDetail()" onkeydown="if(event.key==='Enter'||event.code==='Space'){event.preventDefault();openHomeSpotlightCommentDetail()}"></div>
+            <div class="home-comment-cover home-skeleton" id="home-comment-cover" role="button" tabindex="0" title="查看歌曲详情" onclick="openHomeSpotlightCommentDetail()" onkeydown="if(event.key==='Enter'||event.code==='Space'){event.preventDefault();openHomeSpotlightCommentDetail()}"><img id="home-comment-cover-img" alt="" referrerpolicy="no-referrer" decoding="async"></div>
           </div>
           <div class="home-comment-body">
             <blockquote class="home-comment-quote" id="home-comment-text">正在精选乐评…</blockquote>
@@ -2803,7 +2805,7 @@ var homeForcedOpen = false;
 var homeSuppressed = false;
 var homeDiscoverState = { loading: false, loaded: false, loggedIn: false, mode: 'starter', songs: [], playlists: [], podcasts: [], error: '', updatedAt: 0 };
 var homeDiscoverToken = 0;
-var homeCommentSpotlightState = { loading: false, token: 0, song: null, comment: null, error: '', isHot: false, recentKeys: {}, bootstrapped: false };
+var homeCommentSpotlightState = { loading: false, token: 0, song: null, comment: null, error: '', isHot: false, recentKeys: {}, bootstrapped: false, coverToken: 0, coverUrl: '' };
 var HOME_COMMENT_SEED_SONGS = [
   { id: 347230, name: '晴天', artist: '周杰伦' },
   { id: 190137, name: '七里香', artist: '周杰伦' },
@@ -3116,6 +3118,8 @@ var beatAnalysisConfig = {
   idleTimeout: 1400,
   skipMusicTempoWhilePlaying: false
 };
+var pendingBeatmapPrepOpts = null;
+var beatmapPrepStartedKey = '';
 var beatCam = {
   nextIdx: 0,
   events: [],
@@ -10203,10 +10207,6 @@ async function analyzeMusicTempoInWorker(buffer, token) {
 
 function scheduleBeatAnalysis(songId, audioUrl, token, song) {
   if (!songId || !audioUrl) return;
-  if (mineradioUsesWebMediaBridge()) {
-    hideBeatChip();
-    return;
-  }
   if (djMode.active) {
     cancelBeatAnalysisTimer();
     beatAnalysisStartedAt = 0;
@@ -10215,10 +10215,14 @@ function scheduleBeatAnalysis(songId, audioUrl, token, song) {
   }
   cancelBeatAnalysisTimer();
   beatAnalysisStartedAt = 0;
-  hideBeatChip();
+  showBeatChip('节奏准备中…');
   beatAnalysisTimer = setTimeout(function waitForQuietStart(){
     beatAnalysisTimer = null;
-    if (token !== beatMapToken || !audio || audio.paused) return;
+    if (token !== beatMapToken || !audio) return;
+    if (audio.paused) {
+      beatAnalysisTimer = setTimeout(waitForQuietStart, 650);
+      return;
+    }
     var current = audio.currentTime || 0;
     if (current < beatAnalysisConfig.minPlaybackSec) {
       beatAnalysisTimer = setTimeout(waitForQuietStart, Math.max(500, (beatAnalysisConfig.minPlaybackSec - current) * 1000));
@@ -10448,10 +10452,6 @@ async function runQueueBeatPrefetch(fromIdx, token, seq, state) {
 
 async function analyzeAudioBeats(audioUrl, durationSec, token, options) {
   options = options || {};
-  if (mineradioUsesWebMediaBridge()) {
-    hideBeatChip();
-    return null;
-  }
   var analysisProfile = cinemaAnalysisProfileForSong(options.song);
   var softGrooveAnalysis = !!(analysisProfile && analysisProfile.softGroove);
   try {
@@ -10460,11 +10460,30 @@ async function analyzeAudioBeats(audioUrl, durationSec, token, options) {
     else if (options.background) showBeatChip('后台缓冲节奏…');
     await yieldToIdle(beatAnalysisYieldMs(options, 140, 760));
     if (token !== beatMapToken) { hideBeatChip(); beatMapBusy = false; return null; }
+    if (mineradioUsesWebMediaBridge() && !options.prefetch && audio && !audio.paused && audio.src) {
+      var webDeferStart = performance.now();
+      while (performance.now() - webDeferStart < 14000 && token === beatMapToken) {
+        if (!audio || audio.paused) break;
+        if (document.hidden) {
+          await yieldToIdle(650);
+          continue;
+        }
+        var bufferAhead = 0;
+        if (audio.buffered.length) bufferAhead = audio.buffered.end(audio.buffered.length - 1) - (audio.currentTime || 0);
+        if (bufferAhead >= 8 || (audio.currentTime || 0) >= 4.5) break;
+        await yieldToIdle(480);
+      }
+      if (token !== beatMapToken) { hideBeatChip(); beatMapBusy = false; return null; }
+    }
     showBeatChip('正在分析节奏…');
-    var resp = await fetch(audioUrl);
-    if (token !== beatMapToken) { hideBeatChip(); return null; }
-    var ab = await resp.arrayBuffer();
-    if (token !== beatMapToken) { hideBeatChip(); return null; }
+    var ab = await fetchBeatAnalysisArrayBuffer(beatAnalysisFetchUrl(audioUrl));
+    if (token !== beatMapToken) { hideBeatChip(); beatMapBusy = false; return null; }
+    if (!ab) {
+      hideBeatChip();
+      beatMapBusy = false;
+      console.warn('beat analysis fetch failed:', audioUrl);
+      return null;
+    }
 
     // 用临时 AudioContext 解码 (我们不能复用 audioCtx 因为它可能 closed)
     var TmpCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
@@ -11642,11 +11661,14 @@ async function analyzePodcastDjBeats(audioUrl, token, durationSec) {
       hideBeatChip();
       if (durationSec <= 0 || durationSec > 3300) return null;
     }
-    var fetchAudioUrl = /^https?:\/\//i.test(audioUrl || '') ? audioProxyPathFromDirect(audioUrl) : audioUrl;
-    var resp = await fetch(fetchAudioUrl);
+    var fetchAudioUrl = beatAnalysisFetchUrl(audioUrl);
+    var ab = await fetchBeatAnalysisArrayBuffer(fetchAudioUrl);
     if (token !== djBeatMapToken || !djMode.active) { hideBeatChip(); return null; }
-    var ab = await resp.arrayBuffer();
-    if (token !== djBeatMapToken || !djMode.active) { hideBeatChip(); return null; }
+    if (!ab) {
+      hideBeatChip();
+      console.warn('podcast DJ beat analysis fetch failed:', audioUrl);
+      return null;
+    }
 
     showBeatChip('DJ 解码音频…');
     var TmpCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
@@ -15359,12 +15381,63 @@ function audioProxyPathFromDirect(url) {
   if (mineradioUsesWebMediaBridge()) return url;
   return '/api/audio?url=' + encodeURIComponent(url);
 }
+var lastBeatAnalysisSourceUrl = '';
+async function fetchBeatAnalysisArrayBuffer(audioUrl) {
+  if (!audioUrl) return null;
+  var src = String(audioUrl);
+  if (/^(blob:|data:)/i.test(src)) {
+    var nativeFetch = window.__mineradioNativeFetch || fetch;
+    var blobResp = await nativeFetch(src);
+    if (!blobResp.ok) return null;
+    return blobResp.arrayBuffer();
+  }
+  if (mineradioUsesWebMediaBridge() && /^https?:/i.test(src)) {
+    if (typeof window.__mineradioFetchBeatAnalysisBuffer === 'function') {
+      try {
+        var directBuf = await window.__mineradioFetchBeatAnalysisBuffer(src);
+        if (directBuf && directBuf.byteLength > 0) return directBuf;
+      } catch (err) {
+        console.warn('[BeatAnalysisFetch] direct buffer failed', err);
+      }
+    }
+    try {
+      var meta = await apiJson('/api/audio?url=' + encodeURIComponent(src), {
+        timeoutMs: 180000,
+        headers: { range: 'bytes=0-4194303' }
+      });
+      var playUrl = meta && meta.url;
+      if (playUrl && /^blob:/i.test(String(playUrl))) {
+        var proxiedResp = await (window.__mineradioNativeFetch || fetch)(playUrl);
+        if (proxiedResp.ok) return proxiedResp.arrayBuffer();
+      }
+      if (meta && meta.direct && playUrl) {
+        console.warn('[BeatAnalysisFetch] extension returned direct URL without blob proxy');
+      }
+    } catch (err) {
+      console.warn('[BeatAnalysisFetch]', err);
+    }
+    return null;
+  }
+  var fetchUrl = /^https?:/i.test(src) ? ('/api/audio?url=' + encodeURIComponent(src)) : src;
+  var resp = await fetch(fetchUrl);
+  if (!resp.ok) return null;
+  return resp.arrayBuffer();
+}
+function beatAnalysisFetchUrl(preferredUrl) {
+  var url = preferredUrl || lastBeatAnalysisSourceUrl || (audio && audio.src) || '';
+  if (mineradioUsesWebMediaBridge() && /^blob:/i.test(String(url))) return url;
+  if (/^https?:/i.test(String(url))) return url;
+  return lastBeatAnalysisSourceUrl || url;
+}
 var webPlaybackUnlockDone = false;
 var webPlaybackOptimInstalled = false;
 
 function installWebPlaybackOptimizations() {
   if (!mineradioUsesWebMediaBridge() || webPlaybackOptimInstalled) return;
   webPlaybackOptimInstalled = true;
+  beatAnalysisConfig.delayMs = 3200;
+  beatAnalysisConfig.minPlaybackSec = 2.5;
+  beatAnalysisConfig.skipMusicTempoWhilePlaying = true;
   installMediaSessionHandlers();
 }
 
@@ -15422,6 +15495,14 @@ function onWebPlaybackVisibilityChange() {
     return;
   }
   recoverWebPlaybackAfterForeground('visibilitychange');
+  ensureBeatmapPrepStarted('visibilitychange');
+  if (audio && !audio.paused && audio.src && !djMode.active && !currentBeatMap && playQueue.length && currentIdx >= 0) {
+    var resumeSong = playQueue[currentIdx];
+    var resumeKey = beatMapSongKey(resumeSong);
+    if (resumeKey && !beatMapCache[resumeKey] && !beatMapBusy && !beatAnalysisTimer) {
+      scheduleBeatAnalysis(resumeKey || resumeSong.id, beatAnalysisFetchUrl(lastBeatAnalysisSourceUrl || audio.src), beatMapToken, resumeSong);
+    }
+  }
 }
 
 function configureWebPlaybackAudioElement(audioEl) {
@@ -15814,6 +15895,118 @@ function pickRandomHomeCommentSong(excludeSongKey) {
   }
   return pool[Math.floor(Math.random() * pool.length)];
 }
+function clearHomeCommentCoverVisual() {
+  var coverEl = document.getElementById('home-comment-cover');
+  var imgEl = document.getElementById('home-comment-cover-img');
+  if (!coverEl) return;
+  coverEl.classList.remove('has-cover');
+  coverEl.style.backgroundImage = '';
+  if (imgEl) {
+    imgEl.onload = null;
+    imgEl.onerror = null;
+    imgEl.removeAttribute('src');
+    imgEl.style.opacity = '0';
+    delete imgEl.dataset.coverRetry;
+  }
+}
+function resolveHomeCommentCoverUrl(url, cacheBust) {
+  if (!url) return Promise.resolve('');
+  var sized = coverUrlWithSize(url, 400);
+  var proxied = coverProxySrc(sized, !!cacheBust) || sized;
+  if (mineradioUsesWebMediaBridge() && window.__mineradioResolveCoverUrl && /^https?:/i.test(String(proxied))) {
+    return window.__mineradioResolveCoverUrl(proxied, !!cacheBust).then(function(resolved){
+      return resolved || proxied;
+    }).catch(function(){ return proxied; });
+  }
+  return Promise.resolve(proxied);
+}
+async function fetchHomeCommentSongCover(song) {
+  if (!song) return '';
+  if (song.cover) return song.cover;
+  var customCover = getCustomCoverForSong(song);
+  if (customCover) return customCover;
+  var isQQ = songProviderKey(song) === 'qq';
+  try {
+    if (isQQ && (song.mid || song.songmid || song.id)) {
+      var qqData = await apiJson('/api/qq/search?keywords=' + encodeURIComponent((song.name || '') + ' ' + (song.artist || '')) + '&limit=6');
+      var qqSongs = (qqData && qqData.songs) || [];
+      var qqId = String(song.mid || song.songmid || song.id || '');
+      var qqHit = qqSongs.find(function(s){ return String(s.mid || s.songmid || s.id) === qqId; }) || qqSongs[0];
+      if (qqHit && qqHit.cover) {
+        song.cover = qqHit.cover;
+        return qqHit.cover;
+      }
+    } else if (song.id != null && song.id !== '') {
+      var data = await apiJson('/api/search?keywords=' + encodeURIComponent((song.name || '') + ' ' + (song.artist || '')) + '&limit=8');
+      var songs = (data && data.songs) || [];
+      var hit = songs.find(function(s){ return String(s.id) === String(song.id); }) || songs[0];
+      if (hit && hit.cover) {
+        song.cover = hit.cover;
+        return hit.cover;
+      }
+    }
+  } catch (err) {
+    console.warn('[HomeCommentCover]', err);
+  }
+  return song.cover || '';
+}
+function hydrateHomeCommentSongCover(song, token) {
+  if (!song) return;
+  var coverToken = ++homeCommentSpotlightState.coverToken;
+  var coverEl = document.getElementById('home-comment-cover');
+  var imgEl = document.getElementById('home-comment-cover-img');
+  if (!coverEl || !imgEl) return;
+  function stillValid() {
+    return coverToken === homeCommentSpotlightState.coverToken && token === homeCommentSpotlightState.token && homeCommentSpotlightState.song === song;
+  }
+  function applyCoverUrl(url) {
+    if (!stillValid() || !url) {
+      if (stillValid()) clearHomeCommentCoverVisual();
+      return;
+    }
+    resolveHomeCommentCoverUrl(url, false).then(function(resolved){
+      if (!stillValid() || !resolved) return;
+      homeCommentSpotlightState.coverUrl = resolved;
+      imgEl.onload = function(){
+        if (!stillValid()) return;
+        coverEl.classList.remove('home-skeleton');
+        coverEl.classList.add('has-cover');
+        imgEl.style.opacity = '1';
+      };
+      imgEl.onerror = function(){
+        if (!stillValid()) return;
+        if (imgEl.dataset.coverRetry === '1') {
+          clearHomeCommentCoverVisual();
+          return;
+        }
+        imgEl.dataset.coverRetry = '1';
+        resolveHomeCommentCoverUrl(url, true).then(function(retryUrl){
+          if (!stillValid() || !retryUrl) {
+            clearHomeCommentCoverVisual();
+            return;
+          }
+          imgEl.src = retryUrl;
+        }).catch(function(){ clearHomeCommentCoverVisual(); });
+      };
+      imgEl.referrerPolicy = 'no-referrer';
+      imgEl.src = resolved;
+    });
+  }
+  if (homeCommentSpotlightState.coverUrl && song.cover) {
+    applyCoverUrl(song.cover);
+    return;
+  }
+  clearHomeCommentCoverVisual();
+  coverEl.classList.add('home-skeleton');
+  fetchHomeCommentSongCover(song).then(function(url){
+    if (!stillValid()) return;
+    if (url) applyCoverUrl(url);
+    else {
+      coverEl.classList.remove('home-skeleton');
+      clearHomeCommentCoverVisual();
+    }
+  });
+}
 function renderHomeSpotlightComment() {
   var textEl = document.getElementById('home-comment-text');
   var userEl = document.getElementById('home-comment-user');
@@ -15829,11 +16022,8 @@ function renderHomeSpotlightComment() {
     if (likesEl) likesEl.textContent = '';
     if (songEl) songEl.textContent = '—';
     if (kickerEl) kickerEl.textContent = '精选乐评';
-    if (coverEl) {
-      coverEl.classList.add('home-skeleton');
-      coverEl.classList.remove('has-cover');
-      coverEl.style.backgroundImage = '';
-    }
+    clearHomeCommentCoverVisual();
+    if (coverEl) coverEl.classList.add('home-skeleton');
     return;
   }
   if (st.error || !st.comment || !st.song) {
@@ -15842,10 +16032,7 @@ function renderHomeSpotlightComment() {
     if (likesEl) likesEl.textContent = '';
     if (songEl) songEl.textContent = '—';
     if (kickerEl) kickerEl.textContent = '精选乐评';
-    if (coverEl) {
-      coverEl.classList.remove('home-skeleton', 'has-cover');
-      coverEl.style.backgroundImage = '';
-    }
+    clearHomeCommentCoverVisual();
     return;
   }
   var c = st.comment;
@@ -15859,17 +16046,7 @@ function renderHomeSpotlightComment() {
   }
   if (songEl) songEl.innerHTML = '来自 <strong>' + escHtml(song.name || '未知歌曲') + '</strong> · ' + escHtml(song.artist || '未知歌手');
   if (kickerEl) kickerEl.textContent = (st.isHot ? '精选热评 · ' : '精选乐评 · ') + (songProviderKey(song) === 'qq' ? 'QQ 音乐' : '网易云');
-  if (coverEl) {
-    coverEl.classList.remove('home-skeleton');
-    var cover = songCoverSrc(song, 400);
-    if (cover) {
-      coverEl.style.backgroundImage = 'url("' + cssImageUrl(cover) + '")';
-      coverEl.classList.add('has-cover');
-    } else {
-      coverEl.style.backgroundImage = '';
-      coverEl.classList.remove('has-cover');
-    }
-  }
+  hydrateHomeCommentSongCover(song, st.token);
 }
 function ensureHomeSpotlightComment() {
   if (!document.getElementById('home-comment-text')) return;
@@ -15898,6 +16075,8 @@ async function loadHomeSpotlightComment(force) {
     homeCommentSpotlightState.song = null;
     homeCommentSpotlightState.comment = null;
     homeCommentSpotlightState.isHot = false;
+    homeCommentSpotlightState.coverUrl = '';
+    homeCommentSpotlightState.coverToken++;
   }
   renderHomeSpotlightComment();
   var found = false;
@@ -18924,6 +19103,24 @@ function syncPlaybackStateFromAudioEvent(reason) {
   forcePlaybackControlsInteractive();
 }
 
+function resetBeatmapPrepPending() {
+  pendingBeatmapPrepOpts = null;
+  beatmapPrepStartedKey = '';
+}
+function ensureBeatmapPrepStarted(reason) {
+  if (!pendingBeatmapPrepOpts) return;
+  var opts = pendingBeatmapPrepOpts;
+  if (opts.bmTok !== beatMapToken) {
+    resetBeatmapPrepPending();
+    return;
+  }
+  var startKey = String(opts.bmKey || opts.song && opts.song.id || '') + ':' + opts.bmTok;
+  if (beatmapPrepStartedKey === startKey) return;
+  beatmapPrepStartedKey = startKey;
+  pendingBeatmapPrepOpts = null;
+  if (window.__mineradioDebugPlayback) console.log('[BeatmapPrep]', reason || 'start');
+  deferPlaybackBeatmapPrep(opts);
+}
 function deferPlaybackBeatmapPrep(opts) {
   void (async function(){
     var song = opts.song;
@@ -18931,10 +19128,6 @@ function deferPlaybackBeatmapPrep(opts) {
     var bmTok = opts.bmTok;
     try {
       if (bmTok !== beatMapToken) return;
-      if (mineradioUsesWebMediaBridge()) {
-        hideBeatChip();
-        return;
-      }
       if (opts.podcastDjMode) {
         var djKey = djSongKey(song);
         if (djBeatMapCache[djKey]) return;
@@ -18954,7 +19147,8 @@ function deferPlaybackBeatmapPrep(opts) {
         console.log('beatmap D盘缓存命中:', currentBeatMap.kicks.length, '个鼓点');
         return;
       }
-      scheduleBeatAnalysis(bmKey || song.id, opts.proxyAudioUrl, bmTok, song);
+      if (mineradioUsesWebMediaBridge()) showBeatChip('后台缓冲节奏…');
+      scheduleBeatAnalysis(bmKey || song.id, beatAnalysisFetchUrl(opts.sourceAudioUrl || opts.proxyAudioUrl), bmTok, song);
     } catch (err) {
       console.warn('[PlaybackVisualPrepDeferred]', song && song.name, err);
       currentBeatMap = null;
@@ -19128,6 +19322,7 @@ async function playQueueAt(idx, opts) {
     bindPlaybackProgressEvents(audio);
     applyVolumeToAudio();
     var proxyAudioUrl = audioProxyPathFromDirect(data.url);
+    lastBeatAnalysisSourceUrl = data.url || proxyAudioUrl || '';
     audio.src = proxyAudioUrl;
     updatePlaybackProgressUi();
     audio.onended = function(){
@@ -19149,6 +19344,7 @@ async function playQueueAt(idx, opts) {
     resetBeatCameraSync(0);
     cancelBeatAnalysisTimer();
     beatMapToken++;
+    resetBeatmapPrepPending();
     var bmTok = beatMapToken;
     if (podcastDjMode) {
       // 播客走独立 DJ 离线锁拍系统, 不写入普通歌曲 beatMap.
@@ -19167,11 +19363,12 @@ async function playQueueAt(idx, opts) {
         notifyDesktopLyricsBeatMapReady();
         console.log('podcast DJ beatmap 缓存命中:', currentDjBeatMap.cameraBeats.length, '个主拍');
       } else if (mineradioUsesWebMediaBridge()) {
-        hideBeatChip();
+        beatmapPrepDeferred = true;
+        deferredBeatmapOpts = { song: song, idx: idx, bmKey: bmKey, bmTok: bmTok, podcastDjMode: true, proxyAudioUrl: proxyAudioUrl, sourceAudioUrl: data.url, data: data, djTok: djTok };
       } else {
         showBeatChip('DJ 离线锁拍准备中…');
         beatmapPrepDeferred = true;
-        deferredBeatmapOpts = { song: song, idx: idx, bmKey: bmKey, bmTok: bmTok, podcastDjMode: true, proxyAudioUrl: proxyAudioUrl, data: data, djTok: djTok };
+        deferredBeatmapOpts = { song: song, idx: idx, bmKey: bmKey, bmTok: bmTok, podcastDjMode: true, proxyAudioUrl: proxyAudioUrl, sourceAudioUrl: data.url, data: data, djTok: djTok };
       }
       maybeAnnounceDjMode();
     } else if (bmKey && beatMapCache[bmKey]) {
@@ -19183,7 +19380,8 @@ async function playQueueAt(idx, opts) {
       console.log('beatmap 缓存命中:', currentBeatMap.kicks.length, '个鼓点');
       if (!mineradioUsesWebMediaBridge()) scheduleQueueBeatPrefetch(idx, 2600);
     } else if (mineradioUsesWebMediaBridge()) {
-      hideBeatChip();
+      beatmapPrepDeferred = true;
+      deferredBeatmapOpts = { song: song, idx: idx, bmKey: bmKey, bmTok: bmTok, podcastDjMode: false, proxyAudioUrl: proxyAudioUrl, sourceAudioUrl: data.url, data: data, djTok: 0 };
     } else {
       var diskBeatMap = bmKey ? await readBeatDiskCache(bmKey) : null;
       if (diskBeatMap) {
@@ -19195,7 +19393,7 @@ async function playQueueAt(idx, opts) {
         scheduleQueueBeatPrefetch(idx, 2600);
       } else {
         // 后台延迟分析, 避免新歌刚开始播放时抢占解码和渲染资源
-        scheduleBeatAnalysis(bmKey || song.id, proxyAudioUrl, bmTok, song);
+        scheduleBeatAnalysis(bmKey || song.id, beatAnalysisFetchUrl(data.url || proxyAudioUrl), bmTok, song);
       }
     }
     } catch (visualErr) {
@@ -19206,6 +19404,7 @@ async function playQueueAt(idx, opts) {
     }
     markPlayPhase('audio-start');
     var useManualPlay = !!(opts.manual || (mineradioUsesWebMediaBridge() && !opts.autoRepeat && !opts.fallbackDepth));
+    if (beatmapPrepDeferred && deferredBeatmapOpts) pendingBeatmapPrepOpts = deferredBeatmapOpts;
     var playbackStarted = await playAudio({ silent: isQQPlayback, manual: useManualPlay });
     if (!playbackStarted) {
       if (isQQPlayback && await retryQQPlaybackWithCompatibleQuality(song, idx, token, opts, data, requestedQuality)) return;
@@ -19217,7 +19416,7 @@ async function playQueueAt(idx, opts) {
       }
       return;
     }
-    if (beatmapPrepDeferred && deferredBeatmapOpts) deferPlaybackBeatmapPrep(deferredBeatmapOpts);
+    ensureBeatmapPrepStarted('playback-started');
     installMediaSessionHandlers();
     updateMediaSessionForSong(song);
     forcePlaybackControlsInteractive();
@@ -19310,6 +19509,7 @@ async function togglePlay() {
     if (!audio) return;
     if (audio.paused || audio.ended) {
       await attemptAudioPlay({ manual: true });
+      ensureBeatmapPrepStarted('toggle-play');
     } else {
       await fadeOutAndPauseAudio();
       playing = false;
@@ -20564,6 +20764,9 @@ function bindPlaybackProgressEvents(audioEl) {
   });
   ['play', 'playing', 'pause', 'ended', 'emptied', 'abort', 'error'].forEach(function(name){
     audioEl.addEventListener(name, function(){ syncPlaybackStateFromAudioEvent(name); });
+  });
+  audioEl.addEventListener('playing', function(){
+    if (mineradioUsesWebMediaBridge()) ensureBeatmapPrepStarted('audio-playing');
   });
 }
 function emitProgressDragParticles(x, y) {
