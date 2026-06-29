@@ -252,6 +252,20 @@ body.home-wallpaper-preview #canvas-container{filter:none}
 .home-hero::after{content:'';position:absolute;left:28px;right:28px;bottom:22px;height:1px;background:linear-gradient(90deg,color-mix(in srgb,var(--home-accent) 0%,transparent),color-mix(in srgb,var(--home-accent) 52%,transparent),rgba(36,66,255,.24),rgba(248,244,238,.18),color-mix(in srgb,var(--home-accent) 0%,transparent));opacity:.82;pointer-events:none}
 .home-hero-inner{position:relative;z-index:2;height:100%;display:grid;grid-template-columns:minmax(0,1.16fr) minmax(150px,.64fr);grid-template-rows:auto auto auto auto minmax(150px,1fr);column-gap:18px}
 .home-hero-inner.home-construction-inner{display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:18px;padding:4px 2px;min-height:100%}
+.home-hero-inner.home-comment-inner{display:flex;flex-direction:column;justify-content:space-between;gap:16px;padding:4px 2px;min-height:100%}
+.home-comment-layout{display:grid;grid-template-columns:minmax(118px,148px) minmax(0,1fr);gap:18px;align-items:start;flex:1;min-height:0}
+.home-comment-cover{width:100%;aspect-ratio:1;border-radius:22px;background:linear-gradient(145deg,color-mix(in srgb,var(--home-accent) 28%,rgba(36,66,255,.18)),rgba(10,10,14,.42));background-size:cover;background-position:center;box-shadow:0 18px 48px rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.10);transition:transform .28s cubic-bezier(.16,1,.3,1),box-shadow .28s}
+.home-comment-cover.has-cover{cursor:pointer}
+.home-comment-cover.has-cover:hover{transform:translateY(-2px) scale(1.02);box-shadow:0 22px 56px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,255,255,.16)}
+.home-comment-cover.home-skeleton{animation:home-card-float 2.8s ease-in-out infinite}
+.home-comment-body{min-width:0;display:flex;flex-direction:column;justify-content:center}
+.home-comment-quote{margin:0;font-size:clamp(17px,2.05vw,24px);line-height:1.58;font-weight:560;color:rgba(255,255,255,.94);letter-spacing:.01em;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
+.home-comment-meta{margin-top:14px;display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;font-size:12px;color:rgba(255,255,255,.48)}
+.home-comment-meta .home-comment-user{font-weight:720;color:rgba(244,210,138,.90)}
+.home-comment-hot{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:999px;border:1px solid rgba(255,83,103,.30);background:rgba(255,83,103,.11);color:rgba(255,210,210,.94);font-size:10px;font-weight:760;letter-spacing:.06em;margin-right:2px}
+.home-comment-song{margin-top:10px;font-size:12.5px;line-height:1.48;color:rgba(255,255,255,.58);cursor:pointer;transition:color .18s}
+.home-comment-song:hover{color:rgba(255,255,255,.82)}
+.home-comment-song strong{color:rgba(255,255,255,.92);font-weight:720}
 .home-kicker{grid-column:1;font-size:10px;font-weight:780;letter-spacing:.18em;color:color-mix(in srgb,var(--home-accent) 62%,rgba(255,255,255,.36));text-transform:uppercase;margin-bottom:14px}
 .home-title{grid-column:1;font-size:clamp(34px,4.6vw,58px);line-height:.98;font-weight:760;letter-spacing:0;color:rgba(255,255,255,.98);max-width:380px;text-shadow:0 10px 36px rgba(0,0,0,.26)}
 .home-title.home-construction-title{max-width:620px;font-size:clamp(32px,4.5vw,64px);line-height:1.08}
@@ -1939,9 +1953,26 @@ html.control-glass-svg-ok #visual-guide-btn:hover{
 <section id="empty-home" aria-label="Mineradio home">
   <div class="empty-home-shell">
     <div class="home-hero">
-      <div class="home-hero-inner home-construction-inner">
-        <div class="home-title home-construction-title">🚧此处施工，敬请期待🚧</div>
-        <button class="home-chip home-console-chip" type="button" onclick="openHomePlayerConsole()">展开播放器控制台</button>
+      <div class="home-hero-inner home-comment-inner" id="home-comment-inner">
+        <div class="home-kicker" id="home-comment-kicker">精选乐评</div>
+        <div class="home-comment-layout">
+          <div class="home-comment-cover-wrap">
+            <div class="home-comment-cover home-skeleton" id="home-comment-cover" role="button" tabindex="0" title="查看歌曲详情" onclick="openHomeSpotlightCommentDetail()" onkeydown="if(event.key==='Enter'||event.code==='Space'){event.preventDefault();openHomeSpotlightCommentDetail()}"></div>
+          </div>
+          <div class="home-comment-body">
+            <blockquote class="home-comment-quote" id="home-comment-text">正在精选乐评…</blockquote>
+            <div class="home-comment-meta">
+              <span class="home-comment-user" id="home-comment-user">—</span>
+              <span id="home-comment-likes"></span>
+            </div>
+            <div class="home-comment-song" id="home-comment-song" onclick="openHomeSpotlightCommentDetail()">—</div>
+          </div>
+        </div>
+        <div class="home-quick-row">
+          <button class="home-chip" type="button" onclick="playHomeSpotlightComment()">播放这首</button>
+          <button class="home-chip" type="button" onclick="loadHomeSpotlightComment(true)" title="也可刷新页面换一条">换一条</button>
+          <button class="home-chip home-console-chip" type="button" onclick="openHomePlayerConsole()">展开播放器控制台</button>
+        </div>
       </div>
     </div>
 
@@ -2772,6 +2803,19 @@ var homeForcedOpen = false;
 var homeSuppressed = false;
 var homeDiscoverState = { loading: false, loaded: false, loggedIn: false, mode: 'starter', songs: [], playlists: [], podcasts: [], error: '', updatedAt: 0 };
 var homeDiscoverToken = 0;
+var homeCommentSpotlightState = { loading: false, token: 0, song: null, comment: null, error: '', isHot: false, recentKeys: {}, bootstrapped: false };
+var HOME_COMMENT_SEED_SONGS = [
+  { id: 347230, name: '晴天', artist: '周杰伦' },
+  { id: 190137, name: '七里香', artist: '周杰伦' },
+  { id: 25906124, name: '海阔天空', artist: 'Beyond' },
+  { id: 1363948882, name: '起风了', artist: '买辣椒也用券' },
+  { id: 441491828, name: '成都', artist: '赵雷' },
+  { id: 28613168, name: '演员', artist: '薛之谦' },
+  { id: 108914, name: '稻香', artist: '周杰伦' },
+  { id: 190772, name: '夜曲', artist: '周杰伦' },
+  { id: 167876, name: '富士山下', artist: '陈奕迅' },
+  { id: 28815250, name: '平凡之路', artist: '朴树' }
+];
 var homeVisualPresetActive = false;
 var homeVisualPrevPreset = 0;
 var HOME_LISTEN_STATS_KEY = 'mineradio-listen-stats-v1';
@@ -15628,6 +15672,292 @@ function homeListenSummary() {
   var totalPlays = Object.keys(listenStatsState.songs || {}).reduce(function(sum, key){ return sum + ((listenStatsState.songs[key] && listenStatsState.songs[key].plays) || 0); }, 0);
   return { recent: recent, topSong: topSong, topArtist: topArtist, totalPlays: totalPlays };
 }
+function normalizeHomeCommentText(text) {
+  return String(text || '')
+    .replace(/\[[^\]]+\]/g, '')
+    .replace(/[@#][^\s，。！？!?]+/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+function isLowQualityHomeComment(text) {
+  if (!text) return true;
+  if (/^(好听|打卡|前排|沙发|第一|来了|yyds|绝绝子|666+|牛[逼批]?|赞+|可以|不错|顶+|同右|Mark|mark)[!！。…~～]*$/i.test(text)) return true;
+  if (/^(求|捞|顶|赞|听|刷|冲).{0,4}$/.test(text)) return true;
+  if (/(\d{11})|(https?:\/\/|www\.)/i.test(text)) return true;
+  if (/(.)\1{5,}/.test(text)) return true;
+  if (/^[A-Za-z0-9\s!！?？。，,.…~～]+$/.test(text) && text.length < 28) return true;
+  var stripped = text.replace(/[\u4e00-\u9fffA-Za-z0-9，。！？、；：""''（）【】\[\]《》\-—…\s]/g, '');
+  if (stripped.length > text.length * 0.42) return true;
+  if (/^[哈呵嘿嗯啊哦噢嘻]+[!！。…~～]*$/.test(text)) return true;
+  return false;
+}
+function scoreHomeCommentQuality(c) {
+  var text = normalizeHomeCommentText(c.content);
+  if (text.length < 18 || text.length > 260) return -1;
+  if (isLowQualityHomeComment(text)) return -1;
+  var score = 0;
+  var likes = Math.max(0, Number(c.likedCount) || 0);
+  score += Math.min(42, Math.log10(likes + 1) * 16);
+  if (likes >= 50) score += 8;
+  if (likes >= 200) score += 10;
+  if (likes >= 1000) score += 14;
+  var len = text.length;
+  if (len >= 28 && len <= 132) score += 18;
+  else if (len >= 20 && len <= 180) score += 10;
+  else score += 3;
+  if (/[。！？!?]/.test(text)) score += 10;
+  if (/[，,、；;]/.test(text)) score += 5;
+  var hints = ['仿佛','就像','记得','想起','夜晚','青春','后来','曾经','故事','人生','治愈','温柔','遗憾','心动','回忆','旋律','歌词','声音','听懂','共鸣','眼泪','安静','孤独','温暖','时光','岁月','长大','少年','爱情','离别','陪伴','单曲循环','深夜','耳机','画面','场景','情绪','文字','写进','藏进','听懂','释怀','错过','重逢','夏天','冬天','雨天','地铁','公交','教室','操场'];
+  var hintHits = 0;
+  for (var i = 0; i < hints.length; i++) {
+    if (text.indexOf(hints[i]) >= 0) hintHits++;
+  }
+  score += Math.min(22, hintHits * 4);
+  if (/[！!]{3,}/.test(text)) score -= 8;
+  if ((text.match(/[?？]/g) || []).length > 3) score -= 5;
+  if (/^\d+$/.test(text.replace(/\s/g, ''))) score -= 20;
+  return score;
+}
+function mergeHomeCommentLists(comments, resp) {
+  var merged = [];
+  var seen = Object.create(null);
+  function add(list) {
+    (list || []).forEach(function(c){
+      if (!c || !c.content) return;
+      var key = String(c.id || c.commentId || normalizeHomeCommentText(c.content)).slice(0, 120);
+      if (seen[key]) return;
+      seen[key] = true;
+      merged.push(c);
+    });
+  }
+  add(resp && resp.hotComments);
+  add(comments);
+  add(resp && resp.comments);
+  return merged.length ? merged : (comments || []);
+}
+function pickQualityHomeComment(comments, resp, opts) {
+  opts = opts || {};
+  var merged = mergeHomeCommentLists(comments, resp);
+  var minScore = opts.relaxed ? 10 : 16;
+  var scored = merged.map(function(c){
+    return { comment: c, score: scoreHomeCommentQuality(c), text: normalizeHomeCommentText(c.content) };
+  }).filter(function(row){
+    if (row.score < minScore) return false;
+    if (opts.skipKeys && opts.skipKeys[row.comment.id || row.text]) return false;
+    return true;
+  });
+  if (!scored.length && !opts.relaxed) {
+    return pickQualityHomeComment(comments, resp, { relaxed: true, skipKeys: opts.skipKeys });
+  }
+  if (!scored.length) return null;
+  scored.sort(function(a, b){ return b.score - a.score; });
+  var topN = Math.max(3, Math.min(10, Math.ceil(scored.length * 0.4)));
+  var pool = scored.slice(0, topN);
+  var totalWeight = 0;
+  pool.forEach(function(row){ totalWeight += row.score; });
+  var pick = Math.random() * totalWeight;
+  var acc = 0;
+  for (var i = 0; i < pool.length; i++) {
+    acc += pool[i].score;
+    if (pick <= acc) return pool[i].comment;
+  }
+  return pool[0].comment;
+}
+function rememberHomeCommentKey(song, comment) {
+  if (!comment) return;
+  var key = String(comment.id || normalizeHomeCommentText(comment.content)).slice(0, 120);
+  homeCommentSpotlightState.recentKeys[key] = Date.now();
+  var keys = Object.keys(homeCommentSpotlightState.recentKeys);
+  if (keys.length > 16) {
+    keys.sort(function(a, b){ return homeCommentSpotlightState.recentKeys[a] - homeCommentSpotlightState.recentKeys[b]; });
+    keys.slice(0, keys.length - 12).forEach(function(k){ delete homeCommentSpotlightState.recentKeys[k]; });
+  }
+}
+function truncateHomeCommentText(text, maxLen) {
+  text = normalizeHomeCommentText(text);
+  maxLen = maxLen || 200;
+  if (text.length <= maxLen) return text;
+  return text.slice(0, Math.max(1, maxLen - 1)) + '…';
+}
+function collectHomeCommentSongPool() {
+  var pool = [];
+  var seen = Object.create(null);
+  function push(song) {
+    if (!song) return;
+    var isQQ = songProviderKey(song) === 'qq';
+    var key = isQQ ? ('qq:' + (song.mid || song.songmid || song.id || '')) : ('ne:' + (song.id || ''));
+    if (!key || key === 'ne:' || key === 'qq:') return;
+    if (seen[key]) return;
+    seen[key] = true;
+    pool.push(cloneSong(song));
+  }
+  (homeDiscoverState.songs || []).forEach(push);
+  (listenStatsState.history || []).slice(0, 14).forEach(push);
+  var summary = homeListenSummary();
+  push(summary.topSong);
+  push(summary.recent);
+  var weatherSongs = homeWeatherRadioState.radio && homeWeatherRadioState.radio.songs;
+  if (weatherSongs && weatherSongs.length) weatherSongs.slice(0, 10).forEach(push);
+  HOME_COMMENT_SEED_SONGS.forEach(function(s){ push(Object.assign({ type: 'netease' }, s)); });
+  return pool;
+}
+function pickRandomHomeCommentSong(excludeSongKey) {
+  var pool = collectHomeCommentSongPool();
+  if (!pool.length) return null;
+  if (excludeSongKey && pool.length > 1) {
+    var filtered = pool.filter(function(song){
+      var isQQ = songProviderKey(song) === 'qq';
+      var key = isQQ ? ('qq:' + (song.mid || song.songmid || song.id || '')) : ('ne:' + (song.id || ''));
+      return key !== excludeSongKey;
+    });
+    if (filtered.length) pool = filtered;
+  }
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+function renderHomeSpotlightComment() {
+  var textEl = document.getElementById('home-comment-text');
+  var userEl = document.getElementById('home-comment-user');
+  var likesEl = document.getElementById('home-comment-likes');
+  var songEl = document.getElementById('home-comment-song');
+  var kickerEl = document.getElementById('home-comment-kicker');
+  var coverEl = document.getElementById('home-comment-cover');
+  if (!textEl) return;
+  var st = homeCommentSpotlightState;
+  if (st.loading) {
+    textEl.textContent = '正在精选乐评…';
+    if (userEl) userEl.textContent = '—';
+    if (likesEl) likesEl.textContent = '';
+    if (songEl) songEl.textContent = '—';
+    if (kickerEl) kickerEl.textContent = '精选乐评';
+    if (coverEl) {
+      coverEl.classList.add('home-skeleton');
+      coverEl.classList.remove('has-cover');
+      coverEl.style.backgroundImage = '';
+    }
+    return;
+  }
+  if (st.error || !st.comment || !st.song) {
+    textEl.textContent = st.error || '暂时还没有合适的乐评，刷新页面或点「换一条」试试。';
+    if (userEl) userEl.textContent = '—';
+    if (likesEl) likesEl.textContent = '';
+    if (songEl) songEl.textContent = '—';
+    if (kickerEl) kickerEl.textContent = '精选乐评';
+    if (coverEl) {
+      coverEl.classList.remove('home-skeleton', 'has-cover');
+      coverEl.style.backgroundImage = '';
+    }
+    return;
+  }
+  var c = st.comment;
+  var song = st.song;
+  textEl.textContent = '「' + truncateHomeCommentText(c.content, 220) + '」';
+  if (userEl) userEl.textContent = (c.user && c.user.nickname) || '音乐用户';
+  if (likesEl) {
+    var likes = Math.max(0, Number(c.likedCount) || 0);
+    var hotHtml = (st.isHot || likes >= 80) ? '<span class="home-comment-hot">热评</span>' : '';
+    likesEl.innerHTML = hotHtml + (likes ? (likes + ' 赞') : '');
+  }
+  if (songEl) songEl.innerHTML = '来自 <strong>' + escHtml(song.name || '未知歌曲') + '</strong> · ' + escHtml(song.artist || '未知歌手');
+  if (kickerEl) kickerEl.textContent = (st.isHot ? '精选热评 · ' : '精选乐评 · ') + (songProviderKey(song) === 'qq' ? 'QQ 音乐' : '网易云');
+  if (coverEl) {
+    coverEl.classList.remove('home-skeleton');
+    var cover = songCoverSrc(song, 400);
+    if (cover) {
+      coverEl.style.backgroundImage = 'url("' + cssImageUrl(cover) + '")';
+      coverEl.classList.add('has-cover');
+    } else {
+      coverEl.style.backgroundImage = '';
+      coverEl.classList.remove('has-cover');
+    }
+  }
+}
+function ensureHomeSpotlightComment() {
+  if (!document.getElementById('home-comment-text')) return;
+  if (homeCommentSpotlightState.bootstrapped) {
+    renderHomeSpotlightComment();
+    return;
+  }
+  if (homeCommentSpotlightState.loading) return;
+  loadHomeSpotlightComment(false);
+}
+async function loadHomeSpotlightComment(force) {
+  if (!document.getElementById('home-comment-text')) return;
+  if (!force) {
+    if (homeCommentSpotlightState.bootstrapped) {
+      renderHomeSpotlightComment();
+      return;
+    }
+    if (homeCommentSpotlightState.loading) return;
+  } else if (homeCommentSpotlightState.loading) {
+    return;
+  }
+  var token = ++homeCommentSpotlightState.token;
+  homeCommentSpotlightState.loading = true;
+  homeCommentSpotlightState.error = '';
+  if (force) {
+    homeCommentSpotlightState.song = null;
+    homeCommentSpotlightState.comment = null;
+    homeCommentSpotlightState.isHot = false;
+  }
+  renderHomeSpotlightComment();
+  var found = false;
+  var tries = 0;
+  var lastSongKey = '';
+  var maxTries = force ? 5 : 3;
+  while (tries < maxTries && token === homeCommentSpotlightState.token && !found) {
+    tries++;
+    var song = pickRandomHomeCommentSong(lastSongKey);
+    if (!song) {
+      homeCommentSpotlightState.error = '暂无可用歌曲';
+      break;
+    }
+    var isQQ = songProviderKey(song) === 'qq';
+    lastSongKey = isQQ ? ('qq:' + (song.mid || song.songmid || song.id || '')) : ('ne:' + (song.id || ''));
+    try {
+      var commentUrl = isQQ
+        ? ('/api/qq/song/comments?id=' + encodeURIComponent(song.qqId || '') + '&mid=' + encodeURIComponent(song.mid || song.songmid || song.id || '') + '&limit=40')
+        : ('/api/song/comments?id=' + encodeURIComponent(song.id) + '&limit=40');
+      var resp = await apiJson(commentUrl);
+      if (token !== homeCommentSpotlightState.token) return;
+      var comment = pickQualityHomeComment(resp && resp.comments, resp, { skipKeys: homeCommentSpotlightState.recentKeys });
+      if (comment) {
+        homeCommentSpotlightState.song = song;
+        homeCommentSpotlightState.comment = comment;
+        homeCommentSpotlightState.isHot = !!(resp && resp.hot) || (Number(comment.likedCount) || 0) >= 80;
+        homeCommentSpotlightState.error = '';
+        rememberHomeCommentKey(song, comment);
+        found = true;
+      }
+    } catch (err) {
+      console.warn('[HomeCommentSpotlight]', err);
+    }
+  }
+  if (token !== homeCommentSpotlightState.token) return;
+  if (!found && !homeCommentSpotlightState.error) {
+    homeCommentSpotlightState.error = '乐评加载失败，请稍后再试';
+    homeCommentSpotlightState.song = null;
+    homeCommentSpotlightState.comment = null;
+  }
+  homeCommentSpotlightState.loading = false;
+  homeCommentSpotlightState.bootstrapped = true;
+  renderHomeSpotlightComment();
+}
+function playHomeSpotlightComment() {
+  var song = homeCommentSpotlightState.song;
+  if (!song) {
+    showToast('当前还没有可播放的歌曲');
+    return;
+  }
+  playQueue = [cloneSong(song)];
+  currentIdx = 0;
+  safeRenderQueuePanel('home-comment-play');
+  playQueueAt(0).catch(function(e){ console.warn('[HomeCommentPlay]', e); });
+}
+function openHomeSpotlightCommentDetail() {
+  var song = homeCommentSpotlightState.song;
+  if (!song) return;
+  openTrackDetailModal('song', song);
+}
 function fallbackHomeTiles() {
   return [
     { kind: 'login', title: '登录同步歌单', sub: '网易云 / QQ 音乐' },
@@ -16155,6 +16485,7 @@ function updateEmptyHomeVisibility(opts) {
       renderHomeDiscover();
       scheduleVisualApply(function(){ loadHomeDiscover(!!opts.forceLoad); }, 220, 1200);
     }
+    ensureHomeSpotlightComment();
   }
   return show;
 }
