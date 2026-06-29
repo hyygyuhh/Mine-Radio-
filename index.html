@@ -341,6 +341,8 @@ body.empty-home-active.controls-visible #empty-home{bottom:128px}
 
 /* ---------- 顶部右侧按钮 ---------- */
 #top-right{position:fixed;z-index:10;top:24px;right:24px;display:flex;align-items:center;gap:10px}
+#web-diy-mode-btn{display:none}
+body.web-shell #web-diy-mode-btn{display:flex;min-width:68px;height:38px;font-size:11px}
 .icon-btn{width:44px;height:44px;border:1px solid rgba(255,255,255,0.08);border-radius:50%;background:rgba(255,255,255,0.035);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);color:rgba(255,255,255,0.55);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .3s;font-family:inherit;padding:0}
 .icon-btn:hover{background:rgba(255,255,255,0.09);border-color:rgba(255,255,255,0.18);color:#fff;transform:scale(1.04)}
 .icon-btn.active{color:var(--champagne);border-color:rgba(244,210,138,0.44);background:rgba(244,210,138,0.10)}
@@ -1995,6 +1997,7 @@ html.control-glass-svg-ok #visual-guide-btn:hover{
 <!-- 顶部右侧 (只保留用户) -->
 <div id="top-right">
   <button id="user-capsule-hide-btn" class="user-capsule-hide-btn" type="button" onclick="toggleUserCapsuleAutoHide(event)" title="自动隐藏账号胶囊">‹</button>
+  <button id="web-diy-mode-btn" class="desktop-mode-btn" type="button" onclick="toggleDiyMode()" title="开启 DIY 玩家模式" aria-label="开启 DIY 玩家模式" aria-pressed="false">DIY</button>
   <button id="home-btn" class="icon-btn" onclick="goHome()" title="回到 Home" aria-label="回到 Home">
     <svg width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><path d="M3 10.8 12 3l9 7.8"/><path d="M5 10v10h14V10"/><path d="M9.5 20v-5h5v5"/></svg>
   </button>
@@ -2993,7 +2996,7 @@ function isDiyMode() {
   return !!diyPlayerMode;
 }
 function syncDiyModeButton() {
-  ['diy-mode-btn', 'fullscreen-diy-btn'].forEach(function(id) {
+  ['diy-mode-btn', 'fullscreen-diy-btn', 'web-diy-mode-btn'].forEach(function(id) {
     var btn = document.getElementById(id);
     if (!btn) return;
     btn.classList.toggle('on', diyPlayerMode);
@@ -3022,7 +3025,7 @@ function applyDiyMode(on, opts) {
   }
   if (opts.toast) showToast(diyPlayerMode ? 'DIY 玩家模式已开启' : '已切回简约模式');
   if (opts.animate && window.gsap) {
-    ['diy-mode-btn', 'fullscreen-diy-btn'].forEach(function(id) {
+    ['diy-mode-btn', 'fullscreen-diy-btn', 'web-diy-mode-btn'].forEach(function(id) {
       var btn = document.getElementById(id);
       if (btn) window.gsap.fromTo(btn, { scale: 0.94 }, { scale: 1, duration: 0.34, ease: 'back.out(1.8)', overwrite: true });
     });
@@ -3695,9 +3698,11 @@ function updateDesktopRuntimeState(state) {
 }
 function installRenderPowerHooks() {
   updateRenderPowerClasses();
+  installMediaSessionHandlers();
   document.addEventListener('visibilitychange', function(){
     updateRenderPowerClasses();
     applyRendererPowerMode();
+    onWebPlaybackVisibilityChange();
     if (!isDeepBackgroundMode()) recoverVisualsAfterBackground('visibilitychange');
   });
   window.addEventListener('focus', function(){
@@ -10154,6 +10159,10 @@ async function analyzeMusicTempoInWorker(buffer, token) {
 
 function scheduleBeatAnalysis(songId, audioUrl, token, song) {
   if (!songId || !audioUrl) return;
+  if (mineradioUsesWebMediaBridge()) {
+    hideBeatChip();
+    return;
+  }
   if (djMode.active) {
     cancelBeatAnalysisTimer();
     beatAnalysisStartedAt = 0;
@@ -10327,6 +10336,7 @@ async function fetchBeatPrefetchAudioUrl(song) {
 }
 
 function scheduleQueueBeatPrefetch(fromIdx, delayMs, state) {
+  if (mineradioUsesWebMediaBridge()) return;
   cancelBeatPrefetchTimer();
   if (!playQueue.length || beatPrefetchBusy || localBeatAnalysis.active) return;
   var prefetchState = normalizeBeatPrefetchState(state);
@@ -10394,6 +10404,10 @@ async function runQueueBeatPrefetch(fromIdx, token, seq, state) {
 
 async function analyzeAudioBeats(audioUrl, durationSec, token, options) {
   options = options || {};
+  if (mineradioUsesWebMediaBridge()) {
+    hideBeatChip();
+    return null;
+  }
   var analysisProfile = cinemaAnalysisProfileForSong(options.song);
   var softGrooveAnalysis = !!(analysisProfile && analysisProfile.softGroove);
   try {
@@ -15302,13 +15316,87 @@ function audioProxyPathFromDirect(url) {
   return '/api/audio?url=' + encodeURIComponent(url);
 }
 var webPlaybackUnlockDone = false;
+var webPlaybackOptimInstalled = false;
+
+function installWebPlaybackOptimizations() {
+  if (!mineradioUsesWebMediaBridge() || webPlaybackOptimInstalled) return;
+  webPlaybackOptimInstalled = true;
+  installMediaSessionHandlers();
+}
+
+function installMediaSessionHandlers() {
+  if (!navigator.mediaSession || navigator.mediaSession.__mineradioBound) return;
+  try {
+    navigator.mediaSession.setActionHandler('play', function(){ togglePlay(); });
+    navigator.mediaSession.setActionHandler('pause', function(){ togglePlay(); });
+    navigator.mediaSession.setActionHandler('previoustrack', function(){ prevTrack(); });
+    navigator.mediaSession.setActionHandler('nexttrack', function(){ nextTrack(); });
+    navigator.mediaSession.__mineradioBound = true;
+  } catch (err) {
+    console.warn('[MediaSession]', err);
+  }
+}
+
+function updateMediaSessionForSong(song) {
+  if (!navigator.mediaSession || !song) return;
+  var title = String(song.name || song.title || '未知歌曲');
+  var artist = String(song.artist || '');
+  var album = String(song.album || '');
+  var artwork = [];
+  var cover = songCoverSrc(song, 400) || song.cover || '';
+  if (cover) artwork.push({ src: cover, sizes: '400x400', type: 'image/jpeg' });
+  try {
+    navigator.mediaSession.metadata = new MediaMetadata({ title: title, artist: artist, album: album, artwork: artwork });
+  } catch (err) {
+    console.warn('[MediaSession metadata]', err);
+  }
+  syncMediaSessionPlaybackState();
+}
+
+function syncMediaSessionPlaybackState() {
+  if (!navigator.mediaSession) return;
+  try {
+    navigator.mediaSession.playbackState = (audio && audio.src && !audio.paused && !audio.ended) ? 'playing' : 'paused';
+  } catch (err) {}
+}
+
+function recoverWebPlaybackAfterForeground(reason) {
+  if (!mineradioUsesWebMediaBridge() || !audio || !audio.src || audio.error) return;
+  if (audio.paused && playing) {
+    var resume = audio.play();
+    if (resume && resume.catch) resume.catch(function(){});
+  }
+  syncMediaSessionPlaybackState();
+  if (reason && window.__mineradioDebugPlayback) console.log('[WebPlaybackRecover]', reason);
+}
+
+function onWebPlaybackVisibilityChange() {
+  if (!mineradioUsesWebMediaBridge()) return;
+  if (document.hidden) {
+    cancelBeatPrefetchTimer();
+    cancelBeatAnalysisTimer();
+    return;
+  }
+  recoverWebPlaybackAfterForeground('visibilitychange');
+}
+
+function configureWebPlaybackAudioElement(audioEl) {
+  if (!audioEl || audioEl._mineradioWebAudioBound) return;
+  audioEl._mineradioWebAudioBound = true;
+  audioEl.setAttribute('preload', 'metadata');
+  audioEl.setAttribute('playsinline', '');
+  audioEl.playsInline = true;
+}
+
 function configurePlaybackAudioElement(audioEl, srcUrl) {
   if (!audioEl) return;
   if (mineradioUsesWebMediaBridge()) {
     audioEl.removeAttribute('crossorigin');
     audioEl.crossOrigin = null;
+    configureWebPlaybackAudioElement(audioEl);
     return;
   }
+  audioEl.setAttribute('preload', 'auto');
   audioEl.crossOrigin = 'anonymous';
 }
 function primeWebPlaybackUnlockIfNeeded(opts) {
@@ -18501,7 +18589,48 @@ function syncPlaybackStateFromAudioEvent(reason) {
   setPlayIcon(isPlaying);
   if (!isPlaying) hideLoading();
   if (reason === 'play' || reason === 'playing') switchPlaybackVisualToEmily();
+  syncMediaSessionPlaybackState();
   forcePlaybackControlsInteractive();
+}
+
+function deferPlaybackBeatmapPrep(opts) {
+  void (async function(){
+    var song = opts.song;
+    var bmKey = opts.bmKey;
+    var bmTok = opts.bmTok;
+    try {
+      if (bmTok !== beatMapToken) return;
+      if (mineradioUsesWebMediaBridge()) {
+        hideBeatChip();
+        return;
+      }
+      if (opts.podcastDjMode) {
+        var djKey = djSongKey(song);
+        if (djBeatMapCache[djKey]) return;
+        var djDurationSec = Math.max(0, Number(song.duration) || 0);
+        if (djDurationSec > 10000) djDurationSec /= 1000;
+        schedulePodcastDjAnalysis(djKey, opts.data.url, opts.djTok, djDurationSec);
+        return;
+      }
+      if (bmKey && beatMapCache[bmKey]) return;
+      var diskBeatMap = bmKey ? await readBeatDiskCache(bmKey) : null;
+      if (bmTok !== beatMapToken) return;
+      if (diskBeatMap) {
+        currentBeatMap = diskBeatMap;
+        applyCinemaProfileFromBeatMap(currentBeatMap);
+        syncBeatMapPlaybackCursor(audio ? audio.currentTime : 0);
+        notifyDesktopLyricsBeatMapReady();
+        console.log('beatmap D盘缓存命中:', currentBeatMap.kicks.length, '个鼓点');
+        return;
+      }
+      scheduleBeatAnalysis(bmKey || song.id, opts.proxyAudioUrl, bmTok, song);
+    } catch (err) {
+      console.warn('[PlaybackVisualPrepDeferred]', song && song.name, err);
+      currentBeatMap = null;
+      beatMapNextIdx = 0;
+      hideBeatChip();
+    }
+  })();
 }
 
 function isPlaybackRecursionError(err) {
@@ -18679,6 +18808,8 @@ async function playQueueAt(idx, opts) {
     scheduleAudioResumePosition(audio, opts.resumeAt, token);
     audio.load();
     markPlayPhase('visual-prep');
+    var beatmapPrepDeferred = false;
+    var deferredBeatmapOpts = null;
     try {
     // 重置 beatmap 状态
     currentBeatMap = null;
@@ -18704,11 +18835,12 @@ async function playQueueAt(idx, opts) {
         hideBeatChip();
         notifyDesktopLyricsBeatMapReady();
         console.log('podcast DJ beatmap 缓存命中:', currentDjBeatMap.cameraBeats.length, '个主拍');
+      } else if (mineradioUsesWebMediaBridge()) {
+        hideBeatChip();
       } else {
         showBeatChip('DJ 离线锁拍准备中…');
-        var djDurationSec = Math.max(0, Number(song.duration) || 0);
-        if (djDurationSec > 10000) djDurationSec /= 1000;
-        schedulePodcastDjAnalysis(djKey, data.url, djTok, djDurationSec);
+        beatmapPrepDeferred = true;
+        deferredBeatmapOpts = { song: song, idx: idx, bmKey: bmKey, bmTok: bmTok, podcastDjMode: true, proxyAudioUrl: proxyAudioUrl, data: data, djTok: djTok };
       }
       maybeAnnounceDjMode();
     } else if (bmKey && beatMapCache[bmKey]) {
@@ -18718,7 +18850,9 @@ async function playQueueAt(idx, opts) {
       syncBeatMapPlaybackCursor(audio ? audio.currentTime : 0);
       notifyDesktopLyricsBeatMapReady();
       console.log('beatmap 缓存命中:', currentBeatMap.kicks.length, '个鼓点');
-      scheduleQueueBeatPrefetch(idx, 2600);
+      if (!mineradioUsesWebMediaBridge()) scheduleQueueBeatPrefetch(idx, 2600);
+    } else if (mineradioUsesWebMediaBridge()) {
+      hideBeatChip();
     } else {
       var diskBeatMap = bmKey ? await readBeatDiskCache(bmKey) : null;
       if (diskBeatMap) {
@@ -18752,6 +18886,9 @@ async function playQueueAt(idx, opts) {
       }
       return;
     }
+    if (beatmapPrepDeferred && deferredBeatmapOpts) deferPlaybackBeatmapPrep(deferredBeatmapOpts);
+    installMediaSessionHandlers();
+    updateMediaSessionForSong(song);
     forcePlaybackControlsInteractive();
     markPlayPhase('session-begin');
     safePlaybackStep('listen-session-begin', function(){ beginListenSession(song, playbackContext); });
@@ -18793,8 +18930,12 @@ async function attemptAudioPlay(opts) {
   opts = opts || {};
   try {
       if (!audio) return false;
-      if (mineradioUsesWebMediaBridge() && audio.src) await waitForPlaybackAudioReady(audio, 8000);
-      if (!audioReady) initAudio();
+      if (mineradioUsesWebMediaBridge()) {
+        if (!audioReady) initAudio();
+      } else {
+        if (audio.src) await waitForPlaybackAudioReady(audio, 3500);
+        if (!audioReady) initAudio();
+      }
       if (opts.fade !== false) preparePlaybackFadeIn();
       if (opts.manual) {
         var manualPlay = audio.play();
@@ -24830,6 +24971,9 @@ function guideTargetRect(step) {
     document.body.classList.add('fullscreen-diy-peek');
   }
   var target = step && step.selector ? document.querySelector(useFullscreenDiyTarget ? '#fullscreen-diy-btn' : step.selector) : null;
+  if ((!target || target.offsetParent === null) && step && step.selector === '#diy-mode-btn') {
+    target = document.getElementById('web-diy-mode-btn') || target;
+  }
   if (target) {
     var style = window.getComputedStyle(target);
     var rect = target.getBoundingClientRect();
