@@ -10229,7 +10229,11 @@ function scheduleBeatAnalysis(songId, audioUrl, token, song) {
       return;
     }
     var startAnalysis = async function(){
-      if (token !== beatMapToken || !audio || audio.paused || beatMapCache[songId]) return;
+      if (token !== beatMapToken || !audio || beatMapCache[songId]) return;
+      if (audio.paused) {
+        beatAnalysisTimer = setTimeout(waitForQuietStart, 650);
+        return;
+      }
       var diskMap = await readBeatDiskCache(songId);
       if (diskMap) {
         applyBeatMapCacheForCurrent(songId, diskMap, token, 'D盘节拍缓存命中:');
