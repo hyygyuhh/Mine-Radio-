@@ -134,11 +134,7 @@
   }
 
   function bufferToBlobUrl(buffer, contentType) {
-    var bytes;
-    if (buffer instanceof ArrayBuffer) bytes = new Uint8Array(buffer);
-    else if (buffer instanceof Uint8Array) bytes = buffer;
-    else if (Array.isArray(buffer)) bytes = new Uint8Array(buffer);
-    else bytes = new Uint8Array(buffer || []);
+    var bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer || []);
     var blob = new Blob([bytes], { type: contentType || 'application/octet-stream' });
     return URL.createObjectURL(blob);
   }
@@ -146,41 +142,12 @@
   function handleBinaryApiResponse(path, query, data) {
     if (!data || !data.__binary) return null;
     if (data.error) throw new Error(data.error);
-    if (data.status && data.status >= 400) throw new Error('HTTP ' + data.status);
-    var buf = data.buffer;
-    var size = 0;
-    if (buf instanceof ArrayBuffer) size = buf.byteLength;
-    else if (buf instanceof Uint8Array) size = buf.byteLength;
-    else if (Array.isArray(buf)) size = buf.length;
-    if (!size) throw new Error('Empty binary response');
     var cacheKey = path + '?' + JSON.stringify(query || {});
     if (blobUrlCache.has(cacheKey)) return blobUrlCache.get(cacheKey);
-    var blobUrl = bufferToBlobUrl(buf, data.contentType);
+    var blobUrl = bufferToBlobUrl(data.buffer, data.contentType);
     blobUrlCache.set(cacheKey, blobUrl);
     return blobUrl;
   }
-
-  function binaryPayloadToArrayBuffer(data) {
-    if (!data || !data.__binary) return null;
-    if (data.error || (data.status && data.status >= 400)) return null;
-    var buf = data.buffer;
-    if (buf instanceof ArrayBuffer) return buf;
-    if (buf instanceof Uint8Array) return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
-    if (Array.isArray(buf) && buf.length) return new Uint8Array(buf).buffer;
-    return null;
-  }
-
-  async function fetchBeatAnalysisAudioBuffer(url) {
-    if (!url || !/^https?:/i.test(String(url))) return null;
-    var ready = await waitForBridge(12000);
-    if (!ready) return null;
-    var data = await extensionApiRequest('/api/audio', { url: String(url) }, {
-      timeoutMs: 180000,
-      headers: { range: 'bytes=0-4194303' },
-    });
-    return binaryPayloadToArrayBuffer(data);
-  }
-  global.__mineradioFetchBeatAnalysisBuffer = fetchBeatAnalysisAudioBuffer;
 
   function localBeatmapGet(key) {
     return beatmapCache[key] || { ok: false, hit: false };
@@ -229,7 +196,7 @@
 
     var ready = await waitForBridge(opts.bridgeTimeoutMs || 10000);
     if (!ready) {
-      throw new Error('未检测到 Mineradio Bridge 扩展（' + bridgeHintHost() + '）。请在 chrome://extensions 重新加载扩展后刷新本页。');
+      throw new Error('未检测到 Mineradio Bridge 扩展（' + bridgeHintHost() + '）。请重新加载扩展后刷新页面；建议用 http://127.0.0.1:端口 而不是 [::1]。');
     }
 
     var data = await extensionApiRequest(path, query, opts);
@@ -340,11 +307,9 @@
     };
     document.documentElement.classList.add('web-shell-root');
     if (document.body) document.body.classList.add('web-shell');
-    if (typeof global.installWebPlaybackOptimizations === 'function') global.installWebPlaybackOptimizations();
     waitForBridge(5000).then(function (ready) {
       if (!ready) console.warn('[Mineradio Web] Bridge extension not detected.');
       else console.info('[Mineradio Web] Bridge ready', bridgeVersion);
-      if (typeof global.installWebPlaybackOptimizations === 'function') global.installWebPlaybackOptimizations();
     });
     return true;
   }
