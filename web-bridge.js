@@ -105,11 +105,13 @@
   function extensionApiRequest(path, query, opts) {
     opts = opts || {};
     var id = 'req_' + (++requestSeq);
+    var apiTimeout = opts.timeoutMs || opts.bridgeTimeoutMs ||
+      ((path === '/api/audio' && query && query.purpose === 'analysis') ? 180000 : REQUEST_TIMEOUT_MS);
     return new Promise(function (resolve, reject) {
       var timer = setTimeout(function () {
         pendingRequests.delete(id);
         reject(new Error('扩展 API 超时: ' + path));
-      }, opts.timeoutMs || REQUEST_TIMEOUT_MS);
+      }, apiTimeout);
       pendingRequests.set(id, {
         resolve: function (payload) {
           clearTimeout(timer);
@@ -139,12 +141,22 @@
     return URL.createObjectURL(blob);
   }
 
+  function normalizeBinaryBuffer(raw) {
+    if (!raw) return null;
+    if (raw instanceof ArrayBuffer) return raw;
+    if (ArrayBuffer.isView(raw)) return raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength);
+    if (Array.isArray(raw)) return new Uint8Array(raw).buffer;
+    return null;
+  }
+
   function handleBinaryApiResponse(path, query, data) {
     if (!data || !data.__binary) return null;
     if (data.error) throw new Error(data.error);
     var cacheKey = path + '?' + JSON.stringify(query || {});
     if (blobUrlCache.has(cacheKey)) return blobUrlCache.get(cacheKey);
-    var blobUrl = bufferToBlobUrl(data.buffer, data.contentType);
+    var buffer = normalizeBinaryBuffer(data.buffer);
+    if (!buffer || !buffer.byteLength) return null;
+    var blobUrl = bufferToBlobUrl(buffer, data.contentType);
     blobUrlCache.set(cacheKey, blobUrl);
     return blobUrl;
   }
@@ -202,8 +214,26 @@
     var data = await extensionApiRequest(path, query, opts);
 
     if (path === '/api/cover' || path === '/api/audio') {
+      if (path === '/api/audio' && query.purpose === 'analysis') {
+        if (data && data.__binary) {
+          var analysisBuffer = normalizeBinaryBuffer(data.buffer);
+          if (analysisBuffer && analysisBuffer.byteLength) {
+            return {
+              __binary: true,
+              buffer: analysisBuffer,
+              contentType: data.contentType || 'application/octet-stream',
+            };
+          }
+        }
+        if (query.url) {
+          throw new Error('扩展未能代理音频，节奏分析不可用。请确认 Mineradio Bridge 已启用并刷新页面。');
+        }
+      }
       var blobUrl = handleBinaryApiResponse(path, query, data);
       if (path === '/api/audio' && !blobUrl && query.url) {
+        if (query.purpose === 'analysis') {
+          throw new Error('扩展未能代理音频，节奏分析不可用。请确认 Mineradio Bridge 已启用并刷新页面。');
+        }
         return { url: query.url, direct: true };
       }
       if (blobUrl) {
