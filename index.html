@@ -3,13 +3,29 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mineradio</title>
+<title>Mineradio — 网页版音乐可视化播放器</title>
+<meta name="description" content="Mineradio 网页版 — 暗色高级音乐可视化播放器。搜索播放、歌单、歌词、3D 歌单架与粒子视觉预设；配合 Mineradio Bridge 浏览器扩展即可使用。">
+<meta name="keywords" content="Mineradio,音乐播放器,网页版,音乐可视化,Bridge扩展">
+<link rel="canonical" href="https://mineradio.art/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Mineradio">
+<meta property="og:title" content="Mineradio — 网页版音乐可视化播放器">
+<meta property="og:description" content="Mineradio 网页版 — 暗色高级音乐可视化播放器。搜索播放、歌单、歌词、3D 歌单架与粒子视觉预设；配合 Mineradio Bridge 浏览器扩展即可使用。">
+<meta property="og:url" content="https://mineradio.art/">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://mineradio.art/icons/icon512.png">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Mineradio — 网页版音乐可视化播放器">
+<meta name="twitter:description" content="Mineradio 网页版 — 暗色高级音乐可视化播放器。搜索播放、歌单、歌词、3D 歌单架与粒子视觉预设；配合 Mineradio Bridge 浏览器扩展即可使用。">
+<meta name="twitter:image" content="https://mineradio.art/icons/icon512.png">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#08090B">
-<link rel="icon" type="image/png" sizes="32x32" href="icons/icon32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="icons/icon16.png">
-<link rel="icon" type="image/png" sizes="512x512" href="icons/icon512.png">
-<link rel="apple-touch-icon" sizes="180x180" href="icons/icon180.png">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="48x48" href="/icons/icon48.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/icon32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/icons/icon16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/icons/icon180.png">
+<link rel="manifest" href="/manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Inter:wght@200;300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700;900&family=UnifrakturCook:wght@700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
@@ -2556,7 +2572,7 @@ html.control-glass-svg-ok #visual-guide-btn:hover{
 <input type="file" id="file-input" accept=".mp3,.flac,.wav,.ogg,.m4a,.jpg,.jpeg,.png,.webp" multiple style="display:none">
 <input type="file" id="background-image-input" accept=".jpg,.jpeg,.png,.webp,.mp4,.webm,.mov,image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" style="display:none">
 <div id="drop-overlay"><div class="drop-text">拖放音乐或封面</div></div>
-<div id="free-camera-hint"><b>自由镜头</b> R 固定/退出 · WASD 移动 · 鼠标转向 · Shift 加速 · Space/Ctrl 升降 · Q/E 轻微旋转 · 滚轮景深 · K 回正</div>
+<div id="free-camera-hint"></div>
 <div id="loading-overlay"><div class="spinner"></div></div>
 
 <canvas id="login-guide-canvas" aria-hidden="true"></canvas>
@@ -4097,9 +4113,19 @@ function applyFreeCameraToCamera() {
   camPunch *= 0.86;
   return true;
 }
+var FREE_CAMERA_HINT_HTML = '<b>自由镜头</b> R 固定/退出 · WASD 移动 · 鼠标转向 · Shift 加速 · Space/Ctrl 升降 · Q/E 轻微旋转 · 滚轮景深 · K 回正';
+function ensureFreeCameraHintContent() {
+  var el = document.getElementById('free-camera-hint');
+  if (!el || el.dataset.ready === '1') return;
+  el.innerHTML = FREE_CAMERA_HINT_HTML;
+  el.dataset.ready = '1';
+}
 function updateFreeCameraHint() {
   var el = document.getElementById('free-camera-hint');
-  if (el) el.classList.toggle('show', !!(freeCamera && freeCamera.active));
+  if (el) {
+    if (freeCamera && freeCamera.active) ensureFreeCameraHintContent();
+    el.classList.toggle('show', !!(freeCamera && freeCamera.active));
+  }
 }
 function resetFreeCameraToDefault() {
   if (!freeCamera) return;
