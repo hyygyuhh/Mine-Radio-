@@ -211,7 +211,11 @@
       throw new Error('未检测到 Mineradio Bridge 扩展（' + bridgeHintHost() + '）。请重新加载扩展后刷新页面；建议用 http://127.0.0.1:端口 而不是 [::1]。');
     }
 
-    var data = await extensionApiRequest(path, query, opts);
+    var apiOpts = Object.assign({}, opts);
+    if (path === '/api/audio' && query.purpose === 'analysis' && !apiOpts.headers) {
+      apiOpts.headers = { Range: 'bytes=0-4194303' };
+    }
+    var data = await extensionApiRequest(path, query, apiOpts);
 
     if (path === '/api/cover' || path === '/api/audio') {
       if (path === '/api/audio' && query.purpose === 'analysis') {
@@ -348,6 +352,13 @@
     patchFetchTransport();
     patchApiJsonTransport();
     installWebShell();
+  };
+
+  global.__mineradioNotifyApiJsonReady = function () {
+    if (patchApiJsonTransport() && apiJsonPoll) {
+      clearInterval(apiJsonPoll);
+      apiJsonPoll = null;
+    }
   };
 
   function startBridgePingLoop() {

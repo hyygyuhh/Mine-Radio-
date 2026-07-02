@@ -10,7 +10,10 @@
 <link rel="icon" type="image/png" sizes="16x16" href="icons/icon16.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icons/icon512.png">
 <link rel="apple-touch-icon" sizes="180x180" href="icons/icon180.png">
-<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Inter:wght@200;300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700;900&family=UnifrakturCook:wght@700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Inter:wght@200;300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700;900&family=UnifrakturCook:wght@700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Inter:wght@200;300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700;900&family=UnifrakturCook:wght@700&display=swap" rel="stylesheet"></noscript>
 <script src="vendor/three.r128.min.js"></script>
 <script src="vendor/music-tempo.min.js"></script>
 <script src="vendor/gsap.min.js"></script>
@@ -832,7 +835,19 @@ body.login-guide-active #login-guide-canvas{opacity:1}
 .modal{position:relative;background:linear-gradient(180deg,rgba(24,23,26,0.96),rgba(12,11,12,0.92));border:1px solid rgba(244,210,138,0.16);border-radius:18px;padding:32px;max-width:380px;width:90vw;text-align:center;box-shadow:0 26px 90px rgba(0,0,0,.56),0 0 0 1px rgba(255,255,255,.035),inset 0 1px 0 rgba(255,255,255,.07);will-change:opacity,transform,filter}
 .modal h2{font-size:18px;font-weight:500;letter-spacing:.5px;margin-bottom:18px;color:rgba(255,255,255,0.95)}
 .modal .desc{font-size:12.5px;color:rgba(255,255,255,0.5);margin-bottom:20px;line-height:1.6}
+#login-modal.modal-mask.show{align-items:flex-start;justify-content:center;padding:max(18px,env(safe-area-inset-top,0px)) 0 max(18px,env(safe-area-inset-bottom,0px));overflow-y:auto;overscroll-behavior:contain}
 .dual-login-modal,.dual-user-modal{width:min(470px,92vw);max-width:min(470px,92vw)}
+.dual-login-modal{max-height:min(calc(100vh - 36px),920px);overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:rgba(244,210,138,.22) transparent}
+.dual-login-modal::-webkit-scrollbar{width:4px}
+.dual-login-modal::-webkit-scrollbar-thumb{background:rgba(244,210,138,.22);border-radius:4px}
+.dual-login-modal.has-extension-panel{padding:24px 26px 26px}
+.dual-login-modal.has-extension-panel .login-intro{margin:-2px 0 12px;padding:12px 13px}
+.dual-login-modal.has-extension-panel .login-platform-tabs{margin-bottom:14px}
+.dual-login-modal.has-extension-panel h2{margin-bottom:12px}
+.dual-login-modal.has-extension-panel .desc{margin-bottom:14px}
+.dual-login-modal.has-extension-panel .qr-shell{width:168px;height:168px;margin-bottom:12px}
+.dual-login-modal.has-extension-panel #qr-status{margin-bottom:10px}
+.dual-login-modal.has-extension-panel .btn-row{margin-top:12px;padding-bottom:2px}
 .login-intro{margin:-6px 0 16px;padding:14px 15px;border-radius:14px;border:1px solid rgba(255,255,255,.075);background:linear-gradient(135deg,rgba(255,83,103,.09),rgba(244,210,138,.055),rgba(255,255,255,.025));text-align:left}
 .login-intro-kicker{font-size:10px;font-weight:780;letter-spacing:.18em;color:rgba(244,210,138,.72);text-transform:uppercase;margin-bottom:6px}
 .login-intro-title{font-size:18px;font-weight:760;line-height:1.18;color:rgba(255,255,255,.95);letter-spacing:0;margin-bottom:6px}
@@ -883,6 +898,33 @@ body.login-guide-active #login-guide-canvas{opacity:1}
 .account-hint{margin-top:10px;font-size:11px;line-height:1.45;color:rgba(255,255,255,.38)}
 .modal .btn-row{display:flex;gap:10px;justify-content:center;margin-top:16px}
 .dual-login-modal .btn-row{flex-wrap:wrap}
+.login-extension-panel{display:none;margin:0 0 12px;padding:12px 13px;border-radius:14px;border:1px solid rgba(0,245,212,.14);background:linear-gradient(135deg,rgba(0,245,212,.08),rgba(244,210,138,.045),rgba(255,255,255,.02));text-align:left}
+.login-extension-panel.show{display:block}
+.login-extension-panel.ready{padding:10px 12px;margin-bottom:10px}
+.login-extension-panel.ready .login-extension-body,.login-extension-panel.ready .login-extension-steps,.login-extension-panel.ready .login-extension-foot{display:none}
+.login-extension-panel.ready .login-extension-head{margin-bottom:0}
+.login-extension-panel.ready .login-extension-actions{margin-top:8px}
+.login-extension-panel.ready .login-extension-actions .modal-btn.primary{display:none}
+.login-extension-head{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.login-extension-icon{flex-shrink:0;width:42px;height:42px;border-radius:12px;overflow:hidden;border:1px solid rgba(0,245,212,.24);box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 8px 18px rgba(0,0,0,.24);background:#0a0b0d}
+.login-extension-icon img{width:100%;height:100%;display:block;object-fit:cover}
+.login-extension-meta{min-width:0;flex:1}
+.login-extension-title{font-size:13px;font-weight:760;color:rgba(255,255,255,.94);letter-spacing:.2px;margin-bottom:3px}
+.login-extension-status{font-size:11px;line-height:1.45;color:rgba(255,255,255,.48)}
+.login-extension-status.ready{color:#8ef6dd}
+.login-extension-status.missing{color:#ffb4b4}
+.login-extension-badge{flex-shrink:0;height:22px;padding:0 9px;border-radius:999px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.04);font-size:10px;font-weight:700;letter-spacing:.35px;color:rgba(255,255,255,.56);display:inline-flex;align-items:center;justify-content:center}
+.login-extension-badge.ready{color:#06241f;border-color:rgba(0,245,212,.34);background:rgba(0,245,212,.16)}
+.login-extension-badge.missing{color:#ffd7dc;border-color:rgba(255,83,103,.28);background:rgba(255,83,103,.10)}
+.login-extension-body{font-size:11px;line-height:1.52;color:rgba(255,255,255,.52);margin-bottom:8px}
+.login-extension-steps{margin:0 0 10px 16px;padding:0;font-size:10px;line-height:1.48;color:rgba(255,255,255,.42)}
+.login-extension-steps li+li{margin-top:3px}
+.login-extension-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
+.login-extension-actions .modal-btn{padding:7px 12px;font-size:11px}
+.login-extension-actions .modal-btn.primary{flex:1;min-width:136px}
+.login-extension-foot{margin-top:8px;font-size:10px;line-height:1.42;color:rgba(255,255,255,.30)}
+.login-extension-foot button{border:0;background:none;padding:0;color:rgba(244,210,138,.72);cursor:pointer;font:inherit;text-decoration:underline;text-underline-offset:2px}
+.login-extension-foot button:hover{color:rgba(244,210,138,.96)}
 .modal-btn{padding:8px 20px;font-size:12.5px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.05);color:#fff;cursor:pointer;letter-spacing:.5px;transition:all .2s;font-family:inherit}
 .modal-btn:hover{background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.3)}
 .modal-btn.primary{background:rgba(244,210,138,0.14);border-color:rgba(244,210,138,0.50);color:var(--champagne)}
@@ -2532,6 +2574,27 @@ html.control-glass-svg-ok #visual-guide-btn:hover{
       <div class="login-intro-title">音乐播放器，也是一座视觉舞台</div>
       <div class="login-intro-body">搜索或导入一首歌即可播放；登录后会同步歌单、红心和播客，让封面、歌词和粒子跟着音乐动起来。</div>
     </div>
+    <div id="login-extension-panel" class="login-extension-panel" aria-live="polite">
+      <div class="login-extension-head">
+        <div class="login-extension-icon"><img src="icons/icon512.png" width="42" height="42" alt="Mineradio Bridge"></div>
+        <div class="login-extension-meta">
+          <div class="login-extension-title">Mineradio Bridge 扩展 <span id="login-extension-version">v1.2.8</span></div>
+          <div id="login-extension-status" class="login-extension-status">正在检测扩展…</div>
+        </div>
+        <span id="login-extension-badge" class="login-extension-badge">检测中</span>
+      </div>
+      <div class="login-extension-body">网页版搜索、播放和账号同步都依赖本机 Bridge 扩展代理音乐 API；请先安装扩展，再继续登录。</div>
+      <ol class="login-extension-steps">
+        <li>下载并解压扩展包</li>
+        <li>Chrome / Edge 打开扩展管理，开启开发者模式</li>
+        <li>选择「加载已解压的扩展程序」，指向解压后的文件夹</li>
+      </ol>
+      <div class="login-extension-actions">
+        <button id="login-extension-download-btn" class="modal-btn primary" type="button" onclick="downloadMineradioBridgeExtension()">下载 Bridge 扩展</button>
+        <button id="login-extension-refresh-btn" class="modal-btn" type="button" onclick="refreshLoginExtensionPanel()">重新检测</button>
+      </div>
+      <div class="login-extension-foot">安装后刷新本页；也可查看 <button type="button" onclick="openBridgeExtensionInstallGuide()">GitHub 安装说明</button></div>
+    </div>
     <h2 id="login-modal-title">登录网易云音乐</h2>
     <div id="login-modal-desc" class="desc">点击打开 <b>网易云音乐官方网页</b> 完成登录，返回后点击「刷新登录状态」。</div>
     <div id="qr-shell" class="qr-shell web-login-preview netease-preview">
@@ -2878,6 +2941,12 @@ var queuePanelDirty = false;
 var PLAYLIST_PANEL_BATCH_SIZE = 28;
 var playlistPanelRenderLimit = PLAYLIST_PANEL_BATCH_SIZE;
 var playlistPanelLazyBound = false;
+var QUEUE_PANEL_BATCH_SIZE = 36;
+var queuePanelRenderLimit = QUEUE_PANEL_BATCH_SIZE;
+var queuePanelLazyBound = false;
+var PODCAST_EPISODE_INITIAL = 32;
+var PODCAST_EPISODE_BATCH = 24;
+var podcastEpisodeRenderLimit = 0;
 var PLAYLIST_DETAIL_INITIAL_RENDER = 64;
 var PLAYLIST_DETAIL_BATCH_SIZE = 48;
 var smoothWheelScrollBound = false;
@@ -3145,6 +3214,13 @@ var beatAnalysisConfig = {
   idleTimeout: 1400,
   skipMusicTempoWhilePlaying: false
 };
+var provisionalBeatChipTimer = null;
+var beatAnalysisWatchdogTimer = null;
+var provisionalBeatMapKey = '';
+var BEAT_ANALYSIS_WEB_MAX_BYTES = 4200000;
+var BEAT_ANALYSIS_WEB_TIMEOUT_MS = 90000;
+var BEAT_ANALYSIS_WATCHDOG_MS = 120000;
+var PROVISIONAL_BEAT_CHIP_MAX_MS = 12000;
 var beatCam = {
   nextIdx: 0,
   events: [],
@@ -4435,12 +4511,61 @@ function scheduleUiWarmTask(fn, timeout) {
     requestAnimationFrame(fn);
   }
 }
+function scheduleWebStartupTask(fn, timeout) {
+  if (typeof fn !== 'function') return;
+  if (!mineradioUsesWebMediaBridge()) { fn(); return; }
+  var run = function(){ try { fn(); } catch (e) { console.warn('[WebStartup]', e); } };
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: timeout || 2800 });
+  else setTimeout(run, Math.min(1400, timeout || 1400));
+}
 
 function cancelBeatAnalysisTimer() {
   if (beatAnalysisTimer) {
     clearTimeout(beatAnalysisTimer);
     beatAnalysisTimer = null;
   }
+}
+function clearProvisionalBeatChipTimer() {
+  if (provisionalBeatChipTimer) {
+    clearTimeout(provisionalBeatChipTimer);
+    provisionalBeatChipTimer = null;
+  }
+}
+function cancelBeatAnalysisWatchdog() {
+  if (beatAnalysisWatchdogTimer) {
+    clearTimeout(beatAnalysisWatchdogTimer);
+    beatAnalysisWatchdogTimer = null;
+  }
+}
+function armBeatAnalysisWatchdog(token) {
+  cancelBeatAnalysisWatchdog();
+  beatAnalysisWatchdogTimer = setTimeout(function(){
+    beatAnalysisWatchdogTimer = null;
+    if (token !== beatMapToken) return;
+    if (!beatMapBusy) return;
+    console.warn('[BeatAnalysis] watchdog timeout, keeping provisional grid');
+    beatMapBusy = false;
+    hideBeatChip();
+    clearProvisionalBeatChipTimer();
+  }, BEAT_ANALYSIS_WATCHDOG_MS);
+}
+function scheduleProvisionalBeatChip(songId) {
+  clearProvisionalBeatChipTimer();
+  provisionalBeatMapKey = String(songId || '');
+  showBeatChip('临时节奏网格 · 精分析中…');
+  provisionalBeatChipTimer = setTimeout(function(){
+    provisionalBeatChipTimer = null;
+    if (beatMapBusy || beatAnalysisTimer) return;
+    if (currentBeatMap && currentBeatMap.provisional) hideBeatChip();
+  }, PROVISIONAL_BEAT_CHIP_MAX_MS);
+}
+function beatAnalysisFetchOptions() {
+  if (!mineradioUsesWebMediaBridge()) return {};
+  return {
+    headers: { Range: 'bytes=0-' + (BEAT_ANALYSIS_WEB_MAX_BYTES - 1) },
+    bridgeTimeoutMs: BEAT_ANALYSIS_WEB_TIMEOUT_MS,
+    timeoutMs: BEAT_ANALYSIS_WEB_TIMEOUT_MS
+  };
 }
 
 function cancelBeatPrefetchTimer() {
@@ -10233,16 +10358,22 @@ function hasResolvedBeatMapCache(songId) {
   return !!(map && !map.provisional);
 }
 function scheduleBeatAnalysis(songId, audioUrl, token, song, directAudioUrl) {
-  if (!songId || !audioUrl) return;
+  if (!songId || !audioUrl) {
+    hideBeatChip();
+    clearProvisionalBeatChipTimer();
+    return;
+  }
   if (djMode.active) {
     cancelBeatAnalysisTimer();
     beatAnalysisStartedAt = 0;
     hideBeatChip();
+    clearProvisionalBeatChipTimer();
     return;
   }
   cancelBeatAnalysisTimer();
+  cancelBeatAnalysisWatchdog();
   beatAnalysisStartedAt = 0;
-  hideBeatChip();
+  clearProvisionalBeatChipTimer();
   beatAnalysisTimer = setTimeout(function waitForQuietStart(){
     beatAnalysisTimer = null;
     if (token !== beatMapToken || !audio) return;
@@ -10271,19 +10402,28 @@ function scheduleBeatAnalysis(songId, audioUrl, token, song, directAudioUrl) {
         return;
       }
       beatAnalysisStartedAt = performance.now();
+      armBeatAnalysisWatchdog(token);
       analyzeAudioBeats(audioUrl, null, token, {
         skipMusicTempo: beatAnalysisConfig.skipMusicTempoWhilePlaying && !audio.paused,
         background: true,
         song: song || null,
         directUrl: directAudioUrl || ''
       }).then(function(map){
-        if (token !== beatMapToken || !map) return;
+        cancelBeatAnalysisWatchdog();
+        if (token !== beatMapToken) return;
+        if (!map) {
+          hideBeatChip();
+          clearProvisionalBeatChipTimer();
+          return;
+        }
         smoothBeatMapHandoff(songId, map, token, song || null);
       }).catch(function(err){
+        cancelBeatAnalysisWatchdog();
         console.warn('scheduled beat analysis failed:', err);
         hideBeatChip();
-        if (mineradioUsesWebMediaBridge() && !(currentBeatMap && currentBeatMap.provisional)) {
-          showToast('节奏精分析失败，已使用临时网格。请确认 Bridge 扩展已启用。');
+        clearProvisionalBeatChipTimer();
+        if (mineradioUsesWebMediaBridge() && currentBeatMap && currentBeatMap.provisional) {
+          showToast('节奏精分析失败，已继续使用临时网格。');
         }
       });
     };
@@ -11246,6 +11386,7 @@ async function analyzeAudioBeats(audioUrl, durationSec, token, options) {
     return null;
   } finally {
     beatMapBusy = false;
+    cancelBeatAnalysisWatchdog();
   }
 }
 
@@ -12566,7 +12707,7 @@ function ensurePlaybackBeatmapVisualFallback() {
     syncBeatMapPlaybackCursor(audio ? audio.currentTime : 0, true);
     return;
   }
-  maybeApplyProvisionalBeatMap(song, key);
+  maybeApplyProvisionalBeatMap(song, key, { silent: true });
 }
 function updateBeatmapFallbackVisualEnergy(dt) {
   var pulse = Math.max(beatPulse, scheduledBeatPulse * 0.76);
@@ -15279,6 +15420,7 @@ async function apiJson(url, opts) {
     if (timer) clearTimeout(timer);
   }
 }
+if (typeof window.__mineradioNotifyApiJsonReady === 'function') window.__mineradioNotifyApiJsonReady();
 function escHtml(s){ var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 function normalizePlaybackQuality(value) {
   value = String(value || '').toLowerCase();
@@ -15499,14 +15641,16 @@ function buildProvisionalBeatMap(song) {
     visualBeatCount: cameraBeats.length
   };
 }
-function maybeApplyProvisionalBeatMap(song, songId) {
+function maybeApplyProvisionalBeatMap(song, songId, opts) {
+  opts = opts || {};
   if (!mineradioUsesWebMediaBridge() || djMode.active || !songId) return false;
   if (hasResolvedBeatMapCache(songId)) return false;
+  if (currentBeatMap && currentBeatMap.provisional && provisionalBeatMapKey === String(songId)) return true;
   var map = buildProvisionalBeatMap(song);
   currentBeatMap = map;
   applyCinemaProfileFromBeatMap(map);
   syncBeatMapPlaybackCursor(audio ? audio.currentTime : 0);
-  showBeatChip('临时节奏网格 · 精分析中…');
+  if (!opts.silent) scheduleProvisionalBeatChip(songId);
   return true;
 }
 async function fetchAnalysisAudioArrayBuffer(analysisUrl, directUrl) {
@@ -15516,8 +15660,9 @@ async function fetchAnalysisAudioArrayBuffer(analysisUrl, directUrl) {
   if (mineradioUsesWebMediaBridge() && /^\/api\//i.test(analysisUrl)) {
     var payload = null;
     var fetchErr = null;
+    var webFetchOpts = beatAnalysisFetchOptions();
     try {
-      payload = await apiJson(analysisUrl, { bridgeTimeoutMs: 180000, timeoutMs: 180000 });
+      payload = await apiJson(analysisUrl, webFetchOpts);
     } catch (err) {
       fetchErr = err;
     }
@@ -15525,7 +15670,7 @@ async function fetchAnalysisAudioArrayBuffer(analysisUrl, directUrl) {
       var retryUrl = resolveBeatAnalysisAudioUrl(directUrl);
       if (retryUrl && retryUrl !== analysisUrl) {
         try {
-          payload = await apiJson(retryUrl, { bridgeTimeoutMs: 180000, timeoutMs: 180000 });
+          payload = await apiJson(retryUrl, webFetchOpts);
           fetchErr = null;
         } catch (err2) {
           fetchErr = err2;
@@ -15555,6 +15700,10 @@ async function fetchAnalysisAudioArrayBuffer(analysisUrl, directUrl) {
   return resp.arrayBuffer();
 }
 async function resolvePlaybackAudioUrl(url) {
+  url = String(url || '').trim();
+  if (!url) return '';
+  if (/^blob:/i.test(url) || /^data:/i.test(url)) return url;
+  if (mineradioUsesWebMediaBridge()) return url;
   return audioProxyPathFromDirect(url);
 }
 var webPlaybackUnlockDone = false;
@@ -15661,25 +15810,65 @@ function enrichListenRecord(record) {
   }
   return out;
 }
+var webCoverResolveState = { pending: 0, max: 4, waiters: [] };
+var homeCoverObserver = null;
+function runWebCoverResolveTask(factory) {
+  if (!mineradioUsesWebMediaBridge() || typeof window.__mineradioResolveCoverUrl !== 'function') {
+    return Promise.resolve(typeof factory === 'function' ? factory() : factory);
+  }
+  return new Promise(function(resolve, reject) {
+    function launch() {
+      webCoverResolveState.pending++;
+      Promise.resolve().then(function(){ return typeof factory === 'function' ? factory() : factory; })
+        .then(resolve, reject)
+        .finally(function(){
+          webCoverResolveState.pending--;
+          var next = webCoverResolveState.waiters.shift();
+          if (next) next();
+        });
+    }
+    if (webCoverResolveState.pending < webCoverResolveState.max) launch();
+    else webCoverResolveState.waiters.push(launch);
+  });
+}
+function resolveCoverUrlForDisplay(raw, allowBlob) {
+  raw = normalizeListenCoverUrl(raw);
+  if (!raw) return Promise.resolve('');
+  if (/^blob:/i.test(raw)) return Promise.resolve(raw);
+  if (mineradioUsesWebMediaBridge() && typeof window.__mineradioResolveCoverUrl === 'function') {
+    return runWebCoverResolveTask(function() {
+      return window.__mineradioResolveCoverUrl(raw, !!allowBlob).then(function(resolved) {
+        return resolved || coverProxySrc(raw) || raw;
+      }).catch(function(){ return coverProxySrc(raw) || raw; });
+    });
+  }
+  return Promise.resolve(coverProxySrc(raw) || raw);
+}
+function ensureHomeCoverObserver() {
+  if (homeCoverObserver || typeof IntersectionObserver !== 'function') return homeCoverObserver;
+  homeCoverObserver = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (!entry.isIntersecting) return;
+      var el = entry.target;
+      homeCoverObserver.unobserve(el);
+      if (el.dataset.coverHydrated === '1') return;
+      el.dataset.coverHydrated = '1';
+      var raw = el.getAttribute('data-cover-url') || '';
+      if (raw) applyHomeCoverElement(el, raw);
+    });
+  }, { root: null, rootMargin: '120px 0px', threshold: 0.01 });
+  return homeCoverObserver;
+}
 function applyHomeCoverElement(el, raw) {
   if (!el) return;
   raw = normalizeListenCoverUrl(raw);
   if (!raw) return;
-  var apply = function(resolved) {
+  resolveCoverUrlForDisplay(raw, false).then(function(resolved) {
     if (!resolved || !el.isConnected) return;
     el.style.backgroundImage = 'url("' + cssImageUrl(resolved) + '")';
     el.classList.add('has-cover');
     el.classList.remove('home-skeleton');
-  };
-  if (/^blob:/i.test(raw)) {
-    apply(raw);
-    return;
-  }
-  if (mineradioUsesWebMediaBridge() && typeof window.__mineradioResolveCoverUrl === 'function') {
-    window.__mineradioResolveCoverUrl(raw, false).then(apply).catch(function(){ apply(coverProxySrc(raw) || raw); });
-  } else {
-    apply(coverProxySrc(raw) || raw);
-  }
+  });
 }
 function songCustomCoverKey(song) {
   if (!song) return '';
@@ -15716,7 +15905,7 @@ function mineradioRetryCoverImg(img) {
   var raw = img.getAttribute('data-cover-url') || img.src || '';
   if (!raw || !window.__mineradioResolveCoverUrl) { img.style.opacity = 0.2; return; }
   img.dataset.coverRetry = '1';
-  window.__mineradioResolveCoverUrl(raw, false).then(function(resolved) {
+  resolveCoverUrlForDisplay(raw, false).then(function(resolved) {
     if (resolved && resolved !== raw) img.src = resolved;
     else img.style.opacity = 0.2;
   }).catch(function(){ img.style.opacity = 0.2; });
@@ -15733,13 +15922,13 @@ function setHomeArt(id, url, size) {
   el.style.backgroundImage = proxied ? 'url("' + cssImageUrl(proxied) + '")' : '';
   el.classList.toggle('has-cover', !!proxied);
   el.classList.toggle('home-skeleton', !proxied && homeDiscoverState.loading);
-  if (normalized && mineradioUsesWebMediaBridge() && typeof window.__mineradioResolveCoverUrl === 'function') {
-    window.__mineradioResolveCoverUrl(src || normalized, false).then(function(resolved) {
+  if (normalized && mineradioUsesWebMediaBridge()) {
+    resolveCoverUrlForDisplay(src || normalized, false).then(function(resolved) {
       if (!resolved || !el || !el.isConnected) return;
       el.style.backgroundImage = 'url("' + cssImageUrl(resolved) + '")';
       el.classList.add('has-cover');
       el.classList.remove('home-skeleton');
-    }).catch(function(){});
+    });
   }
 }
 function compactHomeCount(n) {
@@ -15807,6 +15996,19 @@ function listenSongSnapshot(song) {
     duration: Number(song.duration) || 0,
   };
 }
+function accumulateListenSessionTick(force) {
+  if (!listenSession || !audio || !audio.duration || audio.paused) return;
+  var now = Date.now();
+  var audioTime = isFinite(audio.currentTime) ? audio.currentTime : 0;
+  var deltaByAudio = Math.max(0, audioTime - (listenSession.lastAudioTime || 0)) * 1000;
+  var deltaByWall = Math.max(0, now - (listenSession.lastWallAt || now));
+  var delta = deltaByAudio > 0 ? Math.min(deltaByAudio, deltaByWall || deltaByAudio, 4200) : 0;
+  if (force && delta <= 0) delta = Math.min(deltaByWall, 1500);
+  if (delta > 0 && delta < 8000) listenSession.listenMs += delta;
+  listenSession.lastWallAt = now;
+  listenSession.lastAudioTime = audioTime;
+  listenSession.maxProgress = Math.max(listenSession.maxProgress || 0, audio.duration ? audioTime / audio.duration : 0);
+}
 function beginListenSession(song, context) {
   if (!song) return;
   var snap = listenSongSnapshot(song);
@@ -15828,22 +16030,13 @@ function updateListenStatsTick(force) {
   var song = currentCoverSong();
   if (!song) return;
   var key = queueItemKey(song);
-  if (!listenSession || listenSession.key !== key) beginListenSession(song, activeRadioContext);
-  if (!listenSession) return;
-  var now = Date.now();
-  var audioTime = isFinite(audio.currentTime) ? audio.currentTime : 0;
-  var deltaByAudio = Math.max(0, audioTime - (listenSession.lastAudioTime || 0)) * 1000;
-  var deltaByWall = Math.max(0, now - (listenSession.lastWallAt || now));
-  var delta = deltaByAudio > 0 ? Math.min(deltaByAudio, deltaByWall || deltaByAudio, 4200) : 0;
-  if (force && delta <= 0) delta = Math.min(deltaByWall, 1500);
-  if (delta > 0 && delta < 8000) listenSession.listenMs += delta;
-  listenSession.lastWallAt = now;
-  listenSession.lastAudioTime = audioTime;
-  listenSession.maxProgress = Math.max(listenSession.maxProgress || 0, audio.duration ? audioTime / audio.duration : 0);
+  if (!listenSession) beginListenSession(song, activeRadioContext);
+  if (!listenSession || listenSession.key !== key) return;
+  accumulateListenSessionTick(force);
 }
 function finalizeListenSession(completed) {
   if (!listenSession) return;
-  updateListenStatsTick(true);
+  accumulateListenSessionTick(true);
   var session = listenSession;
   listenSession = null;
   var effective = completed || session.listenMs >= 45000 || session.maxProgress >= 0.5 || (!audio || !audio.duration ? session.listenMs >= 30000 : false);
@@ -15943,16 +16136,24 @@ function homeTileCoverRaw(item) {
 }
 function hydrateHomeTileCovers() {
   var row = document.getElementById('home-tile-row');
-  if (!row) return;
-  row.querySelectorAll('.home-tile-cover[data-cover-url]').forEach(function(el) {
+  var mosaic = document.getElementById('home-mosaic');
+  var targets = [];
+  if (row) targets = targets.concat(Array.prototype.slice.call(row.querySelectorAll('.home-tile-cover[data-cover-url]')));
+  if (mosaic) targets = targets.concat(Array.prototype.slice.call(mosaic.querySelectorAll('.home-mosaic-cell[data-cover-url]')));
+  if (!targets.length) return;
+  if (mineradioUsesWebMediaBridge() && typeof IntersectionObserver === 'function') {
+    var obs = ensureHomeCoverObserver();
+    if (obs) {
+      targets.forEach(function(el) {
+        if (el.dataset.coverHydrated === '1') return;
+        obs.observe(el);
+      });
+      return;
+    }
+  }
+  targets.forEach(function(el) {
     applyHomeCoverElement(el, el.getAttribute('data-cover-url') || '');
   });
-  var mosaic = document.getElementById('home-mosaic');
-  if (mosaic) {
-    mosaic.querySelectorAll('.home-mosaic-cell[data-cover-url]').forEach(function(el) {
-      applyHomeCoverElement(el, el.getAttribute('data-cover-url') || '');
-    });
-  }
 }
 function homeToneForItem(item, index) {
   if (!item) return 'daily';
@@ -15983,10 +16184,12 @@ function renderHomeMosaic(items) {
   for (var i = 0; i < cells.length; i++) {
     var src = covers[i] || covers[(i + 1) % Math.max(1, covers.length)] || '';
     var rawSrc = coverRaws[i] || coverRaws[(i + 1) % Math.max(1, coverRaws.length)] || '';
-    cells[i].style.backgroundImage = src ? 'url("' + cssImageUrl(src) + '")' : '';
-    if (rawSrc) cells[i].setAttribute('data-cover-url', rawSrc);
-    else cells[i].removeAttribute('data-cover-url');
-    cells[i].classList.toggle('has-cover', !!src);
+    cells[i].style.backgroundImage = (src && !mineradioUsesWebMediaBridge()) ? 'url("' + cssImageUrl(src) + '")' : '';
+    if (rawSrc) {
+      cells[i].setAttribute('data-cover-url', rawSrc);
+      delete cells[i].dataset.coverHydrated;
+    } else cells[i].removeAttribute('data-cover-url');
+    cells[i].classList.toggle('has-cover', !!(src && !mineradioUsesWebMediaBridge()));
     cells[i].classList.toggle('home-skeleton', !src && homeDiscoverState.loading);
   }
 }
@@ -16040,9 +16243,10 @@ function renderHomeTiles() {
     var cover = homeTileCover(item);
     var coverRaw = homeTileCoverRaw(item);
     var tone = homeToneForItem(item, i);
-    var coverClass = 'home-tile-cover' + (cover ? ' has-cover' : '');
+    var webLazyCover = mineradioUsesWebMediaBridge();
+    var coverClass = 'home-tile-cover' + (cover && !webLazyCover ? ' has-cover' : '');
     var coverAttr = coverRaw ? (' data-cover-url="' + escHtml(coverRaw) + '"') : '';
-    var coverStyle = cover ? ('background-image:url(&quot;' + escHtml(cssImageUrl(cover)) + '&quot;)') : '';
+    var coverStyle = (cover && !webLazyCover) ? ('background-image:url(&quot;' + escHtml(cssImageUrl(cover)) + '&quot;)') : '';
     return '<button class="home-tile' + (!cover && homeDiscoverState.loading ? ' home-skeleton' : '') + '" data-home-tone="' + escHtml(tone) + '" type="button" onclick="handleHomeTileClick(' + i + ')">' +
       '<div class="' + coverClass + '"' + coverAttr + ' style="' + coverStyle + '"></div>' +
       '<div class="home-tile-title">' + escHtml(item.title || '') + '</div>' +
@@ -16242,12 +16446,15 @@ function renderHomeFeaturedReviews() {
   var song = item && item.song || {};
   var user = item && item.user || {};
   var avatar = user.avatar ? coverUrlWithSize(user.avatar, 64) : '';
-  var cover = featuredReviewSongCover(song, 120);
+  var coverRaw = song.cover ? normalizeListenCoverUrl(song.cover) : '';
+  var webLazyCover = mineradioUsesWebMediaBridge();
+  var cover = webLazyCover ? '' : featuredReviewSongCover(song, 120);
   var coverStyle = cover ? ('background-image:url(&quot;' + escHtml(cssImageUrl(cover)) + '&quot;)') : '';
+  var coverAttr = coverRaw ? (' data-cover-url="' + escHtml(coverRaw) + '"') : '';
   feed.innerHTML =
     '<article class="home-review-card is-active" onclick="openHomeFeaturedReviewDetail(' + homeFeaturedReviewsState.index + ')">' +
       '<div class="home-review-song">' +
-        '<div class="home-review-cover' + (cover ? ' has-cover' : '') + '" style="' + coverStyle + '"></div>' +
+        '<div class="home-review-cover' + (cover ? ' has-cover' : '') + '"' + coverAttr + ' style="' + coverStyle + '"></div>' +
         '<div class="home-review-song-main">' +
           '<div class="home-review-song-name">' + escHtml(song.name || '未知歌曲') + '</div>' +
           '<div class="home-review-song-artist">' + escHtml(song.artist || songSourceLabel(song) || '音乐用户') + '</div>' +
@@ -16258,7 +16465,7 @@ function renderHomeFeaturedReviews() {
       '</div>' +
       '<div class="home-review-quote">“' + escHtml(truncateFeaturedReviewText(item.content, 132)) + '”</div>' +
       '<div class="home-review-foot">' +
-        (avatar ? ('<img class="home-review-user-avatar" src="' + escHtml(coverProxySrc(avatar)) + '" alt="">') : '<div class="home-review-user-avatar"></div>') +
+        (avatar ? ('<img class="home-review-user-avatar" src="' + escHtml(coverProxySrc(avatar)) + '" alt="" loading="lazy" decoding="async">') : '<div class="home-review-user-avatar"></div>') +
         '<div class="home-review-user-meta">' + escHtml(user.nickname || '音乐用户') + (item.time ? (' · ' + escHtml(commentTimeLabel(item.time))) : '') + '</div>' +
         (item.likedCount ? ('<div class="home-review-like">' + escHtml(String(item.likedCount)) + ' 赞</div>') : '') +
       '</div>' +
@@ -16267,6 +16474,10 @@ function renderHomeFeaturedReviews() {
     dots.innerHTML = reviews.map(function(_, i){
       return '<button class="home-reviews-dot' + (i === homeFeaturedReviewsState.index ? ' active' : '') + '" type="button" aria-label="第 ' + (i + 1) + ' 条乐评" onclick="homeFeaturedReviewGo(' + i + ')"></button>';
     }).join('');
+  }
+  if (webLazyCover && coverRaw) {
+    var coverEl = feed.querySelector('.home-review-cover[data-cover-url]');
+    if (coverEl) applyHomeCoverElement(coverEl, coverEl.getAttribute('data-cover-url') || coverRaw);
   }
 }
 function homeFeaturedReviewGo(index, auto) {
@@ -18233,12 +18444,31 @@ async function openPodcastPrograms(i) {
     if (requestSeq === searchRequestSeq) $results.innerHTML = '<div class="search-empty">Episodes load failed</div>';
   }
 }
-function renderPodcastPrograms() {
+function renderPodcastPrograms(opts) {
+  opts = opts || {};
   var radio = podcastCurrentRadio || {};
+  if (!opts.keepLimit) podcastEpisodeRenderLimit = PODCAST_EPISODE_INITIAL;
   if (!podcastPrograms.length) {
     $results.innerHTML = '<div class="podcast-result-head"><button class="podcast-back-btn" onclick="event.stopPropagation();renderPodcastRadios(podcastResults)">‹</button><div class="search-result-info"><div class="search-result-title">' + escHtml(radio.name || 'Podcast') + '</div><div class="search-result-meta">No playable episodes</div></div></div>';
     $results.classList.add('show');
     return;
+  }
+  podcastEpisodeRenderLimit = Math.max(PODCAST_EPISODE_INITIAL, Math.min(podcastPrograms.length, podcastEpisodeRenderLimit || PODCAST_EPISODE_INITIAL));
+  var visiblePrograms = podcastPrograms.slice(0, podcastEpisodeRenderLimit);
+  var episodeHtml = visiblePrograms.map(function(p, i){
+    return '<div class="search-result">' +
+      '<div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0" onclick="playPodcastProgram(' + i + ')">' +
+        searchThumbHtml(p.cover) +
+        '<div class="search-result-info">' +
+          '<div class="search-result-title">' + escHtml(p.name || '') + '</div>' +
+          '<div class="search-result-meta">' + escHtml(programMetaText(p)) + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<button class="add-btn" title="下一首播放" onclick="event.stopPropagation();queuePodcastProgram(' + i + ')">+</button>' +
+    '</div>';
+  }).join('');
+  if (podcastPrograms.length > visiblePrograms.length) {
+    episodeHtml += '<button type="button" class="fx-mini-btn ghost podcast-load-more" onclick="growPodcastEpisodeRenderLimit()">加载更多 ' + visiblePrograms.length + '/' + podcastPrograms.length + '</button>';
   }
   $results.innerHTML =
     '<div class="podcast-result-head">' +
@@ -18246,20 +18476,13 @@ function renderPodcastPrograms() {
       searchThumbHtml(radio.cover) +
       '<div class="search-result-info"><div class="search-result-title">' + escHtml(radio.name || 'Podcast') + '<span class="tag-podcast">Podcast</span></div><div class="search-result-meta">' + escHtml(radio.djName || (podcastPrograms.length + ' episodes')) + '</div></div>' +
     '</div>' +
-    podcastPrograms.map(function(p, i){
-      return '<div class="search-result">' +
-        '<div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0" onclick="playPodcastProgram(' + i + ')">' +
-          searchThumbHtml(p.cover) +
-          '<div class="search-result-info">' +
-            '<div class="search-result-title">' + escHtml(p.name || '') + '</div>' +
-            '<div class="search-result-meta">' + escHtml(programMetaText(p)) + '</div>' +
-          '</div>' +
-        '</div>' +
-        '<button class="add-btn" title="下一首播放" onclick="event.stopPropagation();queuePodcastProgram(' + i + ')">+</button>' +
-      '</div>';
-    }).join('');
+    episodeHtml;
   $results.classList.add('show');
   if (window.gsap) animateListItems($results, '.search-result', { x: 0, y: 6, stagger: 0.010, duration: 0.18, limit: 18 });
+}
+function growPodcastEpisodeRenderLimit() {
+  podcastEpisodeRenderLimit = Math.min(podcastPrograms.length, (podcastEpisodeRenderLimit || PODCAST_EPISODE_INITIAL) + PODCAST_EPISODE_BATCH);
+  renderPodcastPrograms({ keepLimit: true });
 }
 function queuePodcastProgram(i) {
   var item = podcastPrograms[i]; if (!item) return;
@@ -19435,6 +19658,24 @@ async function playQueueAt(idx, opts) {
     };
     scheduleAudioResumePosition(audio, opts.resumeAt, token);
     audio.load();
+    markPlayPhase('audio-start');
+    var useManualPlay = !!(opts.manual || (mineradioUsesWebMediaBridge() && !opts.autoRepeat && !opts.fallbackDepth));
+    var playbackStarted = await playAudio({
+      silent: isQQPlayback,
+      manual: useManualPlay,
+      fade: !mineradioUsesWebMediaBridge()
+    });
+    if (!playbackStarted) {
+      if (isQQPlayback && await retryQQPlaybackWithCompatibleQuality(song, idx, token, opts, data, requestedQuality)) return;
+      forcePlaybackControlsInteractive();
+      if (opts.manual) {
+        showToast('播放启动失败，请重新选择歌曲');
+      } else {
+        showSourceFallbackNotice('歌曲已载入', '点击播放器中间的播放按钮继续播放。');
+      }
+      return;
+    }
+    forcePlaybackControlsInteractive();
     markPlayPhase('visual-prep');
     try {
     // 重置 beatmap 状态
@@ -19443,6 +19684,8 @@ async function playQueueAt(idx, opts) {
     resetAudioVisualState();
     resetBeatCameraSync(0);
     cancelBeatAnalysisTimer();
+    cancelBeatAnalysisWatchdog();
+    clearProvisionalBeatChipTimer();
     beatMapToken++;
     var bmTok = beatMapToken;
     if (podcastDjMode) {
@@ -19498,20 +19741,6 @@ async function playQueueAt(idx, opts) {
       }
       safePlaybackStep('visual-prep-hide-chip', hideBeatChip);
     }
-    markPlayPhase('audio-start');
-    var useManualPlay = !!(opts.manual || (mineradioUsesWebMediaBridge() && !opts.autoRepeat && !opts.fallbackDepth));
-    var playbackStarted = await playAudio({ silent: isQQPlayback, manual: useManualPlay });
-    if (!playbackStarted) {
-      if (isQQPlayback && await retryQQPlaybackWithCompatibleQuality(song, idx, token, opts, data, requestedQuality)) return;
-      forcePlaybackControlsInteractive();
-      if (opts.manual) {
-        showToast('播放启动失败，请重新选择歌曲');
-      } else {
-        showSourceFallbackNotice('歌曲已载入', '点击播放器中间的播放按钮继续播放。');
-      }
-      return;
-    }
-    forcePlaybackControlsInteractive();
     markPlayPhase('session-begin');
     safePlaybackStep('listen-session-begin', function(){ beginListenSession(song, playbackContext); });
     markPlayPhase('lyrics-fetch');
@@ -19550,10 +19779,13 @@ async function playQueueAt(idx, opts) {
 }
 async function attemptAudioPlay(opts) {
   opts = opts || {};
+  var webMode = mineradioUsesWebMediaBridge();
+  if (webMode) opts.fade = false;
   try {
       if (!audio) return false;
-      if (mineradioUsesWebMediaBridge() && audio.src) await waitForPlaybackAudioReady(audio, 8000);
+      if (webMode && audio.src) await waitForPlaybackAudioReady(audio, 12000);
       if (!audioReady) initAudio();
+      restorePlaybackGain();
       if (opts.fade !== false) preparePlaybackFadeIn();
       if (opts.manual) {
         var manualPlay = audio.play();
@@ -19564,6 +19796,7 @@ async function attemptAudioPlay(opts) {
         await audio.play();
       }
       await resumeAudioAnalysis();
+      if (audio.paused) throw new Error('play stalled');
       switchPlaybackVisualToEmily();
       playing = true; setPlayIcon(true);
       ensurePlaybackBeatmapVisualFallback();
@@ -19644,7 +19877,7 @@ function shuffleQueue() {
     var j = Math.floor(Math.random() * (i + 1));
     var tmp = playQueue[i]; playQueue[i] = playQueue[j]; playQueue[j] = tmp;
   }
-  currentIdx = 0; safeRenderQueuePanel('shuffle-queue');
+  currentIdx = 0; safeRenderQueuePanel('shuffle-queue', { reset: true });
   showToast('队列已随机');
   safeShelfRebuild('shuffle-queue');
 }
@@ -20312,21 +20545,56 @@ document.addEventListener('click', function(e){
 });
 bindSmoothQueueScrolling();
 bindPlaylistPanelLazyRender();
+bindQueuePanelLazyRender();
 bindModalBackdropClose();
+function resetQueuePanelRenderLimit() {
+  queuePanelRenderLimit = QUEUE_PANEL_BATCH_SIZE;
+}
+function growQueuePanelRenderLimit() {
+  if (!playQueue.length) return;
+  var next = Math.min(playQueue.length, (queuePanelRenderLimit || QUEUE_PANEL_BATCH_SIZE) + QUEUE_PANEL_BATCH_SIZE);
+  if (next <= queuePanelRenderLimit) return;
+  queuePanelRenderLimit = next;
+  renderQueuePanel({ animate: false });
+}
+function bindQueuePanelLazyRender() {
+  var panel = document.getElementById('playlist-panel');
+  if (!panel || queuePanelLazyBound) return;
+  queuePanelLazyBound = true;
+  panel.addEventListener('scroll', function(){
+    if (queueViewTab !== 'queue' || queuePanelRenderLimit >= playQueue.length) return;
+    if (panel.scrollTop + panel.clientHeight >= panel.scrollHeight - 180) growQueuePanelRenderLimit();
+  }, { passive: true });
+}
+function queuePanelVisibleSlice() {
+  var limit = Math.max(QUEUE_PANEL_BATCH_SIZE, Math.min(playQueue.length, queuePanelRenderLimit || QUEUE_PANEL_BATCH_SIZE));
+  if (currentIdx >= 0 && currentIdx >= limit) {
+    limit = Math.min(playQueue.length, Math.max(limit, currentIdx + 1));
+    queuePanelRenderLimit = limit;
+  }
+  return playQueue.slice(0, limit);
+}
 function renderQueuePanel(opts) {
   opts = opts || {};
+  if (opts.reset) resetQueuePanelRenderLimit();
   var $ql = document.getElementById('queue-list');
   var seq = ++queueRenderSeq;
   if (!playQueue.length) {
+    resetQueuePanelRenderLimit();
     $ql.innerHTML = '<div style="text-align:center;padding:24px 0;color:rgba(255,255,255,.32);font-size:11.5px">队列为空，搜索后点 + 设为下一首</div>';
     renderMiniQueuePanel();
     var panel = document.getElementById('playlist-panel');
     if (panel && (panel.classList.contains('show') || panel.classList.contains('peek')) && queueViewTab === 'queue') switchPlaylistTab('playlists');
     return;
   }
-  $ql.innerHTML = playQueue.map(function(song, i){
+  var visibleQueue = queuePanelVisibleSlice();
+  $ql.innerHTML = visibleQueue.map(function(song, i){
     var thumb = songCoverSrc(song, 60);
-    var imgTag = thumb ? '<img src="' + thumb + '" alt="" loading="lazy" decoding="async" onerror="this.style.opacity=0.2">' : '<div style="width:38px;height:38px;border-radius:6px;background:rgba(255,255,255,.06);flex-shrink:0"></div>';
+    var imgTag = thumb
+      ? (mineradioUsesWebMediaBridge()
+        ? '<img src="' + thumb + '" data-cover-url="' + escHtml(thumb) + '" alt="" loading="lazy" decoding="async" onerror="mineradioRetryCoverImg(this)">'
+        : '<img src="' + thumb + '" alt="" loading="lazy" decoding="async" onerror="this.style.opacity=0.2">')
+      : '<div style="width:38px;height:38px;border-radius:6px;background:rgba(255,255,255,.06);flex-shrink:0"></div>';
     return '<div class="queue-item' + (i === currentIdx ? ' now' : '') + '" onclick="playQueueAt(' + i + ')">' +
       imgTag +
       '<div class="qi-info"><div class="qi-name">' + escHtml(song.name) + '</div><div class="qi-sub"><button class="queue-artist-link" type="button" onclick="event.stopPropagation();openQueueArtist(' + i + ')">' + escHtml(song.artist || '未知歌手') + '</button></div></div>' +
@@ -20338,6 +20606,9 @@ function renderQueuePanel(opts) {
       '</div>' +
     '</div>';
   }).join('');
+  if (playQueue.length > visibleQueue.length) {
+    $ql.insertAdjacentHTML('beforeend', '<button type="button" class="fx-mini-btn ghost queue-load-more" onclick="growQueuePanelRenderLimit()">加载更多 ' + visibleQueue.length + '/' + playQueue.length + '</button>');
+  }
   if (opts.animate && seq === queueRenderSeq) animateVisiblePanelList($ql, '.queue-item', document.getElementById('playlist-panel'), '.queue-item.now');
   renderMiniQueuePanel({ scrollCurrent: miniQueueOpen });
 }
@@ -20840,7 +21111,7 @@ function getPlaybackDurationSeconds() {
   return playbackDurationFromSong(currentCoverSong());
 }
 function getPlaybackCurrentSeconds() {
-  return audio && isFinite(audio.currentTime) && audio.currentTime > 0 ? audio.currentTime : 0;
+  return audio && isFinite(audio.currentTime) ? Math.max(0, audio.currentTime) : 0;
 }
 function setProgressVisual(percent) {
   percent = clampRange(percent || 0, 0, 100);
@@ -20865,6 +21136,11 @@ function bindPlaybackProgressEvents(audioEl) {
   });
   ['play', 'playing', 'pause', 'ended', 'emptied', 'abort', 'error'].forEach(function(name){
     audioEl.addEventListener(name, function(){ syncPlaybackStateFromAudioEvent(name); });
+  });
+  audioEl.addEventListener('error', function(){
+    console.warn('[PlaybackAudio]', audioEl.error, audioEl.src);
+    updatePlaybackProgressUi();
+    if (mineradioUsesWebMediaBridge()) showToast('音频加载失败，请确认 Bridge 扩展已启用后刷新页面');
   });
 }
 function emitProgressDragParticles(x, y) {
@@ -20897,7 +21173,7 @@ function seekFromProgressPointer(e, emitParticles) {
 }
 var progressBar = document.getElementById('progress-bar');
 progressBar.addEventListener('pointerdown', function(e){
-  if (!audio || !audio.duration) return;
+  if (!audio || !getPlaybackDurationSeconds()) return;
   progressDragState.active = true;
   progressBar.classList.add('is-dragging');
   try { progressBar.setPointerCapture(e.pointerId); } catch (err) {}
@@ -20916,12 +21192,14 @@ function endProgressDrag(e) {
 progressBar.addEventListener('pointerup', endProgressDrag);
 progressBar.addEventListener('pointercancel', endProgressDrag);
 progressBar.addEventListener('lostpointercapture', function(){ progressDragState.active = false; progressBar.classList.remove('is-dragging'); });
-setInterval(function(){
+function tickPlaybackProgressUi() {
+  if (mineradioUsesWebMediaBridge() && document.hidden && !progressDragState.active) return;
   if (!audio) { updatePlaybackProgressUi(); return; }
   updateListenStatsTick(false);
   updatePlaybackProgressUi();
-  if (audio.currentTime) updateLyricsHighlight();
-}, 200);
+  if (audio && isFinite(audio.currentTime)) updateLyricsHighlight();
+}
+setInterval(tickPlaybackProgressUi, 200);
 
 // ============================================================
 //  文件拖放
@@ -24391,16 +24669,111 @@ function renderUserBtn() {
   }
   updatePlaybackQualityUi();
 }
+var MINERADIO_BRIDGE_EXTENSION_VERSION = '1.2.8';
+var loginExtensionProbeTimer = null;
+function resolveBridgeExtensionDownloadUrl() {
+  var versioned = 'downloads/Mineradio-Bridge-' + MINERADIO_BRIDGE_EXTENSION_VERSION + '.zip';
+  var origin = String(window.location && window.location.origin || '');
+  if (/^https?:\/\//i.test(origin)) return origin.replace(/\/$/, '') + '/' + versioned;
+  return versioned;
+}
+function bridgeExtensionInstallGuideUrl() {
+  return 'https://github.com/XxHuberrr/Mineradio/tree/main/web/extension';
+}
+function stopLoginExtensionProbe() {
+  if (loginExtensionProbeTimer) {
+    clearInterval(loginExtensionProbeTimer);
+    loginExtensionProbeTimer = null;
+  }
+}
+function renderLoginExtensionStatus(pinging) {
+  var statusEl = document.getElementById('login-extension-status');
+  var badge = document.getElementById('login-extension-badge');
+  var versionEl = document.getElementById('login-extension-version');
+  var panel = document.getElementById('login-extension-panel');
+  var bridge = window.__mineradioWebBridge;
+  var ready = !!(bridge && bridge.isReady && bridge.isReady());
+  var version = ready && bridge.getVersion ? bridge.getVersion() : '';
+  if (panel) panel.classList.toggle('ready', ready);
+  if (versionEl) versionEl.textContent = 'v' + MINERADIO_BRIDGE_EXTENSION_VERSION;
+  if (statusEl) {
+    statusEl.className = 'login-extension-status' + (ready ? ' ready' : (!pinging ? ' missing' : ''));
+    if (pinging) statusEl.textContent = '正在检测 Bridge 扩展…';
+    else if (ready) statusEl.textContent = 'Bridge 已连接' + (version ? ' · v' + version : '');
+    else statusEl.textContent = '尚未检测到 Bridge，请先下载并加载扩展';
+  }
+  if (badge) {
+    badge.className = 'login-extension-badge' + (ready ? ' ready' : (!pinging ? ' missing' : ''));
+    badge.textContent = ready ? '已连接' : (pinging ? '检测中' : '未安装');
+  }
+}
+function startLoginExtensionProbe() {
+  stopLoginExtensionProbe();
+  var attempts = 0;
+  loginExtensionProbeTimer = setInterval(function () {
+    attempts++;
+    var ready = window.__mineradioWebBridge && window.__mineradioWebBridge.isReady && window.__mineradioWebBridge.isReady();
+    renderLoginExtensionStatus(!ready && attempts < 8);
+    if (ready || attempts >= 12) stopLoginExtensionProbe();
+  }, 500);
+}
+function updateLoginExtensionPanel() {
+  var panel = document.getElementById('login-extension-panel');
+  var modal = document.querySelector('#login-modal .dual-login-modal');
+  if (!panel) return;
+  var webMode = mineradioUsesWebMediaBridge();
+  panel.classList.toggle('show', webMode);
+  if (modal) modal.classList.toggle('has-extension-panel', webMode);
+  if (!webMode) {
+    stopLoginExtensionProbe();
+    if (modal) modal.classList.remove('has-extension-panel');
+    return;
+  }
+  renderLoginExtensionStatus(false);
+  if (!window.__mineradioWebBridge || !window.__mineradioWebBridge.isReady || !window.__mineradioWebBridge.isReady()) startLoginExtensionProbe();
+}
+async function refreshLoginExtensionPanel() {
+  if (!mineradioUsesWebMediaBridge()) return;
+  renderLoginExtensionStatus(true);
+  var bridge = window.__mineradioWebBridge;
+  if (bridge && typeof bridge.ping === 'function') {
+    try { await bridge.ping(4000); } catch (_) {}
+  }
+  renderLoginExtensionStatus(false);
+  if (!window.__mineradioWebBridge || !window.__mineradioWebBridge.isReady || !window.__mineradioWebBridge.isReady()) startLoginExtensionProbe();
+  else stopLoginExtensionProbe();
+}
+function downloadMineradioBridgeExtension() {
+  var url = resolveBridgeExtensionDownloadUrl();
+  try {
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'Mineradio-Bridge-' + MINERADIO_BRIDGE_EXTENSION_VERSION + '.zip';
+    a.rel = 'noopener noreferrer';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    showToast('已开始下载 Bridge 扩展，解压后在浏览器加载');
+  } catch (_) {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+}
+function openBridgeExtensionInstallGuide() {
+  try { window.open(bridgeExtensionInstallGuideUrl(), '_blank', 'noopener,noreferrer'); } catch (_) {}
+}
 async function showLoginModal(opts) {
   opts = opts || {};
   if (opts.provider) loginProvider = (opts.provider === 'qq' || opts.provider === 'kg') ? opts.provider : 'netease';
   var modal = document.getElementById('login-modal');
   openGsapModal(modal);
+  updateLoginExtensionPanel();
   updateLoginProviderUi();
+  refreshLoginExtensionPanel();
   await refreshLoginPanel();
 }
 function closeLoginModal() {
   stopQrPoll();
+  stopLoginExtensionProbe();
   closeGsapModal(document.getElementById('login-modal'));
 }
 function setLoginProvider(provider, silent) {
@@ -27640,24 +28013,31 @@ applyWallpaperModeState(false);
 setShelfMode(fx.shelf);
 applyStartupStarfieldPreset();
 applyPlaylistPanelPinState(false);
-if (fx.floatLayer) createFloatLayer();
-if (fx.particleLyrics) createLyricsParticles();
-if (fx.backCover) createBackCoverLayer();
-initIdleGuideCanvas();
-var startupLoginStatusPromise = Promise.all([refreshLoginStatus(), refreshQQLoginStatus(), refreshKGLoginStatus()]);
-startQQLoginStatusAutoRefresh();
-if (startupLoginStatusPromise && startupLoginStatusPromise.then) {
-  startupLoginStatusPromise.then(function(){
-    if (hasAnyPlatformLogin()) {
-      refreshUserPlaylists(true);
-      loadHomeDiscover(true);
-    }
-    if (document.body.classList.contains('splash-active')) return;
-    var homeShown = updateEmptyHomeVisibility({ forceLoad: hasAnyPlatformLogin() });
-    if (!hasAnyPlatformLogin()) maybeRunStartupLoginGuide('status');
-    else if (!homeShown) maybeRunStartupLoginGuide('status');
-  });
+function runDeferredVisualLayers() {
+  if (fx.floatLayer) createFloatLayer();
+  if (fx.particleLyrics) createLyricsParticles();
+  if (fx.backCover) createBackCoverLayer();
+  initIdleGuideCanvas();
 }
+if (mineradioUsesWebMediaBridge()) scheduleWebStartupTask(runDeferredVisualLayers, 3200);
+else runDeferredVisualLayers();
+scheduleWebStartupTask(function(){
+  var startupLoginStatusPromise = Promise.all([refreshLoginStatus(), refreshQQLoginStatus(), refreshKGLoginStatus()]);
+  if (!mineradioUsesWebMediaBridge()) startQQLoginStatusAutoRefresh();
+  else setTimeout(startQQLoginStatusAutoRefresh, 6000);
+  if (startupLoginStatusPromise && startupLoginStatusPromise.then) {
+    startupLoginStatusPromise.then(function(){
+      if (hasAnyPlatformLogin()) {
+        refreshUserPlaylists(true);
+        loadHomeDiscover(true);
+      }
+      if (document.body.classList.contains('splash-active')) return;
+      var homeShown = updateEmptyHomeVisibility({ forceLoad: hasAnyPlatformLogin() });
+      if (!hasAnyPlatformLogin()) maybeRunStartupLoginGuide('status');
+      else if (!homeShown) maybeRunStartupLoginGuide('status');
+    });
+  }
+}, mineradioUsesWebMediaBridge() ? 1400 : 0);
 var collectNameInput = document.getElementById('collect-new-name');
 if (collectNameInput) {
   collectNameInput.addEventListener('keydown', function(e){
