@@ -189,7 +189,10 @@ body.splash-active.splash-revealing #top-right{opacity:1;transition:opacity 1100
 #search-stack{width:min(520px,58vw)}
 #search-box{display:flex;align-items:center;height:58px;border-radius:22px;padding:0 20px;background:var(--glass-bg);border:1px solid var(--glass-border);box-shadow:var(--glass-shadow);backdrop-filter:blur(34px) saturate(1.34);-webkit-backdrop-filter:blur(34px) saturate(1.34);transition:border-color .28s,background .28s,box-shadow .28s,transform .28s;cursor:text}
 #search-box:focus-within{border-color:rgba(var(--fc-accent-rgb),.50);background:var(--glass-bg-focus);box-shadow:var(--glass-shadow-focus);transform:translateY(-1px)}
-#search-icon{color:rgba(255,255,255,0.3);margin-right:10px;flex-shrink:0}
+#search-submit-btn{display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-right:10px;padding:0;border:0;background:none;color:rgba(255,255,255,.34);cursor:pointer;border-radius:8px;transition:color .18s,transform .18s}
+#search-submit-btn:hover{color:rgba(255,255,255,.72);transform:scale(1.04)}
+#search-submit-btn:active{transform:scale(.96)}
+#search-submit-btn svg{display:block;pointer-events:none}
 #search-input{flex:1;border:none;background:none;color:#fff;font-size:13.5px;font-family:inherit;outline:none;letter-spacing:0.3px}
 #search-input::placeholder{color:rgba(255,255,255,0.22)}
 .search-mode-tabs{display:flex;align-items:center;gap:4px;width:max-content;margin-top:8px;padding:3px;border-radius:999px;background:rgba(255,255,255,.045);border:1px solid rgba(var(--fc-accent-rgb),.12);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
@@ -624,7 +627,7 @@ body.home-controls-locked #bottom-bar{opacity:0!important;pointer-events:none!im
 .ctrl-btn.active{color:rgba(210,244,241,.90);text-shadow:0 0 12px rgba(0,245,212,.16)}
 .ctrl-btn.liked{color:#ff7a90;text-shadow:0 0 18px rgba(255,122,144,.36)}
 .ctrl-btn.busy{opacity:.55;pointer-events:none}
-#play-mode-btn[data-mode="loop"]{color:rgba(255,255,255,.70)}
+#play-mode-btn[data-mode="order"]{color:rgba(255,255,255,.70)}
 #play-mode-btn[data-mode="shuffle"],#play-mode-btn[data-mode="single"]{color:rgba(210,244,241,.90);text-shadow:0 0 12px rgba(0,245,212,.15)}
 #play-mode-btn.mode-switching #play-mode-icon{animation:play-mode-pop .42s cubic-bezier(.16,1,.3,1)}
 @keyframes play-mode-pop{0%{opacity:.4;transform:translateY(3px) scale(.84) rotate(-18deg)}65%{opacity:1;transform:translateY(-1px) scale(1.10) rotate(4deg)}100%{opacity:1;transform:translateY(0) scale(1) rotate(0)}}
@@ -2006,7 +2009,9 @@ html.control-glass-svg-ok #visual-guide-btn:hover{
 <div id="search-area">
   <div id="search-stack">
     <div id="search-box">
-      <svg id="search-icon" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <button id="search-submit-btn" type="button" aria-label="搜索" title="搜索">
+        <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      </button>
       <input id="search-input" type="text" placeholder="搜索歌曲、歌手..." autocomplete="off" spellcheck="false">
     </div>
     <div id="search-mode-tabs" class="search-mode-tabs" role="tablist" aria-label="Search mode">
@@ -2858,6 +2863,10 @@ var audioFadeTimer = null, audioElementFadeFrame = 0, audioFadeSerial = 0;
 var AUDIO_FADE_IN_MS = 460;
 var AUDIO_FADE_OUT_MS = 420;
 var AUDIO_SILENCE_GAIN = 0.0001;
+var playbackPausedAt = 0;
+var playbackStreamLoadedAt = 0;
+var currentPlaybackDirectUrl = '';
+var PLAYBACK_STREAM_STALE_MS = 8 * 60 * 1000;
 var userPlaylists = [], qqPlaylists = [], myPodcastCollections = [], myPodcastItems = {}, playlistCoverCache = {};
 var CUSTOM_COVER_STORE_KEY = 'mineradio-custom-covers';
 var CUSTOM_LYRIC_STORE_KEY = 'mineradio-custom-lyrics-v1';
@@ -3233,10 +3242,21 @@ var beatAnalysisConfig = {
 var provisionalBeatChipTimer = null;
 var beatAnalysisWatchdogTimer = null;
 var provisionalBeatMapKey = '';
-var BEAT_ANALYSIS_WEB_MAX_BYTES = 4200000;
+var BEAT_ANALYSIS_WEB_MAX_BYTES = 2621440;
 var BEAT_ANALYSIS_WEB_TIMEOUT_MS = 90000;
+var BEAT_ANALYSIS_WEB_MAX_SEC = 72;
 var BEAT_ANALYSIS_WATCHDOG_MS = 120000;
 var PROVISIONAL_BEAT_CHIP_MAX_MS = 12000;
+var webPlaybackPerfTuned = false;
+function applyWebPlaybackPerfTuning() {
+  if (!mineradioUsesWebMediaBridge() || webPlaybackPerfTuned) return;
+  webPlaybackPerfTuned = true;
+  beatAnalysisConfig.delayMs = 9000;
+  beatAnalysisConfig.minPlaybackSec = 12;
+  beatAnalysisConfig.idleTimeout = 3200;
+  beatAnalysisConfig.skipMusicTempoWhilePlaying = true;
+  BEAT_PREFETCH_LIMIT = 0;
+}
 var beatCam = {
   nextIdx: 0,
   events: [],
@@ -4603,10 +4623,40 @@ function cancelBeatPrefetchTimer() {
 
 function beatAnalysisYieldMs(options, currentMs, prefetchMs) {
   options = options || {};
+  if (mineradioUsesWebMediaBridge()) {
+    if (options.prefetch) return prefetchMs == null ? 920 : prefetchMs;
+    if (options.background) return currentMs == null ? 420 : currentMs;
+    return Math.min(currentMs == null ? 260 : currentMs, 320);
+  }
   if (options.prefetch) return prefetchMs == null ? 620 : prefetchMs;
   if (options.background) return currentMs == null ? 120 : currentMs;
   return Math.min(currentMs == null ? 120 : currentMs, 160);
 }
+function truncateAudioBufferForWebAnalysis(buffer, maxSeconds) {
+  if (!buffer || !mineradioUsesWebMediaBridge()) return buffer;
+  maxSeconds = maxSeconds || BEAT_ANALYSIS_WEB_MAX_SEC;
+  if (!isFinite(buffer.duration) || buffer.duration <= maxSeconds) return buffer;
+  var frames = Math.min(buffer.length, Math.floor(buffer.sampleRate * maxSeconds));
+  if (frames >= buffer.length) return buffer;
+  try {
+    var Factory = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    var trimmed = null;
+    if (Factory) {
+      var factoryCtx = new Factory(1, 1, buffer.sampleRate);
+      trimmed = factoryCtx.createBuffer(buffer.numberOfChannels, frames, buffer.sampleRate);
+    } else if (typeof AudioBuffer !== 'undefined') {
+      trimmed = new AudioBuffer({ length: frames, sampleRate: buffer.sampleRate, numberOfChannels: buffer.numberOfChannels });
+    }
+    if (!trimmed) return buffer;
+    for (var ch = 0; ch < buffer.numberOfChannels; ch++) {
+      trimmed.getChannelData(ch).set(buffer.getChannelData(ch).subarray(0, frames));
+    }
+    return trimmed;
+  } catch (e) {
+    return buffer;
+  }
+}
+window.applyWebPlaybackPerfTuning = applyWebPlaybackPerfTuning;
 
 function beatBandRms(data, sampleRate, fftSize, hz0, hz1) {
   var binHz = sampleRate / fftSize;
@@ -7756,9 +7806,11 @@ function coverParticleCountLabel(v) {
 }
 function coverTextureSizeForResolution(v) {
   v = normalizeCoverResolution(v);
-  if (v >= 1.32) return 512;
-  if (v >= 1.10) return 384;
-  return 256;
+  var size = 256;
+  if (v >= 1.32) size = 512;
+  else if (v >= 1.10) size = 384;
+  if (mineradioUsesWebMediaBridge()) return Math.min(size, 256);
+  return size;
 }
 function readSavedLyricLayout() {
   try {
@@ -9876,6 +9928,7 @@ function mergeAIDepthIntoEdgeTexture(heuristicCanvas, aiCanvas) {
 
 function queueAIDepthForCover(srcCanvas, edgeCanvas, token, opts, cacheSeed, force) {
   opts = opts || {};
+  if (mineradioUsesWebMediaBridge()) return;
   if (!fx.aiDepth || !srcCanvas || !edgeCanvas) return;
   if (!force && isHiddenForBackgroundOptimization()) return;
   if (performance.now() < aiDepthFailUntil || aiDepthBusy) return;
@@ -10589,6 +10642,7 @@ async function fetchBeatPrefetchAudioUrl(song) {
 
 function scheduleQueueBeatPrefetch(fromIdx, delayMs, state) {
   cancelBeatPrefetchTimer();
+  if (mineradioUsesWebMediaBridge() && !BEAT_PREFETCH_LIMIT) return;
   if (!playQueue.length || beatPrefetchBusy || localBeatAnalysis.active) return;
   var prefetchState = normalizeBeatPrefetchState(state);
   if (prefetchState.count >= BEAT_PREFETCH_LIMIT) return;
@@ -10680,6 +10734,7 @@ async function analyzeAudioBeats(audioUrl, durationSec, token, options) {
     }).catch(function(e){ console.warn('decode failed:', e); return null; });
     dc.close && dc.close();
     if (!buffer) { hideBeatChip(); return null; }
+    buffer = truncateAudioBufferForWebAnalysis(buffer);
     if (token !== beatMapToken) { hideBeatChip(); return null; }
 
     var musicTempoBeats = [];
@@ -15735,6 +15790,7 @@ async function resolvePlaybackAudioUrl(url) {
 var webPlaybackUnlockDone = false;
 function configurePlaybackAudioElement(audioEl, srcUrl) {
   if (!audioEl) return;
+  audioEl.preload = 'auto';
   if (mineradioUsesWebMediaBridge()) {
     try {
       audioEl.removeAttribute('crossorigin');
@@ -15746,6 +15802,67 @@ function configurePlaybackAudioElement(audioEl, srcUrl) {
 }
 function canUsePlaybackAudioGraph() {
   return !mineradioUsesWebMediaBridge();
+}
+function playbackStreamNeedsRefresh() {
+  if (!audio || !audio.src) return true;
+  if (audio.error) return true;
+  if (audio.volume <= 0.001 && targetVolume > 0.01) return true;
+  var now = Date.now();
+  if (playbackPausedAt && now - playbackPausedAt > PLAYBACK_STREAM_STALE_MS) return true;
+  if (playbackStreamLoadedAt && now - playbackStreamLoadedAt > PLAYBACK_STREAM_STALE_MS) return true;
+  return false;
+}
+function markPlaybackPaused() {
+  playbackPausedAt = Date.now();
+}
+async function fetchPlaybackSourceData(song, opts) {
+  opts = opts || {};
+  var isQQPlayback = songProviderKey(song) === 'qq';
+  var isKGPlayback = songProviderKey(song) === 'kg';
+  var requestedQuality = normalizePlaybackQuality(opts.qualityOverride || playbackQuality);
+  if (!isQQPlayback && !isKGPlayback && requestedQuality === 'jymaster' && !hasProviderSvip('netease', loginStatus)) requestedQuality = 'hires';
+  if (!isQQPlayback && !isKGPlayback && requestedQuality === 'hires' && !hasProviderSvip('netease', loginStatus)) requestedQuality = 'lossless';
+  if (isQQPlayback && qqPlaybackQualityCeiling && (requestedQuality === 'jymaster' || requestedQuality === 'hires' || requestedQuality === 'lossless')) {
+    requestedQuality = qqPlaybackQualityCeiling;
+  }
+  var qualityParam = '&quality=' + encodeURIComponent(requestedQuality);
+  return isKGPlayback
+    ? await apiJson(kgPlaybackUrlQuery(song, qualityParam))
+    : (isQQPlayback
+      ? await apiJson('/api/qq/song/url?mid=' + encodeURIComponent(song.mid || song.songmid || song.id || '') + '&mediaMid=' + encodeURIComponent(song.mediaMid || song.media_mid || '') + qualityParam)
+      : await apiJson('/api/song/url?id=' + song.id + qualityParam));
+}
+async function refreshCurrentPlaybackStream(opts) {
+  opts = opts || {};
+  if (currentIdx < 0 || currentIdx >= playQueue.length) return false;
+  var song = playQueue[currentIdx];
+  var token = trackSwitchToken;
+  var resumeAt = opts.resumeAt != null ? opts.resumeAt : (audio && isFinite(audio.currentTime) ? audio.currentTime : 0);
+  try {
+    if (!opts.silent) showLoading();
+    var data = await fetchPlaybackSourceData(song, opts);
+    if (token !== trackSwitchToken || !data || !data.url) return false;
+    currentPlaybackDirectUrl = data.url;
+    playbackStreamLoadedAt = Date.now();
+    playbackPausedAt = 0;
+    if (!audio) audio = new Audio();
+    audioFadeSerial++;
+    clearAudioFadeTimers();
+    audio._mineradioRefreshAttempt = false;
+    configurePlaybackAudioElement(audio, data.url);
+    bindPlaybackProgressEvents(audio);
+    applyVolumeToAudio();
+    restorePlaybackGain();
+    audio.src = await resolvePlaybackAudioUrl(data.url);
+    audio.load();
+    if (resumeAt > 0.35) scheduleAudioResumePosition(audio, resumeAt, token);
+    return await attemptAudioPlay({ manual: true, resume: true, silent: !!opts.silent });
+  } catch (err) {
+    console.warn('[RefreshPlaybackStream]', err);
+    return false;
+  } finally {
+    if (!opts.silent) hideLoading();
+  }
 }
 function releaseWebPlaybackCaptureIfNeeded() {
   if (!mineradioUsesWebMediaBridge()) return;
@@ -17942,6 +18059,10 @@ function likeSongKey(song) {
     var qqId = String(song.qqId || '').replace(/\D/g, '');
     return qqId ? ('qq:' + qqId) : ('qqmid:' + String(song.mid || song.songmid || song.id || ''));
   }
+  if (songProviderKey(song) === 'kg') {
+    var kgHash = String(song.hash || song.id || '').trim().toLowerCase();
+    return kgHash ? ('kg:' + kgHash) : '';
+  }
   return song.id != null ? String(song.id) : '';
 }
 function isSongLiked(song) {
@@ -17953,6 +18074,12 @@ function ensureLoggedInForAction(song) {
     if (qqLoginStatus.loggedIn) return true;
     showToast('登录 QQ 音乐后可同步');
     showLoginModal('qq');
+    return false;
+  }
+  if (song && songProviderKey(song) === 'kg') {
+    if (kgLoginStatus.loggedIn) return true;
+    showToast('登录酷狗音乐后可同步');
+    showLoginModal('kg');
     return false;
   }
   if (loginStatus.loggedIn) return true;
@@ -17997,6 +18124,7 @@ function syncLikeStatusForSongs(songs) {
   var token = ++likeStatusToken;
   var neteaseSongs = songs.filter(isCloudSong);
   var qqSongs = songs.filter(function(s){ return songProviderKey(s) === 'qq' && (s.qqId || s.mid || s.id); });
+  var kgSongs = songs.filter(function(s){ return songProviderKey(s) === 'kg' && (s.hash || s.id); });
   if (loginStatus.loggedIn && neteaseSongs.length) {
     var ids = neteaseSongs.map(function(s){ return String(s.id); });
     apiJson('/api/song/like/check?ids=' + encodeURIComponent(ids.join(','))).then(function(r){
@@ -18012,18 +18140,40 @@ function syncLikeStatusForSongs(songs) {
     }).catch(function(err){ console.warn('like check failed:', err); });
   }
   if (qqLoginStatus.loggedIn && qqSongs.length) {
-    var qqIds = qqSongs.map(function(s){ return String(s.qqId || '').replace(/\D/g, ''); }).filter(Boolean);
-    if (!qqIds.length) return;
+    var qqIds = qqSongs.map(function(s){
+      var qqId = String(s.qqId || '').replace(/\D/g, '');
+      if (qqId) return qqId;
+      return String(s.mid || s.songmid || s.id || '').trim();
+    }).filter(Boolean);
+    if (!qqIds.length) { /* skip qq batch */ } else {
     apiJson('/api/qq/song/like/check?ids=' + encodeURIComponent(qqIds.join(','))).then(function(r){
       if (token < likeStatusToken - 3 || !r || !r.liked) return;
       qqSongs.forEach(function(song){
         var qqId = String(song.qqId || '').replace(/\D/g, '');
+        var qqMid = String(song.mid || song.songmid || song.id || '').trim();
         if (qqId && Object.prototype.hasOwnProperty.call(r.liked, qqId)) likedSongMap[likeSongKey(song)] = !!r.liked[qqId];
+        else if (qqMid && Object.prototype.hasOwnProperty.call(r.liked, qqMid)) likedSongMap[likeSongKey(song)] = !!r.liked[qqMid];
       });
       safeRenderQueuePanel('like-status-sync', { scrollCurrent: miniQueueOpen });
       if ($results && $results.classList.contains('show')) refreshSearchResultActionStates();
       updateLikeButtons();
     }).catch(function(err){ console.warn('qq like check failed:', err); });
+    }
+  }
+  if (kgLoginStatus.loggedIn && kgSongs.length) {
+    var kgIds = kgSongs.map(function(s){ return String(s.hash || s.id || '').trim().toLowerCase(); }).filter(Boolean);
+    if (kgIds.length) {
+      apiJson('/api/kg/song/like/check?ids=' + encodeURIComponent(kgIds.join(','))).then(function(r){
+        if (token < likeStatusToken - 3 || !r || !r.liked) return;
+        kgSongs.forEach(function(song){
+          var kgHash = String(song.hash || song.id || '').trim().toLowerCase();
+          if (kgHash && Object.prototype.hasOwnProperty.call(r.liked, kgHash)) likedSongMap[likeSongKey(song)] = !!r.liked[kgHash];
+        });
+        safeRenderQueuePanel('like-status-sync', { scrollCurrent: miniQueueOpen });
+        if ($results && $results.classList.contains('show')) refreshSearchResultActionStates();
+        updateLikeButtons();
+      }).catch(function(err){ console.warn('kg like check failed:', err); });
+    }
   }
 }
 function syncLikeStatusForSong(song) {
@@ -18043,7 +18193,7 @@ function isLikedPlaylistContext(id, title, meta) {
 function markSongsLiked(songs, liked) {
   (songs || []).forEach(function(song){
     var key = likeSongKey(song);
-    if (key && (isCloudSong(song) || songProviderKey(song) === 'qq')) likedSongMap[key] = !!liked;
+    if (key && (isCloudSong(song) || songProviderKey(song) === 'qq' || songProviderKey(song) === 'kg')) likedSongMap[key] = !!liked;
   });
 }
 function refreshSearchResultActionStates() {
@@ -18066,7 +18216,7 @@ async function toggleLikeSong(song) {
   if (!ensureLoggedInForAction(song)) return;
   var key = likeSongKey(song);
   if (!key) {
-    showToast(provider === 'qq' ? 'QQ 歌曲缺少可同步 ID' : '歌曲缺少可同步 ID');
+    showToast(provider === 'qq' ? 'QQ 歌曲缺少可同步 ID' : (provider === 'kg' ? '酷狗歌曲缺少 hash' : '歌曲缺少可同步 ID'));
     return;
   }
   if (likeBusyMap[key]) return;
@@ -18080,7 +18230,15 @@ async function toggleLikeSong(song) {
     var r;
     if (provider === 'qq') {
       var qqId = String(song.qqId || '').replace(/\D/g, '');
-      r = await apiJson('/api/qq/song/like?id=' + encodeURIComponent(qqId) + '&mid=' + encodeURIComponent(song.mid || song.songmid || song.id || '') + '&like=' + encodeURIComponent(String(next)));
+      var qqMid = String(song.mid || song.songmid || '').trim();
+      if (!qqMid && String(song.id || '').trim().length >= 10 && !/^\d+$/.test(String(song.id || '').trim())) qqMid = String(song.id || '').trim();
+      r = await apiJson('/api/qq/song/like?id=' + encodeURIComponent(qqId) + '&mid=' + encodeURIComponent(qqMid) + '&like=' + encodeURIComponent(String(next)));
+    } else if (provider === 'kg') {
+      r = await apiJson('/api/kg/song/like?hash=' + encodeURIComponent(String(song.hash || song.id || '')) +
+        '&albumId=' + encodeURIComponent(String(song.albumId || song.album_id || '')) +
+        '&albumAudioId=' + encodeURIComponent(String(song.albumAudioId || song.album_audio_id || '')) +
+        '&name=' + encodeURIComponent(String(song.name || '')) +
+        '&like=' + encodeURIComponent(String(next)));
     } else {
       r = await apiJson('/api/song/like?id=' + encodeURIComponent(String(song.id)) + '&like=' + encodeURIComponent(String(next)));
     }
@@ -18247,6 +18405,9 @@ function avatarSrc(url) {
 var searchTimer = null;
 var searchRequestSeq = 0;
 var searchLastResultQuery = '';
+var searchResultCache = Object.create(null);
+var SEARCH_CACHE_TTL_MS = 90000;
+var SEARCH_INPUT_DEBOUNCE_MS = 100;
 var SEARCH_HISTORY_STORE_KEY = 'mineradio-search-history';
 var $input = document.getElementById('search-input');
 var $results = document.getElementById('search-results');
@@ -18323,8 +18484,25 @@ function runSearchHistory(q) {
   if (!q) return;
   $input.value = q;
   setPeek(document.getElementById('search-area'), true, 'search');
-  doSearch(q);
+  submitSearch();
   $input.focus();
+}
+function submitSearch(opts) {
+  opts = opts || {};
+  clearTimeout(searchTimer);
+  var q = String($input && $input.value || '').trim();
+  var searchArea = document.getElementById('search-area');
+  if (searchArea) setPeek(searchArea, true, 'search');
+  if (!q) {
+    if (searchMode === 'podcast') loadPodcastHot();
+    else renderSearchHistory();
+    return;
+  }
+  if (isMusicSearchMode(searchMode)) {
+    $results.innerHTML = '<div class="search-empty">正在搜索 “' + escHtml(q) + '”…</div>';
+    $results.classList.add('show');
+  }
+  doSearch(q, { autoPlayFirst: !!opts.autoPlayFirst });
 }
 function updateSearchModeTabs() {
   var songBtn = document.getElementById('search-mode-song');
@@ -18532,7 +18710,7 @@ $input.addEventListener('input', function(){
     $results.innerHTML = '<div class="search-empty">正在搜索 “' + escHtml(q) + '”…</div>';
     $results.classList.add('show');
   }
-  searchTimer = setTimeout(function(){ doSearch(q); }, 180);
+  searchTimer = setTimeout(function(){ doSearch(q); }, SEARCH_INPUT_DEBOUNCE_MS);
 });
 $input.addEventListener('focus', function(){
   var searchArea = document.getElementById('search-area');
@@ -18542,18 +18720,25 @@ $input.addEventListener('focus', function(){
   else if (searchMode === 'podcast') loadPodcastHot();
 });
 var searchBoxEl = document.getElementById('search-box');
+var searchSubmitBtn = document.getElementById('search-submit-btn');
 if (searchBoxEl) {
-  searchBoxEl.addEventListener('click', function(){
+  searchBoxEl.addEventListener('click', function(e){
+    if (e.target.closest && e.target.closest('#search-submit-btn')) return;
+    if ($input) $input.focus();
+  });
+}
+if (searchSubmitBtn) {
+  searchSubmitBtn.addEventListener('click', function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    submitSearch();
     if ($input) $input.focus();
   });
 }
 $input.addEventListener('keydown', function(e){
-  if (e.key === 'Enter') {
+  if (e.key === 'Enter' && !e.isComposing) {
     e.preventDefault();
-    clearTimeout(searchTimer);
-    var q = $input.value.trim();
-    if (isMusicSearchMode(searchMode) && q && playlist.length && searchLastResultQuery === searchResultKey(q)) $results.classList.add('show');
-    else doSearch(q, { autoPlayFirst: false });
+    submitSearch();
   } else if (e.key === 'Escape') {
     clearTimeout(searchTimer);
     $input.blur();
@@ -18762,35 +18947,50 @@ function mergeSongSearchResults(neteaseSongs, qqSongs, limit, q, kgSongs, balanc
   out.sort(function(a, b){ return (b._searchScore || 0) - (a._searchScore || 0); });
   return out.slice(0, limit);
 }
-async function fetchMusicSearchResults(q, mode) {
+async function fetchMusicSearchResults(q, mode, onPartial) {
+  var cacheKey = searchResultKey(q, mode);
+  var cached = searchResultCache[cacheKey];
+  if (cached && Date.now() - cached.at < SEARCH_CACHE_TTL_MS) return cached.songs.slice();
   if (mode === 'qq') {
     var qqOnly = await apiJson('/api/qq/search?keywords=' + encodeURIComponent(q) + '&limit=12');
-    return mergeSongSearchResults([], qqOnly.songs || [], 18, q);
+    var qqSongs = mergeSongSearchResults([], qqOnly.songs || [], 18, q);
+    searchResultCache[cacheKey] = { at: Date.now(), songs: qqSongs.slice() };
+    return qqSongs;
   }
   if (mode === 'kg') {
-    var kgOnly = await apiJson('/api/kg/search?keywords=' + encodeURIComponent(q) + '&limit=14');
-    return mergeSongSearchResults([], [], 18, q, kgOnly.songs || []);
+    var kgOnly = await apiJson('/api/kg/search?keywords=' + encodeURIComponent(q) + '&limit=12');
+    var kgSongs = mergeSongSearchResults([], [], 18, q, kgOnly.songs || []);
+    searchResultCache[cacheKey] = { at: Date.now(), songs: kgSongs.slice() };
+    return kgSongs;
   }
   if (mode === 'netease') {
-    var neOnly = await apiJson('/api/search?keywords=' + encodeURIComponent(q) + '&limit=18');
+    var neOnly = await apiJson('/api/search?keywords=' + encodeURIComponent(q) + '&limit=16');
     if (neOnly && neOnly.error) console.warn('Netease search error:', neOnly.error);
-    return mergeSongSearchResults(neOnly.songs || [], [], 18, q);
+    var neSongs = mergeSongSearchResults(neOnly.songs || [], [], 18, q);
+    searchResultCache[cacheKey] = { at: Date.now(), songs: neSongs.slice() };
+    return neSongs;
   }
-  var result = await Promise.allSettled([
-    apiJson('/api/search?keywords=' + encodeURIComponent(q) + '&limit=10'),
-    apiJson('/api/qq/search?keywords=' + encodeURIComponent(q) + '&limit=8'),
-    apiJson('/api/kg/search?keywords=' + encodeURIComponent(q) + '&limit=8')
-  ]);
-  var neteaseSongs = result[0].status === 'fulfilled' ? ((result[0].value && result[0].value.songs) || []) : [];
-  var qqSongs = result[1].status === 'fulfilled' ? ((result[1].value && result[1].value.songs) || []) : [];
-  var kgSongs = result[2].status === 'fulfilled' ? ((result[2].value && result[2].value.songs) || []) : [];
+  var nePromise = apiJson('/api/search?keywords=' + encodeURIComponent(q) + '&limit=10');
+  var qqPromise = apiJson('/api/qq/search?keywords=' + encodeURIComponent(q) + '&limit=6');
+  var kgPromise = apiJson('/api/kg/search?keywords=' + encodeURIComponent(q) + '&limit=6');
+  var neResult = await nePromise;
+  var neteaseSongs = (neResult && neResult.songs) || [];
+  if (neteaseSongs.length && typeof onPartial === 'function') {
+    onPartial(mergeSongSearchResults(neteaseSongs, [], 18, q), false);
+  }
+  var result = await Promise.allSettled([Promise.resolve(neResult), qqPromise, kgPromise]);
   if (result[0].status === 'rejected') console.warn('Netease search failed:', result[0].reason);
   else if (result[0].value && result[0].value.error) console.warn('Netease search error:', result[0].value.error);
   if (result[1].status === 'rejected') console.warn('QQ search failed:', result[1].reason);
   if (result[2].status === 'rejected') console.warn('Kugou search failed:', result[2].reason);
-  return mergeSongSearchResults(neteaseSongs, qqSongs, 18, q, kgSongs, true);
+  var qqSongsMerged = result[1].status === 'fulfilled' ? ((result[1].value && result[1].value.songs) || []) : [];
+  var kgSongsMerged = result[2].status === 'fulfilled' ? ((result[2].value && result[2].value.songs) || []) : [];
+  var merged = mergeSongSearchResults(neteaseSongs, qqSongsMerged, 18, q, kgSongsMerged, true);
+  searchResultCache[cacheKey] = { at: Date.now(), songs: merged.slice() };
+  return merged;
 }
-function renderSongSearchResults(songs) {
+function renderSongSearchResults(songs, opts) {
+  opts = opts || {};
   playlist = songs || [];
   $results.innerHTML = playlist.map(function(s, i){
     var vipTag = songVipTagHtml(s);
@@ -18814,8 +19014,10 @@ function renderSongSearchResults(songs) {
     '</div>';
   }).join('');
   $results.classList.add('show');
-  syncLikeStatusForSongs(playlist);
-  if (window.gsap) animateListItems($results, '.search-result', { x: 0, y: 6, stagger: 0.012, duration: 0.18, limit: 18 });
+  if (!opts.skipLikeSync) {
+    scheduleUiWarmTask(function(){ syncLikeStatusForSongs(playlist); }, mineradioUsesWebMediaBridge() ? 480 : 220);
+  }
+  if (!opts.skipAnimate && window.gsap) animateListItems($results, '.search-result', { x: 0, y: 6, stagger: 0.012, duration: 0.18, limit: mineradioUsesWebMediaBridge() ? 10 : 18 });
 }
 
 async function doSearch(q, opts) {
@@ -18833,7 +19035,12 @@ async function doSearch(q, opts) {
   var requestSeq = ++searchRequestSeq;
   try {
     var mode = searchMode;
-    var songs = await fetchMusicSearchResults(q, mode);
+    var partialRendered = false;
+    var songs = await fetchMusicSearchResults(q, mode, function(partial){
+      if (requestSeq !== searchRequestSeq || $input.value.trim() !== q || !partial || !partial.length) return;
+      partialRendered = true;
+      renderSongSearchResults(partial, { skipLikeSync: true, skipAnimate: true });
+    });
     if (requestSeq !== searchRequestSeq || $input.value.trim() !== q) return;
     if (!songs.length) {
       playlist = [];
@@ -18844,7 +19051,8 @@ async function doSearch(q, opts) {
     }
     searchLastResultQuery = searchResultKey(q, mode);
     rememberSearchQuery(q);
-    renderSongSearchResults(songs);
+    if (!partialRendered) renderSongSearchResults(songs);
+    else renderSongSearchResults(songs, { skipAnimate: partialRendered });
     if (opts.autoPlayFirst) playSearchResult(0);
   } catch (err) { console.error('Search:', err); }
 }
@@ -19083,6 +19291,12 @@ function restorePlaybackGain() {
 }
 function fadeOutAndPauseAudio() {
   if (!audio || audio.paused) return Promise.resolve(false);
+  markPlaybackPaused();
+  if (mineradioUsesWebMediaBridge()) {
+    clearAudioFadeTimers();
+    try { audio.pause(); } catch (pauseErr) { console.warn('[TogglePlayPause]', pauseErr); }
+    return Promise.resolve(true);
+  }
   var serial = ++audioFadeSerial;
   rampAudioOutputGain(0, AUDIO_FADE_OUT_MS);
   return new Promise(function(resolve) {
@@ -19548,8 +19762,9 @@ function scheduleAudioResumePosition(media, seconds, token) {
 async function playQueueAt(idx, opts) {
   opts = opts || {};
   if (idx < 0 || idx >= playQueue.length) return;
+  applyWebPlaybackPerfTuning();
   primeWebPlaybackUnlockIfNeeded(opts);
-  markRenderInteraction('track-switch', 1500);
+  markRenderInteraction('track-switch', mineradioUsesWebMediaBridge() ? 2800 : 1500);
   var playPhase = 'start';
   function markPlayPhase(name) { playPhase = name; }
   try {
@@ -19575,6 +19790,10 @@ async function playQueueAt(idx, opts) {
   safeRenderQueuePanel('play-queue-at-switch', { scrollCurrent: miniQueueOpen });
   safePlaybackStep('shelf-preview-suppress', suppressShelfPreviewForPlaybackSwitch);
   pauseCurrentAudioForTrackSwitch();
+  var urlFetchPromise = fetchPlaybackSourceData(song, opts).catch(function(err){
+    console.warn('[PlaybackUrlPrefetch]', err);
+    return null;
+  });
   var bmKey = safePlaybackStep('beatmap-key', function(){ return beatMapSongKey(song); }) || '';
   var podcastDjMode = !!safePlaybackStep('podcast-mode', function(){ return isPodcastSong(song); });
   safePlaybackStep('dj-mode', function(){ setDjModeActive(podcastDjMode, song); });
@@ -19602,9 +19821,15 @@ async function playQueueAt(idx, opts) {
   markPlayPhase('cover-load');
   safePlaybackStep('cover-load', function(){
     var customCover = getCustomCoverForSong(song);
-    var coverOpts = { trackToken: token, deferHeavy: true, delay: firstVisualPlay ? 380 : 680, timeout: firstVisualPlay ? 1400 : 1900 };
+    var webMode = mineradioUsesWebMediaBridge();
+    var coverOpts = {
+      trackToken: token,
+      deferHeavy: true,
+      delay: webMode ? (firstVisualPlay ? 1400 : 2200) : (firstVisualPlay ? 380 : 680),
+      timeout: webMode ? 3600 : (firstVisualPlay ? 1400 : 1900)
+    };
     if (customCover) applyCoverDataUrl(customCover, coverOpts);
-    else loadCoverFromUrl(song.cover ? coverUrlWithSize(song.cover, 400) : '', coverOpts);
+    else loadCoverFromUrl(song.cover ? coverUrlWithSize(song.cover, webMode ? 320 : 400) : '', coverOpts);
   });
   safePlaybackStep('trial-banner-reset', function(){ document.getElementById('trial-banner').classList.remove('show'); });
   safePlaybackStep('show-loading', showLoading);
@@ -19620,27 +19845,23 @@ async function playQueueAt(idx, opts) {
 
   try {
     markPlayPhase('source-url');
-    var isQQPlayback = songProviderKey(song) === 'qq';
-    var isKGPlayback = songProviderKey(song) === 'kg';
-    var requestedQuality = normalizePlaybackQuality(opts.qualityOverride || playbackQuality);
-    if (!isQQPlayback && !isKGPlayback && requestedQuality === 'jymaster' && !hasProviderSvip('netease', loginStatus)) requestedQuality = 'hires';
-    if (!isQQPlayback && !isKGPlayback && requestedQuality === 'hires' && !hasProviderSvip('netease', loginStatus)) requestedQuality = 'lossless';
-    if (isQQPlayback && qqPlaybackQualityCeiling && (requestedQuality === 'jymaster' || requestedQuality === 'hires' || requestedQuality === 'lossless')) {
-      requestedQuality = qqPlaybackQualityCeiling;
-    }
-    var qualityParam = '&quality=' + encodeURIComponent(requestedQuality);
-    var data = isKGPlayback
-      ? await apiJson(kgPlaybackUrlQuery(song, qualityParam))
-      : (isQQPlayback
-        ? await apiJson('/api/qq/song/url?mid=' + encodeURIComponent(song.mid || song.songmid || song.id || '') + '&mediaMid=' + encodeURIComponent(song.mediaMid || song.media_mid || '') + qualityParam)
-        : await apiJson('/api/song/url?id=' + song.id + qualityParam));
+    var data = await urlFetchPromise;
     if (token !== trackSwitchToken) return;
-    if (!data.url) {
-      if (isQQPlayback && await retryQQPlaybackWithCompatibleQuality(song, idx, token, opts, data, requestedQuality)) return;
-      if (await tryAutoPlaybackFallback(song, data, idx, token, opts)) return;
-      handlePlaybackUnavailable(song, data);
+    if (!data || !data.url) {
+      if (data) {
+        var isQQPlayback = songProviderKey(song) === 'qq';
+        var requestedQuality = normalizePlaybackQuality(opts.qualityOverride || playbackQuality);
+        if (isQQPlayback && await retryQQPlaybackWithCompatibleQuality(song, idx, token, opts, data, requestedQuality)) return;
+        if (await tryAutoPlaybackFallback(song, data, idx, token, opts)) return;
+        handlePlaybackUnavailable(song, data);
+      } else {
+        showToast('获取播放地址失败，请重试');
+        hideLoading();
+      }
       return;
     }
+    var isQQPlayback = songProviderKey(song) === 'qq';
+    var requestedQuality = normalizePlaybackQuality(opts.qualityOverride || playbackQuality);
     var resolvedQualityText = playbackResolvedQualityText(data);
     if (!isQQPlayback && playbackQualityWasDowngraded(requestedQuality, data.level)) {
       showSourceFallbackNotice('网易云音质自动降级', '请求 ' + playbackQualityLabel(requestedQuality) + '，实际播放 ' + resolvedQualityText + '。');
@@ -19674,6 +19895,9 @@ async function playQueueAt(idx, opts) {
     applyVolumeToAudio();
     var proxyAudioUrl = await resolvePlaybackAudioUrl(data.url);
     var analysisAudioUrl = resolveBeatAnalysisAudioUrl(data.url);
+    currentPlaybackDirectUrl = data.url;
+    playbackStreamLoadedAt = Date.now();
+    playbackPausedAt = 0;
     audio.src = proxyAudioUrl;
     updatePlaybackProgressUi();
     audio.onended = function(){
@@ -19746,18 +19970,19 @@ async function playQueueAt(idx, opts) {
       console.log('beatmap 缓存命中:', currentBeatMap.kicks.length, '个鼓点');
       scheduleQueueBeatPrefetch(idx, 2600);
     } else {
-      var diskBeatMap = bmKey ? await readBeatDiskCache(bmKey) : null;
-      if (diskBeatMap) {
-        currentBeatMap = diskBeatMap;
-        applyCinemaProfileFromBeatMap(currentBeatMap);
-        syncBeatMapPlaybackCursor(audio ? audio.currentTime : 0);
-        notifyDesktopLyricsBeatMapReady();
-        console.log('beatmap D盘缓存命中:', currentBeatMap.kicks.length, '个鼓点');
-        scheduleQueueBeatPrefetch(idx, 2600);
-      } else {
-        maybeApplyProvisionalBeatMap(song, bmKey || String(song.id || ''));
-        scheduleBeatAnalysis(bmKey || song.id, analysisAudioUrl, bmTok, song, data.url);
+      var diskKey = bmKey;
+      if (diskKey) {
+        readBeatDiskCache(diskKey).then(function(diskBeatMap){
+          if (!diskBeatMap || bmTok !== beatMapToken) return;
+          if (hasResolvedBeatMapCache(diskKey)) return;
+          applyBeatMapCacheForCurrent(diskKey, diskBeatMap, bmTok, 'D盘节拍缓存命中:');
+          cancelBeatAnalysisTimer();
+          cancelBeatAnalysisWatchdog();
+          clearProvisionalBeatChipTimer();
+        });
       }
+      maybeApplyProvisionalBeatMap(song, bmKey || String(song.id || ''));
+      scheduleBeatAnalysis(bmKey || song.id, analysisAudioUrl, bmTok, song, data.url);
     }
     } catch (visualErr) {
       console.warn('[PlaybackVisualPrep]', song && song.name, visualErr);
@@ -19776,6 +20001,8 @@ async function playQueueAt(idx, opts) {
         setOriginalLyricsState(podcastLyricLines, false, 'fallback');
         applyPreferredLyricsForCurrent(true);
       });
+    } else if (mineradioUsesWebMediaBridge()) {
+      scheduleUiWarmTask(function(){ fetchLyric(song, token); }, 1200);
     } else {
       fetchLyric(song, token);
     }
@@ -19809,9 +20036,15 @@ async function attemptAudioPlay(opts) {
   if (webMode) opts.fade = false;
   try {
       if (!audio) return false;
-      if (webMode && audio.src) await waitForPlaybackAudioReady(audio, 12000);
-      if (!audioReady) initAudio();
       restorePlaybackGain();
+      if (webMode && audio.src) {
+        if (opts.resume) {
+          if (audio.readyState < 1) await waitForPlaybackAudioReady(audio, 4500);
+        } else if (audio.readyState < 2) {
+          await waitForPlaybackAudioReady(audio, 6500);
+        }
+      }
+      if (!audioReady) initAudio();
       if (opts.fade !== false) preparePlaybackFadeIn();
       if (opts.manual) {
         var manualPlay = audio.play();
@@ -19825,6 +20058,7 @@ async function attemptAudioPlay(opts) {
       if (audio.paused) throw new Error('play stalled');
       switchPlaybackVisualToEmily();
       playing = true; setPlayIcon(true);
+      playbackPausedAt = 0;
       ensurePlaybackBeatmapVisualFallback();
     if (opts.fade !== false) startPlaybackFadeIn();
     else restorePlaybackGain();
@@ -19856,7 +20090,17 @@ async function togglePlay() {
     }
     if (!audio) return;
     if (audio.paused || audio.ended) {
-      await attemptAudioPlay({ manual: true });
+      restorePlaybackGain();
+      if (playbackStreamNeedsRefresh()) {
+        var refreshed = await refreshCurrentPlaybackStream({ resumeAt: audio.currentTime, manual: true });
+        if (refreshed) return;
+        if (playbackStreamNeedsRefresh()) {
+          showToast('播放链接已过期，正在重新加载…');
+          refreshed = await refreshCurrentPlaybackStream({ resumeAt: 0, manual: true });
+          if (refreshed) return;
+        }
+      }
+      await attemptAudioPlay({ manual: true, resume: true });
     } else {
       await fadeOutAndPauseAudio();
       playing = false;
@@ -21166,6 +21410,13 @@ function bindPlaybackProgressEvents(audioEl) {
   audioEl.addEventListener('error', function(){
     console.warn('[PlaybackAudio]', audioEl.error, audioEl.src);
     updatePlaybackProgressUi();
+    if (mineradioUsesWebMediaBridge() && currentIdx >= 0 && !audioEl._mineradioRefreshAttempt) {
+      audioEl._mineradioRefreshAttempt = true;
+      refreshCurrentPlaybackStream({ resumeAt: audioEl.currentTime || 0, silent: true }).then(function(ok){
+        if (!ok) showToast('音频加载失败，请确认 Bridge 扩展已启用后刷新页面');
+      });
+      return;
+    }
     if (mineradioUsesWebMediaBridge()) showToast('音频加载失败，请确认 Bridge 扩展已启用后刷新页面');
   });
 }
@@ -24495,6 +24746,10 @@ function providerVipLevel(provider, status) {
   var raw = String(status.vipLevel || status.vip_level || '').toLowerCase();
   if (raw === 'svip' || raw === 'vip' || raw === 'none') return raw;
   var vip = providerVipType(provider, status);
+  if (provider === 'kg') {
+    if (status.isVip || status.is_vip) return 'vip';
+    return vip > 0 ? 'vip' : 'none';
+  }
   if (provider === 'netease') {
     if (status.isSvip || status.is_svip || vip >= 10) return 'svip';
     if (status.isVip || status.is_vip || vip > 0) return 'vip';
@@ -24513,7 +24768,9 @@ function providerVipBadge(provider, status, idAttr) {
   var id = idAttr ? ' id="' + idAttr + '"' : '';
   var cls = 'top-account-vip' + (provider === 'qq' ? ' qq' : (provider === 'kg' ? ' kg' : ''));
   var level = providerVipLevel(provider, status);
-  var label = provider === 'qq' ? 'QQ VIP' : (provider === 'kg' ? '酷狗 VIP' : (level === 'svip' ? 'SVIP' : 'VIP'));
+  var label = provider === 'qq' ? 'QQ VIP' : (provider === 'kg'
+    ? (status.vipLabel && status.vipLabel !== '无VIP' ? status.vipLabel : '酷狗 VIP')
+    : (level === 'svip' ? 'SVIP' : 'VIP'));
   return '<span' + id + ' class="' + cls + '">' + label + '</span>';
 }
 function hasPlatformLogin(provider) {
@@ -24611,8 +24868,22 @@ async function refreshKGLoginStatus() {
   try {
     var info = await apiJson('/api/kg/login/status?t=' + Date.now());
     var prevLogged = !!kgLoginStatus.loggedIn;
-    kgLoginStatus = Object.assign({ provider: 'kg', loggedIn: false, nickname: '酷狗音乐', userId: '', avatar: '', vipType: 0, isVip: false }, info || {});
+    kgLoginStatus = Object.assign({ provider: 'kg', loggedIn: false, nickname: '酷狗音乐', userId: '', avatar: '', vipType: 0, isVip: false, vipLabel: '无VIP' }, info || {});
     kgLoginStatus.isVip = !!(kgLoginStatus.isVip || kgLoginStatus.is_vip || Number(kgLoginStatus.vipType || kgLoginStatus.vip_type || 0) > 0);
+    if (kgLoginStatus.loggedIn && !kgLoginStatus.isVip) {
+      try {
+        var vipDetail = await apiJson('/api/kg/vip/detail?t=' + Date.now());
+        if (vipDetail && (vipDetail.isVip || Number(vipDetail.vipType || 0) > 0)) {
+          kgLoginStatus.isVip = true;
+          kgLoginStatus.vipType = vipDetail.vipType || kgLoginStatus.vipType;
+          if (vipDetail.vipLabel) kgLoginStatus.vipLabel = vipDetail.vipLabel;
+          if (vipDetail.expireTime) kgLoginStatus.expireTime = vipDetail.expireTime;
+        }
+      } catch (e) {}
+    }
+    if (kgLoginStatus.isVip && (!kgLoginStatus.vipLabel || kgLoginStatus.vipLabel === '无VIP')) {
+      kgLoginStatus.vipLabel = 'VIP';
+    }
     if (!kgLoginStatus.loggedIn) {
       if (prevLogged) showToast('酷狗音乐登录已失效');
       else if (info && info.message) showToast(info.message);
@@ -24695,7 +24966,7 @@ function renderUserBtn() {
   }
   updatePlaybackQualityUi();
 }
-var MINERADIO_BRIDGE_EXTENSION_VERSION = '1.2.8';
+var MINERADIO_BRIDGE_EXTENSION_VERSION = '1.2.9';
 var loginExtensionProbeTimer = null;
 function resolveBridgeExtensionDownloadUrl() {
   var versioned = 'downloads/Mineradio-Bridge-' + MINERADIO_BRIDGE_EXTENSION_VERSION + '.zip';
@@ -25213,7 +25484,9 @@ function updateUserModalUi() {
   if (name) name.textContent = (st && st.nickname) || meta.label;
   if (vipEl) {
     if (activeAccountProvider === 'kg') {
-      var kgVipLabel = hasProviderVip('kg', st) ? '酷狗 VIP 会员' : '酷狗账号';
+      var kgVipLabel = hasProviderVip('kg', st)
+        ? ('酷狗 ' + ((st && st.vipLabel && st.vipLabel !== '无VIP') ? st.vipLabel : 'VIP 会员'))
+        : '酷狗账号';
       vipEl.textContent = 'UID: ' + ((st && st.userId) || '-') + '  ·  ' + kgVipLabel;
       vipEl.style.color = hasProviderVip('kg', st) ? 'rgba(0,196,255,0.92)' : 'rgba(0,196,255,0.72)';
     } else if (activeAccountProvider === 'netease') {
@@ -28045,8 +28318,10 @@ function runDeferredVisualLayers() {
   if (fx.backCover) createBackCoverLayer();
   initIdleGuideCanvas();
 }
-if (mineradioUsesWebMediaBridge()) scheduleWebStartupTask(runDeferredVisualLayers, 3200);
-else runDeferredVisualLayers();
+if (mineradioUsesWebMediaBridge()) {
+  applyWebPlaybackPerfTuning();
+  scheduleWebStartupTask(runDeferredVisualLayers, 3200);
+} else runDeferredVisualLayers();
 scheduleWebStartupTask(function(){
   var startupLoginStatusPromise = Promise.all([refreshLoginStatus(), refreshQQLoginStatus(), refreshKGLoginStatus()]);
   if (!mineradioUsesWebMediaBridge()) startQQLoginStatusAutoRefresh();
@@ -28107,6 +28382,7 @@ function isMainSceneCoveredBySplash() {
   return document.body.classList.contains('splash-active') && !document.body.classList.contains('splash-revealing');
 }
 function getAdaptiveRenderFps() {
+  if (mineradioUsesWebMediaBridge() && (beatMapBusy || beatAnalysisTimer)) return 48;
   if (isDeepBackgroundMode()) return 1;
   if (RENDER_VISIBLE_VSYNC) return 0;
   var tier = (typeof getRenderLoadTier === 'function') ? getRenderLoadTier() : 0;

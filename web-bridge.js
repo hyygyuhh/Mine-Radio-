@@ -213,7 +213,7 @@
 
     var apiOpts = Object.assign({}, opts);
     if (path === '/api/audio' && query.purpose === 'analysis' && !apiOpts.headers) {
-      apiOpts.headers = { Range: 'bytes=0-4194303' };
+      apiOpts.headers = { Range: 'bytes=0-2621439' };
     }
     var data = await extensionApiRequest(path, query, apiOpts);
 
