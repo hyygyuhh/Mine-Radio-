@@ -25667,12 +25667,12 @@ function renderBridgeExtensionNotice(outdated, installedVersion) {
   if (title) title.textContent = mode === 'missing' ? '请先安装 Bridge 扩展' : (mode === 'outdated' ? 'Bridge 扩展可更新' : 'Bridge 扩展');
   if (body) {
     if (mode === 'missing') {
-      body.textContent = '网页版使用网易云、QQ 音乐、酷狗搜索/播放/登录，需先在登录页安装 Mineradio Bridge 扩展。';
+      body.textContent = '网页版使用网易云、QQ 音乐、酷狗搜索/播放/登录，需先在登录页下载 Mineradio Bridge 扩展，并按安装指引完成安装。';
     } else if (mode === 'outdated') {
       body.textContent = '当前 Bridge v' + installedVersion + '，网页最新 v' + MINERADIO_BRIDGE_EXTENSION_VERSION + '。请下载解压后在 chrome://extensions 重新加载。';
     }
   }
-  if (primary) primary.textContent = mode === 'missing' ? '前往登录页安装' : '下载新版';
+  if (primary) primary.textContent = mode === 'missing' ? '前往登录页下载' : '下载新版';
   if (secondary) secondary.textContent = mode === 'missing' ? '下载扩展包' : '重新检测';
   if (userBtn) {
     userBtn.classList.toggle('bridge-update-hint', mode === 'outdated');
