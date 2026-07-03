@@ -75,31 +75,147 @@
     global.postMessage(Object.assign({ source: PAGE_SOURCE, type: type }, payload || {}), '*');
   }
 
-  function waitForBridge(timeoutMs) {
-    if (bridgeReady) return Promise.resolve(true);
+  function compareBridgeSemver(a, b) {
+    a = String(a || '0').replace(/^v/i, '').split('.').map(function (n) { return Number(n) || 0; });
+    b = String(b || '0').replace(/^v/i, '').split('.').map(function (n) { return Number(n) || 0; });
+    var len = Math.max(a.length, b.length);
+    for (var i = 0; i < len; i++) {
+      var av = a[i] || 0;
+      var bv = b[i] || 0;
+      if (av > bv) return 1;
+      if (av < bv) return -1;
+    }
+    return 0;
+  }
+
+  function rememberBridgeExtId(extId) {
+    extId = String(extId || '').trim();
+    if (!extId) return;
+    try { global.localStorage.setItem('mineradio-bridge-ext-id', extId); } catch (_) {}
+  }
+
+  function readBridgeExtId() {
+    try { return global.localStorage.getItem('mineradio-bridge-ext-id') || ''; } catch (_) {
+      return '';
+    }
+  }
+
+  function applyBridgeHandshake(data) {
+    if (!data) return;
+    bridgeReady = true;
+    if (data.version) bridgeVersion = data.version;
+    if (data.extId) rememberBridgeExtId(data.extId);
+  }
+
+  function refreshBridgeVersion(timeoutMs) {
+    timeoutMs = Math.max(800, Number(timeoutMs) || 2500);
     return new Promise(function (resolve) {
       var done = false;
       var timer = setTimeout(function () {
         if (done) return;
         done = true;
-        resolve(false);
-      }, timeoutMs || 3000);
+        global.removeEventListener('message', onMessage);
+        resolve({ ready: bridgeReady, version: bridgeVersion, extId: readBridgeExtId() });
+      }, timeoutMs);
+      function finish(hit) {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        global.removeEventListener('message', onMessage);
+        resolve(hit || { ready: bridgeReady, version: bridgeVersion, extId: readBridgeExtId() });
+      }
       function onMessage(event) {
         if (event.source !== global || !event.data || event.data.source !== BRIDGE_SOURCE) return;
         if (event.data.type === 'MINERADIO_BRIDGE_READY' || event.data.type === 'MINERADIO_BRIDGE_PONG') {
-          bridgeReady = true;
-          bridgeVersion = event.data.version || '';
-          if (!done) {
-            done = true;
-            clearTimeout(timer);
-            global.removeEventListener('message', onMessage);
-            resolve(true);
-          }
+          applyBridgeHandshake(event.data);
+          finish({ ready: true, version: bridgeVersion, extId: readBridgeExtId() });
         }
       }
       global.addEventListener('message', onMessage);
       postBridgeMessage('MINERADIO_BRIDGE_PING');
+      tryExternalBridgeProbe(true);
+      setTimeout(function () { postBridgeMessage('MINERADIO_BRIDGE_PING'); }, 180);
     });
+  }
+
+  function waitForBridge(timeoutMs) {
+    return probeBridge({ timeoutMs: timeoutMs || 3000, force: false }).then(function (hit) {
+      return !!(hit && hit.ready);
+    });
+  }
+
+  function probeBridge(options) {
+    options = options || {};
+    if (options.refreshVersion) return refreshBridgeVersion(options.timeoutMs);
+    if (bridgeReady && !options.force) {
+      return Promise.resolve({ ready: true, version: bridgeVersion, extId: readBridgeExtId() });
+    }
+    var timeoutMs = Math.max(1500, Number(options.timeoutMs) || 6000);
+    var force = !!options.force;
+    return new Promise(function (resolve) {
+      var done = false;
+      var attempt = 0;
+      var maxAttempts = Math.max(4, Math.ceil(timeoutMs / 350));
+      var timer = setTimeout(finish, timeoutMs);
+      var pingTimer = null;
+
+      function finish(result) {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        if (pingTimer) clearInterval(pingTimer);
+        global.removeEventListener('message', onMessage);
+        resolve(result || { ready: bridgeReady, version: bridgeVersion, extId: readBridgeExtId() });
+      }
+
+      function onMessage(event) {
+        if (event.source !== global || !event.data || event.data.source !== BRIDGE_SOURCE) return;
+        if (event.data.type === 'MINERADIO_BRIDGE_READY' || event.data.type === 'MINERADIO_BRIDGE_PONG') {
+          applyBridgeHandshake(event.data);
+          finish({ ready: true, version: bridgeVersion, extId: readBridgeExtId() });
+        }
+      }
+
+      function sendProbe() {
+        postBridgeMessage('MINERADIO_BRIDGE_PING');
+        if (force || attempt === 0 || attempt % 2 === 0) {
+          postBridgeMessage('MINERADIO_BRIDGE_PROBE', { pageUrl: String(global.location && global.location.href || ''), force: force });
+        }
+        tryExternalBridgeProbe(force);
+      }
+
+      global.addEventListener('message', onMessage);
+      sendProbe();
+      pingTimer = setInterval(function () {
+        attempt += 1;
+        if (bridgeReady) {
+          finish({ ready: true, version: bridgeVersion, extId: readBridgeExtId() });
+          return;
+        }
+        if (attempt >= maxAttempts) {
+          finish({ ready: false, version: bridgeVersion, extId: readBridgeExtId() });
+          return;
+        }
+        sendProbe();
+      }, 350);
+    });
+  }
+
+  function tryExternalBridgeProbe(force) {
+    var extId = readBridgeExtId();
+    if (!extId || !global.chrome || !global.chrome.runtime || typeof global.chrome.runtime.sendMessage !== 'function') return;
+    try {
+      global.chrome.runtime.sendMessage(extId, {
+        type: 'MINERADIO_BRIDGE_PROBE',
+        pageUrl: String(global.location && global.location.href || ''),
+        force: !!force,
+      }, function (resp) {
+        if (global.chrome.runtime.lastError) return;
+        if (resp && resp.ok) {
+          applyBridgeHandshake({ version: resp.version, extId: extId });
+        }
+      });
+    } catch (_) {}
   }
 
   function extensionApiRequest(path, query, opts) {
@@ -291,8 +407,7 @@
   global.addEventListener('message', function (event) {
     if (event.source !== global || !event.data || event.data.source !== BRIDGE_SOURCE) return;
     if (event.data.type === 'MINERADIO_BRIDGE_READY' || event.data.type === 'MINERADIO_BRIDGE_PONG') {
-      bridgeReady = true;
-      bridgeVersion = event.data.version || bridgeVersion;
+      applyBridgeHandshake(event.data);
       return;
     }
     if (event.data.type !== 'MINERADIO_API_RESPONSE') return;
@@ -338,6 +453,13 @@
       isReady: function () { return bridgeReady; },
       getVersion: function () { return bridgeVersion; },
       ping: waitForBridge,
+      probe: probeBridge,
+      refreshVersion: refreshBridgeVersion,
+      compareVersion: compareBridgeSemver,
+      needsUpdate: function (latest) {
+        if (!bridgeVersion) return false;
+        return compareBridgeSemver(bridgeVersion, latest || '0') < 0;
+      },
     };
     document.documentElement.classList.add('web-shell-root');
     if (document.body) document.body.classList.add('web-shell');

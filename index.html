@@ -627,7 +627,7 @@ body.home-controls-locked #bottom-bar{opacity:0!important;pointer-events:none!im
 .ctrl-btn.active{color:rgba(210,244,241,.90);text-shadow:0 0 12px rgba(0,245,212,.16)}
 .ctrl-btn.liked{color:#ff7a90;text-shadow:0 0 18px rgba(255,122,144,.36)}
 .ctrl-btn.busy{opacity:.55;pointer-events:none}
-#play-mode-btn[data-mode="order"]{color:rgba(255,255,255,.70)}
+#play-mode-btn[data-mode="loop"]{color:rgba(255,255,255,.70)}
 #play-mode-btn[data-mode="shuffle"],#play-mode-btn[data-mode="single"]{color:rgba(210,244,241,.90);text-shadow:0 0 12px rgba(0,245,212,.15)}
 #play-mode-btn.mode-switching #play-mode-icon{animation:play-mode-pop .42s cubic-bezier(.16,1,.3,1)}
 @keyframes play-mode-pop{0%{opacity:.4;transform:translateY(3px) scale(.84) rotate(-18deg)}65%{opacity:1;transform:translateY(-1px) scale(1.10) rotate(4deg)}100%{opacity:1;transform:translateY(0) scale(1) rotate(0)}}
@@ -935,6 +935,9 @@ body.login-guide-active #login-guide-canvas{opacity:1}
 .login-extension-badge{flex-shrink:0;height:22px;padding:0 9px;border-radius:999px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.04);font-size:10px;font-weight:700;letter-spacing:.35px;color:rgba(255,255,255,.56);display:inline-flex;align-items:center;justify-content:center}
 .login-extension-badge.ready{color:#06241f;border-color:rgba(0,245,212,.34);background:rgba(0,245,212,.16)}
 .login-extension-badge.missing{color:#ffd7dc;border-color:rgba(255,83,103,.28);background:rgba(255,83,103,.10)}
+.login-extension-badge.outdated{color:#fff0c8;border-color:rgba(244,210,138,.34);background:rgba(244,210,138,.14)}
+.login-extension-panel.outdated{border-color:rgba(244,210,138,.24);background:linear-gradient(135deg,rgba(244,210,138,.10),rgba(0,245,212,.05),rgba(255,255,255,.02))}
+.login-extension-status.outdated{color:#f4d28a}
 .login-extension-body{font-size:11px;line-height:1.52;color:rgba(255,255,255,.52);margin-bottom:8px}
 .login-extension-steps{margin:0 0 10px 16px;padding:0;font-size:10px;line-height:1.48;color:rgba(255,255,255,.42)}
 .login-extension-steps li+li{margin-top:3px}
@@ -944,6 +947,12 @@ body.login-guide-active #login-guide-canvas{opacity:1}
 .login-extension-foot{margin-top:8px;font-size:10px;line-height:1.42;color:rgba(255,255,255,.30)}
 .login-extension-foot button{border:0;background:none;padding:0;color:rgba(244,210,138,.72);cursor:pointer;font:inherit;text-decoration:underline;text-underline-offset:2px}
 .login-extension-foot button:hover{color:rgba(244,210,138,.96)}
+#bridge-extension-notice{position:fixed;z-index:201;top:72px;right:24px;width:min(330px,calc(100vw - 48px));padding:13px 14px;border-radius:14px;border:1px solid rgba(244,210,138,.24);background:rgba(12,13,18,.88);color:rgba(255,255,255,.88);box-shadow:0 20px 54px rgba(0,0,0,.40),inset 0 1px 0 rgba(255,255,255,.08);backdrop-filter:blur(26px) saturate(1.25);-webkit-backdrop-filter:blur(26px) saturate(1.25);opacity:0;pointer-events:none;transform:translateY(-8px);transition:opacity .26s,transform .26s}
+#bridge-extension-notice.show{opacity:1;pointer-events:auto;transform:translateY(0)}
+#bridge-extension-notice .bridge-extension-actions{display:flex;gap:8px;margin-top:10px}
+#bridge-extension-notice .bridge-extension-actions button{height:32px;padding:0 12px;border-radius:10px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.05);color:rgba(255,255,255,.82);font:inherit;font-size:11px;cursor:pointer}
+#bridge-extension-notice .bridge-extension-actions button.primary{border-color:rgba(244,210,138,.34);background:rgba(244,210,138,.12);color:#fff0c8}
+#user-btn.bridge-update-hint{box-shadow:0 0 0 1px rgba(244,210,138,.22),0 0 18px rgba(244,210,138,.12),0 14px 42px rgba(0,0,0,.28)}
 .modal-btn{padding:8px 20px;font-size:12.5px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.05);color:#fff;cursor:pointer;letter-spacing:.5px;transition:all .2s;font-family:inherit}
 .modal-btn:hover{background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.3)}
 .modal-btn.primary{background:rgba(244,210,138,0.14);border-color:rgba(244,210,138,0.50);color:var(--champagne)}
@@ -2599,7 +2608,7 @@ html.control-glass-svg-ok #visual-guide-btn:hover{
       <div class="login-extension-head">
         <div class="login-extension-icon"><img src="icons/icon512.png" width="42" height="42" alt="Mineradio Bridge"></div>
         <div class="login-extension-meta">
-          <div class="login-extension-title">Mineradio Bridge 扩展 <span id="login-extension-version">v1.2.8</span></div>
+          <div class="login-extension-title">Mineradio Bridge 扩展 <span id="login-extension-version">v1.2.9</span></div>
           <div id="login-extension-status" class="login-extension-status">正在检测扩展…</div>
         </div>
         <span id="login-extension-badge" class="login-extension-badge">检测中</span>
@@ -2614,7 +2623,7 @@ html.control-glass-svg-ok #visual-guide-btn:hover{
         <button id="login-extension-download-btn" class="modal-btn primary" type="button" onclick="downloadMineradioBridgeExtension()">下载 Bridge 扩展</button>
         <button id="login-extension-refresh-btn" class="modal-btn" type="button" onclick="refreshLoginExtensionPanel()">重新检测</button>
       </div>
-      <div class="login-extension-foot">安装后刷新本页；也可查看 <button type="button" onclick="openBridgeExtensionInstallGuide()">GitHub 安装说明</button></div>
+      <div class="login-extension-foot">安装或更新扩展后点「重新检测」即可，无需刷新整页；也可查看 <button type="button" onclick="openBridgeExtensionInstallGuide()">GitHub 安装说明</button></div>
     </div>
     <h2 id="login-modal-title">登录网易云音乐</h2>
     <div id="login-modal-desc" class="desc">点击打开 <b>网易云音乐官方网页</b> 完成登录，返回后点击「刷新登录状态」。</div>
@@ -2793,6 +2802,17 @@ html.control-glass-svg-ok #visual-guide-btn:hover{
 </div>
 
 <div id="toast"></div>
+<div id="bridge-extension-notice" aria-live="polite">
+  <div class="source-fallback-head">
+    <div class="source-fallback-title">Bridge 扩展可更新</div>
+    <button class="source-fallback-close" type="button" onclick="dismissBridgeExtensionNotice()">×</button>
+  </div>
+  <div id="bridge-extension-notice-body" class="source-fallback-body">检测到旧版 Bridge，请下载并重新加载扩展。</div>
+  <div class="bridge-extension-actions">
+    <button class="primary" type="button" onclick="downloadMineradioBridgeExtension()">下载新版</button>
+    <button type="button" onclick="refreshBridgeExtensionWatch(true)">重新检测</button>
+  </div>
+</div>
 <div id="source-fallback-notice" aria-live="polite">
   <div class="source-fallback-head">
     <div id="source-fallback-title" class="source-fallback-title">自动换源</div>
@@ -24964,10 +24984,81 @@ function renderUserBtn() {
     btn.title = '登录账号';
     btn.innerHTML = '<span class="login-word">登录</span>';
   }
+  if (mineradioUsesWebMediaBridge() && hasAnyPlatformLogin()) {
+    if (!bridgeExtensionWatchTimer) startBridgeExtensionWatch();
+    else refreshBridgeExtensionWatch(false);
+  }
   updatePlaybackQualityUi();
 }
 var MINERADIO_BRIDGE_EXTENSION_VERSION = '1.2.9';
 var loginExtensionProbeTimer = null;
+var bridgeExtensionWatchTimer = null;
+var bridgeExtensionNoticeDismissed = false;
+var bridgeExtensionLastToastVersion = '';
+function getBridgeInstalledVersion() {
+  var bridge = window.__mineradioWebBridge;
+  return bridge && bridge.getVersion ? String(bridge.getVersion() || '') : '';
+}
+function dismissBridgeExtensionNotice() {
+  bridgeExtensionNoticeDismissed = true;
+  var notice = document.getElementById('bridge-extension-notice');
+  if (notice) notice.classList.remove('show');
+  var userBtn = document.getElementById('user-btn');
+  if (userBtn) userBtn.classList.remove('bridge-update-hint');
+}
+function renderBridgeExtensionNotice(outdated, installedVersion) {
+  var notice = document.getElementById('bridge-extension-notice');
+  var body = document.getElementById('bridge-extension-notice-body');
+  var userBtn = document.getElementById('user-btn');
+  var show = !!(mineradioUsesWebMediaBridge() && outdated && !bridgeExtensionNoticeDismissed);
+  if (body && installedVersion) {
+    body.textContent = '当前 Bridge v' + installedVersion + '，网页最新 v' + MINERADIO_BRIDGE_EXTENSION_VERSION + '。请下载解压后在 chrome://extensions 重新加载。';
+  }
+  if (notice) notice.classList.toggle('show', show);
+  if (userBtn) userBtn.classList.toggle('bridge-update-hint', show);
+}
+async function checkBridgeExtensionVersion(opts) {
+  opts = opts || {};
+  if (!mineradioUsesWebMediaBridge()) return { installed: '', outdated: false };
+  var bridge = window.__mineradioWebBridge;
+  if (!bridge) return { installed: '', outdated: false };
+  try {
+    if (typeof bridge.refreshVersion === 'function') await bridge.refreshVersion(opts.timeoutMs || 2500);
+    else if (typeof bridge.probe === 'function') await bridge.probe({ timeoutMs: opts.timeoutMs || 2500, force: !!opts.force, refreshVersion: true });
+  } catch (_) {}
+  var installed = getBridgeInstalledVersion();
+  var outdated = !!(installed && bridgeExtensionNeedsUpdate(installed));
+  renderBridgeExtensionNotice(outdated, installed);
+  renderLoginExtensionStatus(false);
+  if (outdated && opts.toast && bridgeExtensionLastToastVersion !== installed) {
+    bridgeExtensionLastToastVersion = installed;
+    showToast('Bridge 扩展有新版本 v' + MINERADIO_BRIDGE_EXTENSION_VERSION);
+  }
+  return { installed: installed, outdated: outdated };
+}
+function stopBridgeExtensionWatch() {
+  if (bridgeExtensionWatchTimer) {
+    clearInterval(bridgeExtensionWatchTimer);
+    bridgeExtensionWatchTimer = null;
+  }
+  document.removeEventListener('visibilitychange', onBridgeExtensionVisibility);
+}
+function onBridgeExtensionVisibility() {
+  if (!document.hidden) refreshBridgeExtensionWatch(false);
+}
+async function refreshBridgeExtensionWatch(manual) {
+  if (!mineradioUsesWebMediaBridge()) return null;
+  return checkBridgeExtensionVersion({ toast: !!manual, force: !!manual, timeoutMs: manual ? 8000 : 2500 });
+}
+function startBridgeExtensionWatch() {
+  if (!mineradioUsesWebMediaBridge()) return;
+  stopBridgeExtensionWatch();
+  refreshBridgeExtensionWatch(false);
+  bridgeExtensionWatchTimer = setInterval(function () {
+    refreshBridgeExtensionWatch(false);
+  }, 45000);
+  document.addEventListener('visibilitychange', onBridgeExtensionVisibility);
+}
 function resolveBridgeExtensionDownloadUrl() {
   var versioned = 'downloads/Mineradio-Bridge-' + MINERADIO_BRIDGE_EXTENSION_VERSION + '.zip';
   var origin = String(window.location && window.location.origin || '');
@@ -24976,6 +25067,22 @@ function resolveBridgeExtensionDownloadUrl() {
 }
 function bridgeExtensionInstallGuideUrl() {
   return 'https://github.com/XxHuberrr/Mineradio/tree/main/web/extension';
+}
+function compareBridgeExtensionVersion(a, b) {
+  a = String(a || '0').replace(/^v/i, '').split('.').map(function(n){ return Number(n) || 0; });
+  b = String(b || '0').replace(/^v/i, '').split('.').map(function(n){ return Number(n) || 0; });
+  var len = Math.max(a.length, b.length);
+  for (var i = 0; i < len; i++) {
+    var av = a[i] || 0;
+    var bv = b[i] || 0;
+    if (av > bv) return 1;
+    if (av < bv) return -1;
+  }
+  return 0;
+}
+function bridgeExtensionNeedsUpdate(installedVersion) {
+  if (!installedVersion) return false;
+  return compareBridgeExtensionVersion(installedVersion, MINERADIO_BRIDGE_EXTENSION_VERSION) < 0;
 }
 function stopLoginExtensionProbe() {
   if (loginExtensionProbeTimer) {
@@ -24988,20 +25095,34 @@ function renderLoginExtensionStatus(pinging) {
   var badge = document.getElementById('login-extension-badge');
   var versionEl = document.getElementById('login-extension-version');
   var panel = document.getElementById('login-extension-panel');
+  var downloadBtn = document.getElementById('login-extension-download-btn');
   var bridge = window.__mineradioWebBridge;
   var ready = !!(bridge && bridge.isReady && bridge.isReady());
-  var version = ready && bridge.getVersion ? bridge.getVersion() : '';
-  if (panel) panel.classList.toggle('ready', ready);
-  if (versionEl) versionEl.textContent = 'v' + MINERADIO_BRIDGE_EXTENSION_VERSION;
+  var installedVersion = ready && bridge.getVersion ? bridge.getVersion() : '';
+  var outdated = ready && bridgeExtensionNeedsUpdate(installedVersion);
+  if (panel) {
+    panel.classList.toggle('ready', ready && !outdated);
+    panel.classList.toggle('outdated', ready && outdated);
+  }
+  if (versionEl) {
+    versionEl.textContent = ready && installedVersion
+      ? ('v' + installedVersion + (outdated ? ' → v' + MINERADIO_BRIDGE_EXTENSION_VERSION : ''))
+      : ('v' + MINERADIO_BRIDGE_EXTENSION_VERSION);
+  }
   if (statusEl) {
-    statusEl.className = 'login-extension-status' + (ready ? ' ready' : (!pinging ? ' missing' : ''));
+    statusEl.className = 'login-extension-status' + (ready ? (outdated ? ' outdated' : ' ready') : (!pinging ? ' missing' : ''));
     if (pinging) statusEl.textContent = '正在检测 Bridge 扩展…';
-    else if (ready) statusEl.textContent = 'Bridge 已连接' + (version ? ' · v' + version : '');
+    else if (ready && outdated) statusEl.textContent = 'Bridge 已连接，但版本偏旧（v' + installedVersion + '），请更新到 v' + MINERADIO_BRIDGE_EXTENSION_VERSION;
+    else if (ready) statusEl.textContent = 'Bridge 已连接 · v' + installedVersion;
     else statusEl.textContent = '尚未检测到 Bridge，请先下载并加载扩展';
   }
   if (badge) {
-    badge.className = 'login-extension-badge' + (ready ? ' ready' : (!pinging ? ' missing' : ''));
-    badge.textContent = ready ? '已连接' : (pinging ? '检测中' : '未安装');
+    badge.className = 'login-extension-badge' + (ready ? (outdated ? ' outdated' : ' ready') : (!pinging ? ' missing' : ''));
+    badge.textContent = ready ? (outdated ? '需更新' : '已连接') : (pinging ? '检测中' : '未安装');
+  }
+  if (downloadBtn) {
+    downloadBtn.textContent = outdated ? '下载新版 Bridge' : '下载 Bridge 扩展';
+    downloadBtn.style.display = ready && !outdated ? 'none' : '';
   }
 }
 function startLoginExtensionProbe() {
@@ -25009,10 +25130,18 @@ function startLoginExtensionProbe() {
   var attempts = 0;
   loginExtensionProbeTimer = setInterval(function () {
     attempts++;
-    var ready = window.__mineradioWebBridge && window.__mineradioWebBridge.isReady && window.__mineradioWebBridge.isReady();
-    renderLoginExtensionStatus(!ready && attempts < 8);
-    if (ready || attempts >= 12) stopLoginExtensionProbe();
-  }, 500);
+    var bridge = window.__mineradioWebBridge;
+    if (bridge && typeof bridge.refreshVersion === 'function') {
+      bridge.refreshVersion(1200).then(function () { renderLoginExtensionStatus(false); }).catch(function(){});
+    } else if (bridge && typeof bridge.probe === 'function') {
+      bridge.probe({ timeoutMs: 1200, force: attempts <= 2, refreshVersion: attempts > 2 }).then(function () {
+        renderLoginExtensionStatus(false);
+      }).catch(function(){});
+    }
+    var ready = bridge && bridge.isReady && bridge.isReady();
+    renderLoginExtensionStatus(!ready && attempts < 10);
+    if (ready || attempts >= 16) stopLoginExtensionProbe();
+  }, 600);
 }
 function updateLoginExtensionPanel() {
   var panel = document.getElementById('login-extension-panel');
@@ -25032,10 +25161,7 @@ function updateLoginExtensionPanel() {
 async function refreshLoginExtensionPanel() {
   if (!mineradioUsesWebMediaBridge()) return;
   renderLoginExtensionStatus(true);
-  var bridge = window.__mineradioWebBridge;
-  if (bridge && typeof bridge.ping === 'function') {
-    try { await bridge.ping(4000); } catch (_) {}
-  }
+  await refreshBridgeExtensionWatch(true);
   renderLoginExtensionStatus(false);
   if (!window.__mineradioWebBridge || !window.__mineradioWebBridge.isReady || !window.__mineradioWebBridge.isReady()) startLoginExtensionProbe();
   else stopLoginExtensionProbe();
@@ -25518,6 +25644,7 @@ function showUserModal() {
   if (hasPlatformLogin('kg')) refresh = refreshKGLoginStatus();
   else if (hasPlatformLogin('qq')) refresh = refreshQQLoginStatus();
   else if (hasPlatformLogin('netease')) refresh = refreshLoginStatus(true);
+  if (mineradioUsesWebMediaBridge()) refresh = refresh.then(function(){ return refreshBridgeExtensionWatch(false); });
   refresh.finally(function(){
     updateUserModalUi();
     openGsapModal(document.getElementById('user-modal'));
@@ -28332,6 +28459,7 @@ scheduleWebStartupTask(function(){
         refreshUserPlaylists(true);
         loadHomeDiscover(true);
       }
+      if (mineradioUsesWebMediaBridge()) startBridgeExtensionWatch();
       if (document.body.classList.contains('splash-active')) return;
       var homeShown = updateEmptyHomeVisibility({ forceLoad: hasAnyPlatformLogin() });
       if (!hasAnyPlatformLogin()) maybeRunStartupLoginGuide('status');
