@@ -4623,8 +4623,13 @@ function scheduleUiWarmTask(fn, timeout) {
 }
 function scheduleWebStartupTask(fn, timeout) {
   if (typeof fn !== 'function') return;
-  if (!mineradioUsesWebMediaBridge()) { fn(); return; }
-  var run = function(){ try { fn(); } catch (e) { console.warn('[WebStartup]', e); } };
+  var run = function(){
+    try { fn(); } catch (e) { console.warn('[WebStartup]', e); }
+  };
+  if (!mineradioUsesWebMediaBridge()) {
+    setTimeout(function(){ if (mineradioUsesWebMediaBridge()) run(); }, Math.max(120, timeout || 2800));
+    return;
+  }
   if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: timeout || 2800 });
   else setTimeout(run, Math.min(1400, timeout || 1400));
 }
@@ -25604,17 +25609,13 @@ var bridgeExtensionWatchTimer = null;
 var bridgeExtensionNoticeDismissed = false;
 var bridgeInstallNoticeDismissed = false;
 var bridgeExtensionLastToastVersion = '';
-var BRIDGE_INSTALL_NOTICE_DISMISS_KEY = 'mineradio-bridge-install-notice-dismissed-v1';
-function readBridgeInstallNoticeDismissed() {
-  try { return localStorage.getItem(BRIDGE_INSTALL_NOTICE_DISMISS_KEY) === '1'; } catch (e) { return false; }
-}
+try { localStorage.removeItem('mineradio-bridge-install-notice-dismissed-v1'); } catch (_) {}
 function isBridgeExtensionReady() {
   var bridge = window.__mineradioWebBridge;
   return !!(bridge && bridge.isReady && bridge.isReady());
 }
 function dismissBridgeInstallNotice() {
   bridgeInstallNoticeDismissed = true;
-  try { localStorage.setItem(BRIDGE_INSTALL_NOTICE_DISMISS_KEY, '1'); } catch (e) {}
   renderBridgeExtensionNotice(false, getBridgeInstalledVersion());
 }
 function getBridgeInstalledVersion() {
@@ -25658,7 +25659,7 @@ function renderBridgeExtensionNotice(outdated, installedVersion) {
   installedVersion = installedVersion || getBridgeInstalledVersion();
   outdated = !!(ready && outdated && bridgeExtensionNeedsUpdate(installedVersion));
   var missing = !ready;
-  var showMissing = missing && !bridgeInstallNoticeDismissed && !readBridgeInstallNoticeDismissed();
+  var showMissing = missing && !bridgeInstallNoticeDismissed;
   var showOutdated = outdated && !bridgeExtensionNoticeDismissed;
   var mode = showMissing ? 'missing' : (showOutdated ? 'outdated' : '');
   notice.dataset.mode = mode;
@@ -25692,6 +25693,15 @@ async function probeBridgeInstallNotice() {
   }
   if (!isBridgeExtensionReady()) maybeShowBridgeInstallNotice();
 }
+function ensureBridgeInstallNoticeFlow() {
+  if (!mineradioUsesWebMediaBridge() || isBridgeExtensionReady()) return;
+  probeBridgeInstallNotice();
+}
+function scheduleBridgeInstallNoticeChecks() {
+  scheduleWebStartupTask(ensureBridgeInstallNoticeFlow, 1200);
+  scheduleWebStartupTask(ensureBridgeInstallNoticeFlow, 3200);
+  scheduleWebStartupTask(ensureBridgeInstallNoticeFlow, 6200);
+}
 async function checkBridgeExtensionVersion(opts) {
   opts = opts || {};
   if (!mineradioUsesWebMediaBridge()) return { installed: '', outdated: false };
@@ -25719,7 +25729,10 @@ function stopBridgeExtensionWatch() {
   document.removeEventListener('visibilitychange', onBridgeExtensionVisibility);
 }
 function onBridgeExtensionVisibility() {
-  if (!document.hidden) refreshBridgeExtensionWatch(false);
+  if (!document.hidden) {
+    refreshBridgeExtensionWatch(false);
+    if (!isBridgeExtensionReady() && !bridgeInstallNoticeDismissed) ensureBridgeInstallNoticeFlow();
+  }
 }
 async function refreshBridgeExtensionWatch(manual) {
   if (!mineradioUsesWebMediaBridge()) return null;
@@ -29130,8 +29143,8 @@ function runDeferredVisualLayers() {
 if (mineradioUsesWebMediaBridge()) {
   applyWebPlaybackPerfTuning();
   scheduleWebStartupTask(runDeferredVisualLayers, 3200);
-  scheduleWebStartupTask(probeBridgeInstallNotice, 2200);
 } else runDeferredVisualLayers();
+scheduleBridgeInstallNoticeChecks();
 scheduleWebStartupTask(function(){
   var startupLoginStatusPromise = Promise.all([refreshLoginStatus(), refreshQQLoginStatus(), refreshKGLoginStatus()]);
   if (!mineradioUsesWebMediaBridge()) startQQLoginStatusAutoRefresh();
@@ -29142,7 +29155,10 @@ scheduleWebStartupTask(function(){
         refreshUserPlaylists(true);
         loadHomeDiscover(true);
       }
-      if (mineradioUsesWebMediaBridge()) startBridgeExtensionWatch();
+      if (mineradioUsesWebMediaBridge()) {
+        startBridgeExtensionWatch();
+        ensureBridgeInstallNoticeFlow();
+      }
       if (document.body.classList.contains('splash-active')) return;
       var homeShown = updateEmptyHomeVisibility({ forceLoad: hasAnyPlatformLogin() });
       if (!hasAnyPlatformLogin()) maybeRunStartupLoginGuide('status');
