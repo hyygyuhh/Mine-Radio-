@@ -955,7 +955,11 @@ body.login-guide-active #login-guide-canvas{opacity:1}
 #bridge-extension-notice .bridge-extension-actions{display:flex;gap:8px;margin-top:10px}
 #bridge-extension-notice .bridge-extension-actions button{height:32px;padding:0 12px;border-radius:10px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.05);color:rgba(255,255,255,.82);font:inherit;font-size:11px;cursor:pointer}
 #bridge-extension-notice .bridge-extension-actions button.primary{border-color:rgba(244,210,138,.34);background:rgba(244,210,138,.12);color:#fff0c8}
+#bridge-extension-notice.missing{border-color:rgba(0,245,212,.28);background:rgba(8,16,20,.90);box-shadow:0 20px 54px rgba(0,0,0,.40),0 0 28px rgba(0,245,212,.08),inset 0 1px 0 rgba(255,255,255,.08)}
+#bridge-extension-notice.missing .source-fallback-title{color:#9ef6e8}
+#bridge-extension-notice.missing .bridge-extension-actions button.primary{border-color:rgba(0,245,212,.34);background:rgba(0,245,212,.12);color:#b8fff2}
 #user-btn.bridge-update-hint{box-shadow:0 0 0 1px rgba(244,210,138,.22),0 0 18px rgba(244,210,138,.12),0 14px 42px rgba(0,0,0,.28)}
+#user-btn.bridge-install-hint{box-shadow:0 0 0 1px rgba(0,245,212,.22),0 0 18px rgba(0,245,212,.10),0 14px 42px rgba(0,0,0,.28)}
 .modal-btn{padding:8px 20px;font-size:12.5px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.05);color:#fff;cursor:pointer;letter-spacing:.5px;transition:all .2s;font-family:inherit}
 .modal-btn:hover{background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.3)}
 .modal-btn.primary{background:rgba(244,210,138,0.14);border-color:rgba(244,210,138,0.50);color:var(--champagne)}
@@ -2799,15 +2803,15 @@ html.control-glass-svg-ok #visual-guide-btn:hover{
 </div>
 
 <div id="toast"></div>
-<div id="bridge-extension-notice" aria-live="polite">
+<div id="bridge-extension-notice" aria-live="polite" data-mode="">
   <div class="source-fallback-head">
-    <div class="source-fallback-title">Bridge 扩展可更新</div>
+    <div id="bridge-extension-notice-title" class="source-fallback-title">Bridge 扩展可更新</div>
     <button class="source-fallback-close" type="button" onclick="dismissBridgeExtensionNotice()">×</button>
   </div>
   <div id="bridge-extension-notice-body" class="source-fallback-body">检测到旧版 Bridge，请下载并重新加载扩展。</div>
   <div class="bridge-extension-actions">
-    <button class="primary" type="button" onclick="downloadMineradioBridgeExtension()">下载新版</button>
-    <button type="button" onclick="refreshBridgeExtensionWatch(true)">重新检测</button>
+    <button id="bridge-extension-notice-primary" class="primary" type="button" onclick="handleBridgeExtensionNoticePrimary()">下载新版</button>
+    <button id="bridge-extension-notice-secondary" type="button" onclick="handleBridgeExtensionNoticeSecondary()">重新检测</button>
   </div>
 </div>
 <div id="source-fallback-notice" aria-live="polite">
@@ -25598,28 +25602,95 @@ var MINERADIO_BRIDGE_EXTENSION_VERSION = '1.3.1';
 var loginExtensionProbeTimer = null;
 var bridgeExtensionWatchTimer = null;
 var bridgeExtensionNoticeDismissed = false;
+var bridgeInstallNoticeDismissed = false;
 var bridgeExtensionLastToastVersion = '';
+var BRIDGE_INSTALL_NOTICE_DISMISS_KEY = 'mineradio-bridge-install-notice-dismissed-v1';
+function readBridgeInstallNoticeDismissed() {
+  try { return localStorage.getItem(BRIDGE_INSTALL_NOTICE_DISMISS_KEY) === '1'; } catch (e) { return false; }
+}
+function isBridgeExtensionReady() {
+  var bridge = window.__mineradioWebBridge;
+  return !!(bridge && bridge.isReady && bridge.isReady());
+}
+function dismissBridgeInstallNotice() {
+  bridgeInstallNoticeDismissed = true;
+  try { localStorage.setItem(BRIDGE_INSTALL_NOTICE_DISMISS_KEY, '1'); } catch (e) {}
+  renderBridgeExtensionNotice(false, getBridgeInstalledVersion());
+}
 function getBridgeInstalledVersion() {
   var bridge = window.__mineradioWebBridge;
   return bridge && bridge.getVersion ? String(bridge.getVersion() || '') : '';
 }
 function dismissBridgeExtensionNotice() {
-  bridgeExtensionNoticeDismissed = true;
   var notice = document.getElementById('bridge-extension-notice');
-  if (notice) notice.classList.remove('show');
-  var userBtn = document.getElementById('user-btn');
-  if (userBtn) userBtn.classList.remove('bridge-update-hint');
+  if (notice && notice.dataset.mode === 'missing') {
+    dismissBridgeInstallNotice();
+    return;
+  }
+  bridgeExtensionNoticeDismissed = true;
+  renderBridgeExtensionNotice(false, getBridgeInstalledVersion());
+}
+function handleBridgeExtensionNoticePrimary() {
+  var notice = document.getElementById('bridge-extension-notice');
+  if (notice && notice.dataset.mode === 'missing') {
+    showLoginModal({ source: 'bridge-install-notice' });
+    return;
+  }
+  downloadMineradioBridgeExtension();
+}
+function handleBridgeExtensionNoticeSecondary() {
+  var notice = document.getElementById('bridge-extension-notice');
+  if (notice && notice.dataset.mode === 'missing') {
+    downloadMineradioBridgeExtension();
+    return;
+  }
+  refreshBridgeExtensionWatch(true);
 }
 function renderBridgeExtensionNotice(outdated, installedVersion) {
   var notice = document.getElementById('bridge-extension-notice');
+  var title = document.getElementById('bridge-extension-notice-title');
   var body = document.getElementById('bridge-extension-notice-body');
+  var primary = document.getElementById('bridge-extension-notice-primary');
+  var secondary = document.getElementById('bridge-extension-notice-secondary');
   var userBtn = document.getElementById('user-btn');
-  var show = !!(mineradioUsesWebMediaBridge() && outdated && !bridgeExtensionNoticeDismissed);
-  if (body && installedVersion) {
-    body.textContent = '当前 Bridge v' + installedVersion + '，网页最新 v' + MINERADIO_BRIDGE_EXTENSION_VERSION + '。请下载解压后在 chrome://extensions 重新加载。';
+  if (!mineradioUsesWebMediaBridge() || !notice) return;
+  var ready = isBridgeExtensionReady();
+  installedVersion = installedVersion || getBridgeInstalledVersion();
+  outdated = !!(ready && outdated && bridgeExtensionNeedsUpdate(installedVersion));
+  var missing = !ready;
+  var showMissing = missing && !bridgeInstallNoticeDismissed && !readBridgeInstallNoticeDismissed();
+  var showOutdated = outdated && !bridgeExtensionNoticeDismissed;
+  var mode = showMissing ? 'missing' : (showOutdated ? 'outdated' : '');
+  notice.dataset.mode = mode;
+  notice.classList.toggle('show', !!mode);
+  notice.classList.toggle('missing', mode === 'missing');
+  if (title) title.textContent = mode === 'missing' ? '请先安装 Bridge 扩展' : (mode === 'outdated' ? 'Bridge 扩展可更新' : 'Bridge 扩展');
+  if (body) {
+    if (mode === 'missing') {
+      body.textContent = '网页版使用网易云、QQ 音乐、酷狗搜索/播放/登录，需先在登录页安装 Mineradio Bridge 扩展。';
+    } else if (mode === 'outdated') {
+      body.textContent = '当前 Bridge v' + installedVersion + '，网页最新 v' + MINERADIO_BRIDGE_EXTENSION_VERSION + '。请下载解压后在 chrome://extensions 重新加载。';
+    }
   }
-  if (notice) notice.classList.toggle('show', show);
-  if (userBtn) userBtn.classList.toggle('bridge-update-hint', show);
+  if (primary) primary.textContent = mode === 'missing' ? '前往登录页安装' : '下载新版';
+  if (secondary) secondary.textContent = mode === 'missing' ? '下载扩展包' : '重新检测';
+  if (userBtn) {
+    userBtn.classList.toggle('bridge-update-hint', mode === 'outdated');
+    userBtn.classList.toggle('bridge-install-hint', mode === 'missing');
+  }
+}
+function maybeShowBridgeInstallNotice() {
+  if (!mineradioUsesWebMediaBridge()) return;
+  if (isBridgeExtensionReady()) return;
+  renderBridgeExtensionNotice(false, '');
+}
+async function probeBridgeInstallNotice() {
+  if (!mineradioUsesWebMediaBridge() || isBridgeExtensionReady()) return;
+  var bridge = window.__mineradioWebBridge;
+  if (bridge && typeof bridge.probe === 'function') {
+    try { await bridge.probe({ timeoutMs: 5000, force: true }); } catch (_) {}
+  }
+  if (!isBridgeExtensionReady()) maybeShowBridgeInstallNotice();
 }
 async function checkBridgeExtensionVersion(opts) {
   opts = opts || {};
@@ -25734,6 +25805,7 @@ function renderLoginExtensionStatus(pinging) {
     downloadBtn.textContent = outdated ? '下载新版 Bridge' : '下载 Bridge 扩展';
     downloadBtn.style.display = ready && !outdated ? 'none' : '';
   }
+  renderBridgeExtensionNotice(outdated, installedVersion);
 }
 function startLoginExtensionProbe() {
   stopLoginExtensionProbe();
@@ -29058,6 +29130,7 @@ function runDeferredVisualLayers() {
 if (mineradioUsesWebMediaBridge()) {
   applyWebPlaybackPerfTuning();
   scheduleWebStartupTask(runDeferredVisualLayers, 3200);
+  scheduleWebStartupTask(probeBridgeInstallNotice, 2200);
 } else runDeferredVisualLayers();
 scheduleWebStartupTask(function(){
   var startupLoginStatusPromise = Promise.all([refreshLoginStatus(), refreshQQLoginStatus(), refreshKGLoginStatus()]);
