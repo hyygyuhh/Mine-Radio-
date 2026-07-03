@@ -95,6 +95,7 @@
   }
 
   function readBridgeExtId() {
+    if (global.__mineradioBridgeExtId) return String(global.__mineradioBridgeExtId);
     try { return global.localStorage.getItem('mineradio-bridge-ext-id') || ''; } catch (_) {
       return '';
     }
@@ -177,6 +178,9 @@
       }
 
       function sendProbe() {
+        if (global.__mineradioBridgeExtId && !readBridgeExtId()) {
+          rememberBridgeExtId(global.__mineradioBridgeExtId);
+        }
         postBridgeMessage('MINERADIO_BRIDGE_PING');
         if (force || attempt === 0 || attempt % 2 === 0) {
           postBridgeMessage('MINERADIO_BRIDGE_PROBE', { pageUrl: String(global.location && global.location.href || ''), force: force });
@@ -203,7 +207,7 @@
 
   function tryExternalBridgeProbe(force) {
     var extId = readBridgeExtId();
-    if (!extId || !global.chrome || !global.chrome.runtime || typeof global.chrome.runtime.sendMessage !== 'function') return;
+    if (!extId || !global.chrome || !global.chrome.runtime || typeof global.chrome.runtime.sendMessage !== 'function') return false;
     try {
       global.chrome.runtime.sendMessage(extId, {
         type: 'MINERADIO_BRIDGE_PROBE',
@@ -212,10 +216,13 @@
       }, function (resp) {
         if (global.chrome.runtime.lastError) return;
         if (resp && resp.ok) {
-          applyBridgeHandshake({ version: resp.version, extId: extId });
+          applyBridgeHandshake({ version: resp.version, extId: resp.extId || extId });
         }
       });
-    } catch (_) {}
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   function extensionApiRequest(path, query, opts) {
