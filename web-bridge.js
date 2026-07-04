@@ -373,6 +373,28 @@
   }
 
   var coverResolveCache = new Map();
+
+  function arrayBufferToDataUrl(buffer, contentType) {
+    if (!buffer || !buffer.byteLength) return '';
+    var bytes = new Uint8Array(buffer);
+    var parts = [];
+    var step = 0x8000;
+    for (var i = 0; i < bytes.length; i += step) {
+      parts.push(String.fromCharCode.apply(null, bytes.subarray(i, i + step)));
+    }
+    var mime = String(contentType || 'image/jpeg').split(';')[0].trim() || 'image/jpeg';
+    if (!/^image\//i.test(mime)) mime = 'image/jpeg';
+    return 'data:' + mime + ';base64,' + btoa(parts.join(''));
+  }
+
+  async function fetchCoverBinary(url, cacheBust) {
+    var ready = await waitForBridge(12000);
+    if (!ready) throw new Error('Bridge not ready');
+    var query = { url: url };
+    if (cacheBust) query.v = String(Date.now());
+    return extensionApiRequest('/api/cover', query, { bridgeTimeoutMs: 15000 });
+  }
+
   async function resolveWebCoverUrl(url, cacheBust) {
     if (!url || /^blob:/i.test(url) || /^data:/i.test(url)) return url;
     var cacheKey = url + (cacheBust ? ':bust' : '');
@@ -384,6 +406,36 @@
     return task;
   }
   global.__mineradioResolveCoverUrl = resolveWebCoverUrl;
+
+  async function resolveWebCoverUrlForCanvas(url, cacheBust) {
+    if (!url || /^data:image\//i.test(url)) return url || '';
+    var cacheKey = 'canvas:' + url + (cacheBust ? ':bust' : '');
+    if (coverResolveCache.has(cacheKey)) return coverResolveCache.get(cacheKey);
+    var task = (async function () {
+      try {
+        var data = await fetchCoverBinary(url, cacheBust);
+        var dataUrl = arrayBufferToDataUrl(normalizeBinaryBuffer(data && data.buffer), data && data.contentType);
+        if (dataUrl) return dataUrl;
+      } catch (_) {}
+      try {
+        var blobUrl = await resolveWebCoverUrl(url, true);
+        if (blobUrl && /^blob:/i.test(blobUrl)) {
+          var resp = await global.__mineradioNativeFetch(blobUrl);
+          var blob = await resp.blob();
+          return await new Promise(function (resolve, reject) {
+            var reader = new FileReader();
+            reader.onload = function () { resolve(reader.result || ''); };
+            reader.onerror = function () { reject(reader.error || new Error('read blob failed')); };
+            reader.readAsDataURL(blob);
+          });
+        }
+      } catch (_) {}
+      return '';
+    })();
+    coverResolveCache.set(cacheKey, task);
+    return task;
+  }
+  global.__mineradioResolveCoverUrlForCanvas = resolveWebCoverUrlForCanvas;
 
   async function webFetch(url, opts) {
     opts = opts || {};

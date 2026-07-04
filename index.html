@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mineradio — 网页版音乐可视化播放器</title>
-<meta name="description" content="Mineradio 网页版 — 暗色高级音乐可视化播放器。搜索播放、歌单、歌词、3D 歌单架与粒子视觉预设；配合 Mineradio Bridge 浏览器扩展即可使用。">
+<meta name="description" content="Mineradio 网页版 — 音乐可视化播放器。搜索播放、歌单、歌词、3D 歌单架与粒子视觉预设；配合 Mineradio Bridge 浏览器扩展即可使用。">
 <meta name="keywords" content="Mineradio,音乐播放器,网页版,音乐可视化,Bridge扩展">
 <link rel="canonical" href="https://mineradio.art/">
 <meta property="og:type" content="website">
@@ -181,8 +181,9 @@ body.splash-active.splash-revealing #hint:not(.hidden){opacity:1;transform:trans
 body.splash-active.splash-revealing #top-right{opacity:1;transition:opacity 1100ms 520ms cubic-bezier(.32,0,.1,1)}
 
 /* ---------- 顶部搜索 (半隐藏) ---------- */
-#search-area{--search-offset:0px;position:fixed;z-index:10;top:-76px;left:50%;transform:translateX(calc(-50% + var(--search-offset)));width:auto;display:flex;align-items:flex-start;gap:12px;transition:top .45s cubic-bezier(.2,.7,.2,1),opacity .35s,transform .35s cubic-bezier(.2,.7,.2,1);opacity:0;pointer-events:none}
+#search-area{--search-offset:0px;position:fixed;z-index:10;top:-76px;left:50%;transform:translateX(calc(-50% + var(--search-offset)));width:auto;display:flex;align-items:flex-start;gap:10px;transition:top .45s cubic-bezier(.2,.7,.2,1),opacity .35s,transform .35s cubic-bezier(.2,.7,.2,1);opacity:0;pointer-events:none}
 #search-area.has-cover-action{--search-offset:0px}
+#upload-actions{position:relative;display:flex;align-items:center;gap:8px;height:58px;flex-shrink:0;order:-1}
 #search-area.peek{top:24px;opacity:1;pointer-events:auto}
 #search-area.stage-mode #search-stack{width:min(360px,52vw)}
 #search-area.stage-mode.peek{top:18px}
@@ -214,13 +215,25 @@ body.empty-home-active.diy-mode #search-area:not(.has-results) #search-mode-tabs
 .search-history-list{display:flex;flex-wrap:wrap;gap:7px}
 .search-history-chip{height:28px;padding:0 11px;border-radius:999px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);color:rgba(255,255,255,.66);font-family:inherit;font-size:11.5px;cursor:pointer;transition:background .18s,border-color .18s,color .18s,transform .18s}
 .search-history-chip:hover{background:rgba(var(--fc-accent-rgb),.10);border-color:rgba(var(--fc-accent-rgb),.30);color:#fff;box-shadow:0 8px 22px rgba(var(--fc-accent-rgb),.07);transform:translateY(-1px)}
-.search-result{display:flex;align-items:center;gap:12px;padding:10px 16px;cursor:pointer;transition:background .2s;border-bottom:1px solid rgba(255,255,255,0.025)}
+.search-result{display:flex;align-items:center;gap:10px;padding:9px 12px 9px 10px;cursor:pointer;transition:background .18s,border-color .18s,transform .18s;border-bottom:1px solid rgba(255,255,255,0.025);position:relative}
 .search-result:last-child{border-bottom:none}
 .search-result:hover{background:rgba(var(--fc-accent-rgb),.075)}
-.search-result img{width:40px;height:40px;border-radius:6px;object-fit:cover;background:rgba(255,255,255,0.05)}
+.search-result.playing{background:rgba(0,245,212,.06);box-shadow:inset 2px 0 0 rgba(0,245,212,.72)}
+.search-result-index{width:18px;text-align:right;font-size:10px;font-weight:700;color:rgba(255,255,255,.22);flex-shrink:0;font-variant-numeric:tabular-nums}
+.search-result.playing .search-result-index{color:rgba(0,245,212,.72)}
+.search-result-main{display:flex;align-items:center;gap:11px;flex:1;min-width:0}
+.search-result img{width:42px;height:42px;border-radius:8px;object-fit:cover;background:rgba(255,255,255,0.05);flex-shrink:0}
 .search-result-info{flex:1;min-width:0}
 .search-result-title{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:rgba(255,255,255,0.92);margin-bottom:2px;display:flex;align-items:center;gap:6px}
 .search-result-meta{font-size:11px;font-weight:300;color:rgba(255,255,255,0.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.search-result-side{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.search-result-duration{font-size:10.5px;color:rgba(255,255,255,.34);font-variant-numeric:tabular-nums;min-width:34px;text-align:right}
+.search-result-actions{display:flex;align-items:center;gap:4px;opacity:.72;transition:opacity .18s}
+.search-result:hover .search-result-actions,.search-result.playing .search-result-actions{opacity:1}
+.search-results-head{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px 8px;border-bottom:1px solid rgba(255,255,255,.05);background:rgba(10,10,14,.82);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);font-size:10.5px;color:rgba(255,255,255,.48);letter-spacing:.35px}
+.search-results-head strong{color:rgba(255,255,255,.82);font-weight:700}
+.search-results-hint{color:rgba(255,255,255,.30);white-space:nowrap}
+.search-play-badge{display:inline-flex;align-items:center;height:16px;padding:0 6px;border-radius:999px;background:rgba(0,245,212,.14);border:1px solid rgba(0,245,212,.24);color:#eafffb;font-size:9px;font-weight:700;letter-spacing:.35px;flex-shrink:0}
 .search-artist-link{display:inline-flex;max-width:48%;vertical-align:baseline;border:0;background:transparent;color:rgba(var(--fc-accent-rgb),.78);font:inherit;font-weight:650;padding:0;margin:0 3px 0 0;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .search-artist-link:hover{color:#fff;text-decoration:underline;text-underline-offset:3px}
 .tag-vip{display:inline-block;font-size:9px;padding:1px 5px;border-radius:3px;background:linear-gradient(135deg,#fff3c2,var(--champagne),#c9963d);color:#201303;font-weight:700;letter-spacing:.5px;flex-shrink:0;box-shadow:0 0 10px rgba(244,210,138,.22)}
@@ -271,13 +284,14 @@ body.simple-mode .mini-queue-popover{width:min(380px,calc(100vw - 32px))}
 @media (max-width:720px){body.simple-mode #search-area{width:calc(100vw - 28px)}body.desktop-shell.simple-mode #search-area.peek{top:58px}body.simple-mode #search-area.peek{top:24px}}
 
 /* ---------- 空场 Home ---------- */
-#empty-home{position:fixed;z-index:4;left:50%;top:158px;bottom:58px;width:min(1240px,calc(100vw - 72px));transform:translateX(-50%) translateY(18px) scale(.992);opacity:0;pointer-events:none;transition:opacity .72s cubic-bezier(.16,1,.3,1),transform .72s cubic-bezier(.16,1,.3,1)}
+#empty-home{position:fixed;z-index:4;left:50%;top:158px;bottom:58px;width:min(1240px,calc(100vw - 72px));transform:translateX(-50%) translateY(18px) scale(.992);opacity:0;pointer-events:none;transition:opacity .72s cubic-bezier(.16,1,.3,1),transform .72s cubic-bezier(.16,1,.3,1);overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scrollbar-width:none;-ms-overflow-style:none}
+#empty-home::-webkit-scrollbar{width:0;height:0}
 body.empty-home-active #empty-home{opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(0) scale(1)}
 body.splash-active #empty-home,body.immersive-mode #empty-home{opacity:0!important;pointer-events:none!important}
 body.empty-home-active #canvas-container{filter:none}
 body.home-wallpaper-preview #canvas-container{filter:none}
-.empty-home-shell{height:100%;min-height:440px;display:grid;grid-template-columns:minmax(370px,.94fr) minmax(520px,1.06fr);grid-template-rows:auto 1fr;gap:14px;align-content:stretch}
-.home-hero{position:relative;grid-row:1 / span 2;min-height:438px;padding:28px;border-radius:28px;border:1px solid color-mix(in srgb,var(--home-accent) 22%,rgba(255,255,255,.085));background:linear-gradient(145deg,rgba(33,29,34,.64),rgba(9,10,14,.76) 48%,rgba(17,20,25,.70));box-shadow:0 28px 90px rgba(0,0,0,.34),0 0 0 1px color-mix(in srgb,var(--home-accent) 7%,transparent),inset 0 1px 0 rgba(255,255,255,.065);backdrop-filter:blur(30px) saturate(1.16);-webkit-backdrop-filter:blur(30px) saturate(1.16);overflow:hidden}
+.empty-home-shell{height:auto;min-height:100%;display:grid;grid-template-columns:minmax(0,.94fr) minmax(0,1.06fr);grid-template-rows:auto minmax(0,1fr);gap:14px;align-content:start;padding-bottom:8px;box-sizing:border-box}
+.home-hero{position:relative;grid-column:1;grid-row:1 / span 2;min-height:min(438px,48vh);padding:28px;border-radius:28px;border:1px solid color-mix(in srgb,var(--home-accent) 22%,rgba(255,255,255,.085));background:linear-gradient(145deg,rgba(33,29,34,.64),rgba(9,10,14,.76) 48%,rgba(17,20,25,.70));box-shadow:0 28px 90px rgba(0,0,0,.34),0 0 0 1px color-mix(in srgb,var(--home-accent) 7%,transparent),inset 0 1px 0 rgba(255,255,255,.065);backdrop-filter:blur(30px) saturate(1.16);-webkit-backdrop-filter:blur(30px) saturate(1.16);overflow:hidden;min-width:0}
 .home-hero::before{content:'';position:absolute;inset:0;background:linear-gradient(118deg,rgba(255,255,255,.060),transparent 24%,rgba(255,83,103,.070) 54%,rgba(122,215,194,.055) 82%,transparent 100%),linear-gradient(90deg,rgba(255,255,255,.032) 0 1px,transparent 1px 48px),linear-gradient(0deg,rgba(255,255,255,.024) 0 1px,transparent 1px 44px);opacity:.72;pointer-events:none}
 .home-hero::after{content:'';position:absolute;left:28px;right:28px;bottom:22px;height:1px;background:linear-gradient(90deg,color-mix(in srgb,var(--home-accent) 0%,transparent),color-mix(in srgb,var(--home-accent) 52%,transparent),rgba(36,66,255,.24),rgba(248,244,238,.18),color-mix(in srgb,var(--home-accent) 0%,transparent));opacity:.82;pointer-events:none}
 .home-hero-inner{position:relative;z-index:2;height:100%;display:grid;grid-template-columns:minmax(0,1.16fr) minmax(150px,.64fr);grid-template-rows:auto auto auto auto minmax(150px,1fr);column-gap:18px}
@@ -341,10 +355,10 @@ body.home-wallpaper-preview #canvas-container{filter:none}
 .home-mosaic-cell:nth-child(2):not(.has-cover)::before{background:linear-gradient(135deg,rgba(122,215,194,.74),rgba(157,184,207,.46) 48%,rgba(10,10,14,.24)),repeating-linear-gradient(0deg,rgba(255,255,255,.16) 0 2px,transparent 2px 16px)}
 .home-mosaic-cell:nth-child(3):not(.has-cover)::before{background:linear-gradient(135deg,rgba(248,244,238,.38),rgba(0,245,212,.40) 58%,rgba(10,10,14,.24)),repeating-linear-gradient(90deg,rgba(255,255,255,.15) 0 2px,transparent 2px 15px)}
 .home-mosaic-cell::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.05),transparent 42%,rgba(0,0,0,.42));pointer-events:none}
-.home-section-head{display:flex;align-items:end;justify-content:space-between;gap:12px;min-height:38px}
+.home-section-head{position:sticky;top:0;z-index:2;display:flex;align-items:end;justify-content:space-between;gap:12px;min-height:38px;padding:8px 0 6px;margin-bottom:-2px;background:linear-gradient(180deg,rgba(8,9,13,.88),rgba(8,9,13,.72) 72%,rgba(8,9,13,0));backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
 .home-section-title{font-size:13px;font-weight:760;color:rgba(255,255,255,.84);letter-spacing:.04em}
 .home-section-note{font-size:11px;color:rgba(255,255,255,.38);white-space:nowrap}
-.home-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.home-grid{display:grid;grid-column:2;grid-row:1;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;min-width:0;align-content:start}
 .home-card{--tone-a:#00f5d4;--tone-b:#2442ff;--tone-c:#f8f4ee;position:relative;min-height:152px;border:1px solid color-mix(in srgb,var(--home-accent) 10%,rgba(255,255,255,.085));border-radius:22px;background:linear-gradient(142deg,rgba(18,21,26,.66),rgba(8,9,13,.76));box-shadow:0 20px 64px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.060);backdrop-filter:blur(24px) saturate(1.12);-webkit-backdrop-filter:blur(24px) saturate(1.12);padding:17px;overflow:hidden;color:#fff;text-align:left;font-family:inherit;cursor:pointer;transition:transform .22s cubic-bezier(.16,1,.3,1),border-color .22s,background .22s,box-shadow .22s}
 .home-card[data-home-tone="mix"]{--tone-a:#9db8cf;--tone-b:#00f5d4;--tone-c:#2442ff}
 .home-card[data-home-tone="local"]{--tone-a:#f8f4ee;--tone-b:#00f5d4;--tone-c:#2442ff}
@@ -352,6 +366,8 @@ body.home-wallpaper-preview #canvas-container{filter:none}
 .home-card::before{content:'';position:absolute;inset:0;background:linear-gradient(118deg,color-mix(in srgb,var(--tone-a) 22%,transparent),transparent 38%,color-mix(in srgb,var(--tone-b) 16%,transparent) 74%,transparent),linear-gradient(90deg,rgba(255,255,255,.035) 0 1px,transparent 1px 38px);opacity:.86;pointer-events:none}
 .home-card::after{content:'';position:absolute;right:114px;bottom:18px;width:38px;height:70px;border-radius:999px;background:repeating-linear-gradient(0deg,color-mix(in srgb,var(--tone-c) 64%,rgba(255,255,255,.26)) 0 4px,transparent 4px 10px);opacity:.20;transform:skewX(-10deg);pointer-events:none}
 .home-card:hover{transform:translateY(-3px);border-color:color-mix(in srgb,var(--tone-a) 42%,rgba(255,255,255,.18));background:linear-gradient(142deg,rgba(36,33,39,.72),rgba(10,10,14,.84));box-shadow:0 28px 84px rgba(0,0,0,.36),0 0 34px color-mix(in srgb,var(--tone-a) 16%,transparent),inset 0 1px 0 rgba(255,255,255,.085)}
+.home-card.playing{border-color:rgba(0,245,212,.34);box-shadow:0 24px 72px rgba(0,0,0,.32),inset 2px 0 0 rgba(0,245,212,.68),0 0 28px rgba(0,245,212,.06);transform:none}
+.home-card.playing .home-card-title::before{content:'播放中 · ';color:rgba(0,245,212,.78);font-size:11px;font-weight:700;letter-spacing:.04em}
 body.empty-home-active .home-card{animation:home-card-float 7.4s ease-in-out infinite}
 body.empty-home-active .home-card:hover{animation:none}
 body.empty-home-active .home-card:nth-of-type(2){animation-delay:-1.4s}
@@ -368,9 +384,12 @@ body.empty-home-active .home-visual{animation:home-visual-drift 8.8s ease-in-out
 .home-card-art{position:absolute;z-index:1;right:13px;bottom:13px;width:108px;height:108px;border-radius:24px;background:linear-gradient(135deg,color-mix(in srgb,var(--tone-a) 78%,#14141a),color-mix(in srgb,var(--tone-b) 68%,#09090d));background-size:cover;background-position:center;box-shadow:0 18px 50px rgba(0,0,0,.36),inset 0 1px 0 rgba(255,255,255,.16);transform:rotate(3deg);overflow:hidden}
 .home-card-art:not(.has-cover)::before{content:'';position:absolute;inset:18px;border-radius:50%;background:repeating-radial-gradient(circle,rgba(255,255,255,.16) 0 1px,transparent 1px 8px),conic-gradient(from 180deg,var(--tone-a),var(--tone-b),var(--tone-c),var(--tone-a));box-shadow:inset 0 0 0 14px rgba(5,5,8,.44),0 12px 28px rgba(0,0,0,.26)}
 .home-card-art::after{content:'';position:absolute;inset:0;background:linear-gradient(145deg,rgba(255,255,255,.12),transparent 42%,rgba(0,0,0,.28));pointer-events:none}
-.home-rail{align-self:stretch;min-height:0;display:grid;grid-template-rows:auto 1fr;gap:12px}
-.home-tile-row{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;min-height:0}
-.home-tile{--tone-a:#00f5d4;--tone-b:#2442ff;--tone-c:#f8f4ee;position:relative;min-width:0;min-height:166px;border:1px solid color-mix(in srgb,var(--home-accent) 9%,rgba(255,255,255,.075));border-radius:20px;background:linear-gradient(145deg,rgba(255,255,255,.060),rgba(255,255,255,.025));box-shadow:0 16px 50px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.052);backdrop-filter:blur(20px) saturate(1.10);-webkit-backdrop-filter:blur(20px) saturate(1.10);padding:10px;color:#fff;text-align:left;font-family:inherit;cursor:pointer;transition:transform .2s,border-color .2s,background .2s,box-shadow .2s;overflow:hidden}
+.home-rail{grid-column:2;grid-row:2;align-self:stretch;min-height:0;display:grid;grid-template-rows:auto minmax(0,1fr);gap:12px;min-width:0}
+.home-tile-row{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(132px,1fr);gap:10px;min-height:0;overflow-x:auto;overflow-y:hidden;padding-bottom:2px;scroll-snap-type:x proximity;scrollbar-width:none;-ms-overflow-style:none}
+.home-tile-row::-webkit-scrollbar{width:0;height:0}
+.home-tile{--tone-a:#00f5d4;--tone-b:#2442ff;--tone-c:#f8f4ee;position:relative;min-width:0;min-height:166px;scroll-snap-align:start;border:1px solid color-mix(in srgb,var(--home-accent) 9%,rgba(255,255,255,.075));border-radius:20px;background:linear-gradient(145deg,rgba(255,255,255,.060),rgba(255,255,255,.025));box-shadow:0 16px 50px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.052);backdrop-filter:blur(20px) saturate(1.10);-webkit-backdrop-filter:blur(20px) saturate(1.10);padding:10px;color:#fff;text-align:left;font-family:inherit;cursor:pointer;transition:transform .2s,border-color .2s,background .2s,box-shadow .2s;overflow:hidden}
+.home-tile.playing{border-color:rgba(0,245,212,.30);background:rgba(0,245,212,.045);box-shadow:inset 2px 0 0 rgba(0,245,212,.68),0 14px 40px rgba(0,245,212,.05);transform:none}
+.home-tile.playing .home-tile-title::before{content:'▶ ';color:rgba(0,245,212,.82);font-size:10px}
 .home-tile[data-home-tone="search"],.home-tile[data-home-tone="playlist"]{--tone-a:#9db8cf;--tone-b:#00f5d4;--tone-c:#2442ff}
 .home-tile[data-home-tone="local"],.home-tile[data-home-tone="podcast"]{--tone-a:#f8f4ee;--tone-b:#00f5d4;--tone-c:#2442ff}
 .home-tile[data-home-tone="guide"],.home-tile[data-home-tone="library"]{--tone-a:#00f5d4;--tone-b:#f8f4ee;--tone-c:#2442ff}
@@ -380,18 +399,60 @@ body.empty-home-active .home-visual{animation:home-visual-drift 8.8s ease-in-out
 .home-tile-cover:not(.has-cover)::before{content:'';position:absolute;left:12px;bottom:12px;width:54px;height:54px;border-radius:50%;background:repeating-radial-gradient(circle,rgba(255,255,255,.14) 0 1px,transparent 1px 7px),conic-gradient(from 180deg,var(--tone-a),var(--tone-b),var(--tone-c),var(--tone-a));box-shadow:inset 0 0 0 10px rgba(5,5,8,.42)}
 .home-tile-cover:not(.has-cover)::after{content:'';position:absolute;right:12px;top:14px;width:46px;height:48px;border-radius:999px;background:repeating-linear-gradient(0deg,rgba(255,255,255,.72) 0 3px,transparent 3px 9px);opacity:.32}
 .home-tile-title{font-size:12px;font-weight:720;color:rgba(255,255,255,.90);line-height:1.28;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.home-tile-sub{display:none;font-size:10.5px;color:rgba(255,255,255,.42);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.home-tile-sub{display:block;font-size:10px;color:rgba(255,255,255,.38);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.home-review-card.playing{border-color:rgba(0,245,212,.28);box-shadow:inset 2px 0 0 rgba(0,245,212,.62),0 18px 48px rgba(0,245,212,.04)}
 .home-skeleton{position:relative;overflow:hidden}
 .home-skeleton::before{content:'';position:absolute;inset:0;background:linear-gradient(110deg,transparent,rgba(255,255,255,.08),transparent);transform:translateX(-100%);animation:home-shimmer 1.5s ease-in-out infinite}
 @keyframes home-shimmer{100%{transform:translateX(100%)}}
-@media (max-width:1120px){#empty-home{width:calc(100vw - 48px)}.empty-home-shell{grid-template-columns:minmax(300px,.88fr) minmax(440px,1.12fr);gap:12px}.home-hero{padding:24px}.home-hero-inner{grid-template-columns:minmax(0,1.16fr) minmax(128px,.52fr);column-gap:14px}.home-title{font-size:clamp(30px,4vw,48px);max-width:340px}.home-sub{font-size:12.5px;line-height:1.5;max-width:314px}.home-visual{height:198px;max-width:236px}.home-mosaic{height:142px;min-height:126px;margin-top:14px}.home-grid{gap:10px}.home-card{min-height:126px;padding:14px;border-radius:20px}.home-card-label{margin-bottom:6px}.home-card-title{font-size:16.5px;max-width:66%}.home-card-sub{margin-top:6px;font-size:10.8px;line-height:1.34;max-width:64%;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.home-card-art{right:11px;bottom:11px;width:80px;height:80px;border-radius:18px}.home-card-art:not(.has-cover)::before{inset:14px;box-shadow:inset 0 0 0 11px rgba(5,5,8,.44),0 10px 24px rgba(0,0,0,.24)}.home-card::after{right:88px;bottom:14px;width:30px;height:56px}.home-rail{gap:8px}.home-tile{min-height:128px}.home-tile-cover{height:66px}}
+@media (max-height:920px){
+  #empty-home{top:136px;bottom:52px}
+  .home-hero{min-height:min(340px,42vh);padding:22px}
+  .home-reviews-head .home-title{font-size:clamp(26px,3.6vw,42px)}
+  .home-reviews-head .home-sub{font-size:12px;line-height:1.5;max-width:360px}
+  .home-reviews-feed{min-height:132px}
+  .home-review-quote{min-height:3.6em;-webkit-line-clamp:3}
+  .home-console-chip{height:32px;padding:0 11px;font-size:10.5px}
+  .home-card{min-height:118px;padding:13px}
+  .home-card-art{width:76px;height:76px}
+  .home-tile{min-height:122px}
+  .home-tile-cover{height:66px}
+}
+@media (min-width:1025px) and (max-height:920px){
+  .empty-home-shell{grid-template-columns:minmax(0,.86fr) minmax(0,1.14fr);gap:12px}
+  .home-hero{min-height:min(300px,36vh);padding:20px}
+  .home-card{min-height:108px;padding:12px}
+  .home-card-art{width:64px;height:64px;right:10px;bottom:10px}
+  .home-rail{min-height:136px}
+  .home-tile{min-height:112px}
+  .home-tile-cover{height:58px}
+}
+@media (max-width:1024px){
+  #empty-home{top:142px;bottom:52px;width:calc(100vw - 32px)}
+  .empty-home-shell{grid-template-columns:1fr;grid-template-rows:auto auto auto;gap:12px;padding-bottom:12px}
+  .home-hero{grid-column:1;grid-row:auto;min-height:min(320px,40vh)}
+  .home-grid{grid-column:1;grid-row:auto;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+  .home-rail{grid-column:1;grid-row:auto;min-height:148px}
+  .home-card{min-height:112px;padding:12px;border-radius:20px}
+  .home-card-title{font-size:15px;max-width:62%}
+  .home-card-sub{font-size:10px;max-width:60%}
+  .home-card-art{width:68px;height:68px;right:10px;bottom:10px}
+  .home-tile-row{grid-auto-columns:minmax(118px,1fr)}
+  .home-reviews-head{align-items:flex-start}
+}
+@media (max-width:1024px) and (max-height:820px){
+  .home-hero{min-height:min(280px,34vh);padding:18px}
+  .home-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .home-reviews-feed{min-height:118px}
+}
+@media (max-width:1120px) and (min-width:1025px){#empty-home{width:calc(100vw - 48px)}.empty-home-shell{grid-template-columns:minmax(0,.88fr) minmax(0,1.12fr);gap:12px}.home-hero{padding:24px}.home-hero-inner{grid-template-columns:minmax(0,1.16fr) minmax(128px,.52fr);column-gap:14px}.home-title{font-size:clamp(30px,4vw,48px);max-width:340px}.home-sub{font-size:12.5px;line-height:1.5;max-width:314px}.home-visual{height:198px;max-width:236px}.home-mosaic{height:142px;min-height:126px;margin-top:14px}.home-grid{gap:10px}.home-card{min-height:126px;padding:14px;border-radius:20px}.home-card-label{margin-bottom:6px}.home-card-title{font-size:16.5px;max-width:66%}.home-card-sub{margin-top:6px;font-size:10.8px;line-height:1.34;max-width:64%;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.home-card-art{right:11px;bottom:11px;width:80px;height:80px;border-radius:18px}.home-card-art:not(.has-cover)::before{inset:14px;box-shadow:inset 0 0 0 11px rgba(5,5,8,.44),0 10px 24px rgba(0,0,0,.24)}.home-card::after{right:88px;bottom:14px;width:30px;height:56px}.home-rail{gap:8px}.home-tile{min-height:128px}.home-tile-cover{height:66px}}
 @media (max-height:760px){#empty-home{top:132px;bottom:44px}.empty-home-shell{min-height:0}.home-hero{min-height:0;padding:22px}.home-hero-inner{grid-template-columns:minmax(0,1.22fr) minmax(136px,.54fr);column-gap:14px}.home-title{font-size:clamp(31px,3.75vw,48px);max-width:360px}.home-sub{font-size:12.5px;line-height:1.55;max-width:330px}.home-quick-row{margin-top:16px}.home-visual{height:206px;max-width:246px}.home-mosaic{height:132px;min-height:120px;margin-top:14px}.home-card{min-height:134px;padding:14px}.home-card-title{font-size:17px}.home-card-art{width:92px;height:92px;border-radius:21px}.home-tile{min-height:132px}.home-tile-cover{height:72px}}
 @media (max-height:700px){#empty-home{top:126px;bottom:34px}.home-hero{padding:20px}.home-title{font-size:clamp(28px,3.55vw,42px)}.home-sub{font-size:12px;line-height:1.42}.home-weather-meta{margin-top:12px}.home-quick-row{margin-top:12px}.home-visual{height:174px;max-width:216px}.home-mosaic{height:112px;min-height:104px}.home-card{min-height:112px;padding:12px}.home-card-title{font-size:15.5px}.home-card-sub{font-size:10.5px;line-height:1.28;-webkit-line-clamp:2}.home-card-art{width:70px;height:70px;border-radius:16px}.home-card::after{right:78px;height:48px}.home-tile{min-height:112px;padding:9px}.home-tile-cover{height:54px;margin-bottom:8px}.home-section-head{min-height:30px}}
-@media (max-width:840px){.empty-home-shell{grid-template-columns:minmax(250px,.86fr) minmax(360px,1.14fr)}.home-hero-inner{grid-template-columns:minmax(0,1fr)}.home-visual{display:none}.home-mosaic{height:124px;min-height:108px}.home-card{min-height:108px}.home-card-title{font-size:15px;max-width:68%}.home-card-sub{font-size:10.3px;max-width:62%}.home-card-art{width:66px;height:66px;border-radius:15px}.home-card::after{right:72px;width:24px;height:44px}.home-tile-title{font-size:11.5px}}
-@media (max-width:760px){#empty-home{top:150px;bottom:56px;width:calc(100vw - 40px)}.empty-home-shell{grid-template-columns:1fr;grid-template-rows:auto auto 1fr;overflow:auto;padding-bottom:4px}.home-hero{grid-row:auto;min-height:344px}.home-mosaic{height:172px;min-height:150px}.home-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.home-tile-row{grid-template-columns:repeat(3,minmax(0,1fr))}}
-body.empty-home-active.controls-visible #empty-home{bottom:128px}
+@media (max-width:840px) and (min-width:761px){.empty-home-shell{grid-template-columns:minmax(0,1fr) minmax(0,1.14fr)}.home-hero-inner{grid-template-columns:minmax(0,1fr)}.home-visual{display:none}.home-mosaic{height:124px;min-height:108px}.home-card{min-height:108px}.home-card-title{font-size:15px;max-width:68%}.home-card-sub{font-size:10.3px;max-width:62%}.home-card-art{width:66px;height:66px;border-radius:15px}.home-card::after{right:72px;width:24px;height:44px}.home-tile-title{font-size:11.5px}}
+@media (max-width:760px){#empty-home{top:150px;bottom:56px;width:calc(100vw - 40px)}.empty-home-shell{grid-template-columns:1fr;grid-template-rows:auto auto auto;padding-bottom:4px}.home-hero{grid-column:1;grid-row:auto;min-height:min(300px,38vh)}.home-grid{grid-column:1;grid-row:auto;grid-template-columns:repeat(2,minmax(0,1fr))}.home-rail{grid-column:1;grid-row:auto}.home-mosaic{height:172px;min-height:150px}.home-tile-row{grid-auto-columns:minmax(118px,1fr)}}
+body.empty-home-active.controls-visible #empty-home{bottom:128px;padding-bottom:6px}
 @media (max-height:760px){body.empty-home-active.controls-visible #empty-home{bottom:112px}}
-@media (max-width:620px){#empty-home{top:146px;bottom:44px;width:calc(100vw - 24px)}.home-hero{padding:20px;border-radius:22px}.home-hero-inner{display:flex;flex-direction:column}.home-visual{display:none}.home-mosaic{display:none}.home-grid{grid-template-columns:1fr}.home-tile-row{grid-template-columns:repeat(2,minmax(0,1fr))}.home-tile-cover{height:auto;aspect-ratio:1}.home-tile-sub{display:block}.home-card-art{width:88px;height:88px}.home-card-title,.home-card-sub{max-width:68%}}
+@media (max-width:1024px){body.empty-home-active.controls-visible #empty-home{bottom:118px}}
+@media (max-width:620px){#empty-home{top:146px;bottom:44px;width:calc(100vw - 24px)}.home-hero{padding:20px;border-radius:22px}.home-hero-inner{display:flex;flex-direction:column}.home-visual{display:none}.home-mosaic{display:none}.home-grid{grid-template-columns:1fr}.home-tile-row{grid-auto-columns:minmax(140px,46vw)}.home-tile-cover{height:auto;aspect-ratio:1}.home-card-art{width:88px;height:88px}.home-card-title,.home-card-sub{max-width:68%}}
 .home-visual.generated{height:74px!important;max-width:300px!important;align-self:center!important}
 @media (max-height:760px){.home-visual.generated{height:64px!important;max-width:260px!important}}
 
@@ -404,16 +465,15 @@ body.empty-home-active.controls-visible #empty-home{bottom:128px}
 #upload-btn:hover{border-color:rgba(0,245,212,.50);background:rgba(0,245,212,.075);color:#fff;box-shadow:0 16px 46px rgba(0,245,212,.08),inset 0 1px 0 rgba(255,255,255,.10)}
 #visual-guide-btn{font-size:18px;font-weight:780;line-height:1;color:rgba(255,255,255,.68);border-color:rgba(255,255,255,.10);background:rgba(255,255,255,.04)}
 #visual-guide-btn:hover{color:#fff;border-color:rgba(255,83,103,.40);background:rgba(255,83,103,.10);box-shadow:0 14px 38px rgba(255,83,103,.08)}
-#upload-actions{position:relative;display:flex;align-items:center;gap:8px;height:58px}
 body.desktop-shell:not(.desktop-fullscreen) #upload-actions{margin-top:0}
 html:fullscreen body.desktop-shell #upload-actions,
 body.desktop-shell.desktop-fullscreen #upload-actions{margin-top:0}
 #clear-cover-btn{display:none;width:28px;height:28px;margin-top:0;border-color:rgba(255,255,255,.08);background:rgba(255,255,255,.035);color:rgba(255,255,255,.34);font-size:18px;line-height:1;transform:scale(.92);box-shadow:0 10px 28px rgba(0,0,0,.20)}
 #clear-cover-btn.has-cover{display:flex;border-color:rgba(244,210,138,.30);background:rgba(244,210,138,.08);color:rgba(244,210,138,.84)}
 #clear-cover-btn:hover{color:#fff0bf;border-color:rgba(244,210,138,.55);background:rgba(244,210,138,.14);transform:scale(1.02)}
-#upload-tip{position:absolute;z-index:3;left:46px;top:56px;width:214px;padding:13px 34px 13px 14px;border-radius:12px;background:linear-gradient(180deg,rgba(24,23,26,.96),rgba(10,10,14,.93));border:1px solid rgba(244,210,138,.24);box-shadow:0 20px 60px rgba(0,0,0,.44),0 0 0 1px rgba(255,255,255,.035),inset 0 1px 0 rgba(255,255,255,.07);color:rgba(255,255,255,.70);font-size:12px;line-height:1.5;letter-spacing:.25px;opacity:0;visibility:hidden;pointer-events:none;transform:translateY(-8px) scale(.98);will-change:opacity,transform,filter}
+#upload-tip{position:absolute;z-index:3;left:0;top:calc(100% + 8px);width:min(214px,calc(100vw - 48px));padding:13px 34px 13px 14px;border-radius:12px;background:linear-gradient(180deg,rgba(24,23,26,.96),rgba(10,10,14,.93));border:1px solid rgba(244,210,138,.24);box-shadow:0 20px 60px rgba(0,0,0,.44),0 0 0 1px rgba(255,255,255,.035),inset 0 1px 0 rgba(255,255,255,.07);color:rgba(255,255,255,.70);font-size:12px;line-height:1.5;letter-spacing:.25px;opacity:0;visibility:hidden;pointer-events:none;transform:translateY(-8px) scale(.98);will-change:opacity,transform,filter}
 #upload-tip.show{opacity:1;visibility:visible;pointer-events:auto;transform:translateY(0) scale(1)}
-#upload-tip::before{content:"";position:absolute;left:18px;top:-6px;width:10px;height:10px;transform:rotate(45deg);background:rgba(24,23,26,.96);border-left:1px solid rgba(244,210,138,.22);border-top:1px solid rgba(244,210,138,.22)}
+#upload-tip::before{content:"";position:absolute;left:14px;top:-6px;width:10px;height:10px;transform:rotate(45deg);background:rgba(24,23,26,.96);border-left:1px solid rgba(244,210,138,.22);border-top:1px solid rgba(244,210,138,.22)}
 .upload-tip-title{display:block;color:#fff0bf;font-weight:700;margin-bottom:2px}
 .upload-tip-close{position:absolute;right:9px;top:8px;width:18px;height:18px;border:0;border-radius:50%;background:transparent;color:rgba(255,255,255,.38);cursor:pointer;font-size:15px;line-height:18px;padding:0;font-family:inherit}
 .upload-tip-close:hover{background:rgba(255,255,255,.08);color:#fff}
@@ -427,9 +487,10 @@ body.user-capsule-auto-hide #top-right::before{content:'';position:absolute;righ
 #home-btn{width:44px;min-width:44px;border-color:rgba(0,245,212,.18);background:rgba(255,255,255,.04);color:rgba(232,236,239,.78)}
 #home-btn:hover{border-color:rgba(0,245,212,.44);background:rgba(0,245,212,.075);color:#fff;box-shadow:0 14px 38px rgba(0,245,212,.08)}
 body.empty-home-active #home-btn{border-color:rgba(255,83,103,.36);background:rgba(255,83,103,.11);color:#fff}
-body.desktop-shell #empty-home{top:132px;bottom:46px;width:calc(100vw - 44px)}
-body.desktop-shell .empty-home-shell{min-height:0}
-body.desktop-shell .home-hero{min-height:390px}
+body.desktop-shell #empty-home{top:132px;bottom:46px;width:calc(100vw - 44px);overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scrollbar-width:none;-ms-overflow-style:none}
+body.desktop-shell #empty-home::-webkit-scrollbar{width:0;height:0}
+body.desktop-shell .empty-home-shell{min-height:100%;height:auto;align-content:start;padding-bottom:8px}
+body.desktop-shell .home-hero{min-height:min(390px,46vh)}
 body.desktop-shell .home-card{min-height:148px}
 body.desktop-shell .home-tile{min-height:154px}
 body.desktop-shell .home-tile-cover{height:84px}
@@ -439,16 +500,16 @@ body.desktop-shell.desktop-fullscreen .home-mosaic,html:fullscreen body.desktop-
 body.desktop-shell.desktop-fullscreen .home-mosaic-cell.has-cover,html:fullscreen body.desktop-shell .home-mosaic-cell.has-cover{background-size:contain;background-repeat:no-repeat;background-color:rgba(8,10,14,.54)}
 @media (max-height:760px){
   body.desktop-shell #empty-home{top:118px;bottom:34px}
-  body.desktop-shell .home-hero{min-height:330px;padding:22px}
+  body.desktop-shell .home-hero{min-height:min(330px,42vh);padding:22px}
   body.desktop-shell .home-visual{height:196px;max-width:260px}
   body.desktop-shell .home-card{min-height:128px;padding:14px}
   body.desktop-shell .home-tile{min-height:130px}
   body.desktop-shell .home-tile-cover{height:70px}
   body.desktop-shell .home-mosaic{height:150px;min-height:126px}
 }
-@media (max-width:1120px){
+@media (max-width:1120px) and (min-width:1025px){
   body.desktop-shell #empty-home{width:calc(100vw - 44px)}
-  body.desktop-shell .empty-home-shell{grid-template-columns:minmax(300px,.88fr) minmax(430px,1.12fr);gap:12px}
+  body.desktop-shell .empty-home-shell{grid-template-columns:minmax(0,.88fr) minmax(0,1.12fr);gap:12px}
   body.desktop-shell .home-hero{padding:22px}
   body.desktop-shell .home-hero-inner{grid-template-columns:minmax(0,1.16fr) minmax(126px,.52fr);column-gap:14px}
   body.desktop-shell .home-title{font-size:clamp(30px,4vw,48px);max-width:340px}
@@ -484,8 +545,16 @@ body.desktop-shell.desktop-fullscreen .home-mosaic-cell.has-cover,html:fullscree
   body.desktop-shell .home-tile-cover{height:50px;margin-bottom:8px}
   body.desktop-shell .home-section-head{min-height:28px}
 }
-@media (max-width:840px){
-  body.desktop-shell .empty-home-shell{grid-template-columns:minmax(250px,.86fr) minmax(360px,1.14fr)}
+@media (max-width:1024px){
+  body.desktop-shell #empty-home{top:128px;bottom:48px;width:calc(100vw - 32px)}
+  body.desktop-shell .empty-home-shell{grid-template-columns:1fr;grid-template-rows:auto auto auto;padding-bottom:12px}
+  body.desktop-shell .home-hero{grid-column:1;grid-row:auto;min-height:min(320px,40vh)}
+  body.desktop-shell .home-grid{grid-column:1;grid-row:auto;grid-template-columns:repeat(3,minmax(0,1fr))}
+  body.desktop-shell .home-rail{grid-column:1;grid-row:auto;min-height:148px}
+  body.desktop-shell .home-card{min-height:112px;padding:12px}
+  body.desktop-shell .home-tile-row{grid-auto-columns:minmax(118px,1fr)}
+}
+@media (max-width:840px) and (min-width:761px){
   body.desktop-shell .home-hero-inner{grid-template-columns:minmax(0,1fr)}
   body.desktop-shell .home-visual{display:none}
   body.desktop-shell .home-mosaic{height:112px;min-height:100px}
@@ -496,10 +565,11 @@ body.desktop-shell.desktop-fullscreen .home-mosaic-cell.has-cover,html:fullscree
 }
 @media (max-width:760px){
   body.desktop-shell #empty-home{top:128px;bottom:48px;width:calc(100vw - 36px)}
-  body.desktop-shell .empty-home-shell{grid-template-columns:1fr;grid-template-rows:auto auto 1fr;overflow:auto;padding-bottom:4px}
-  body.desktop-shell .home-hero{grid-row:auto;min-height:330px}
-  body.desktop-shell .home-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-  body.desktop-shell .home-tile-row{grid-template-columns:repeat(3,minmax(0,1fr))}
+  body.desktop-shell .empty-home-shell{grid-template-columns:1fr;grid-template-rows:auto auto auto;padding-bottom:4px}
+  body.desktop-shell .home-hero{grid-column:1;grid-row:auto;min-height:min(300px,38vh)}
+  body.desktop-shell .home-grid{grid-column:1;grid-row:auto;grid-template-columns:repeat(2,minmax(0,1fr))}
+  body.desktop-shell .home-rail{grid-column:1;grid-row:auto}
+  body.desktop-shell .home-tile-row{grid-auto-columns:minmax(124px,1fr)}
 }
 body.desktop-shell.empty-home-active.controls-visible #empty-home{bottom:126px}
 @media (max-height:760px){body.desktop-shell.empty-home-active.controls-visible #empty-home{bottom:106px}}
@@ -1026,10 +1096,20 @@ body.login-guide-active #login-guide-canvas{opacity:1}
 .comment-text{margin-top:4px;font-size:12px;line-height:1.55;color:rgba(255,255,255,.76);word-break:break-word}
 .artist-song-item{align-items:center;cursor:pointer;transition:background .18s,border-color .18s,transform .18s,box-shadow .18s}
 .artist-song-item:hover{background:rgba(255,255,255,.075);border-color:rgba(244,210,138,.25);transform:translateY(-1px);box-shadow:0 12px 32px rgba(0,0,0,.20)}
-.artist-song-rank{width:26px;color:rgba(244,210,138,.62);font-size:11px;font-variant-numeric:tabular-nums;text-align:center}
+.artist-song-item.playing{background:rgba(0,245,212,.06);border-color:rgba(0,245,212,.24);box-shadow:inset 2px 0 0 rgba(0,245,212,.72),0 10px 28px rgba(0,245,212,.05);transform:none}
+.artist-song-rank{width:26px;color:rgba(244,210,138,.62);font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;text-align:center;flex-shrink:0}
+.artist-song-rank-top{color:rgba(0,245,212,.82)}
 .artist-song-cover{width:42px;height:42px;border-radius:9px;object-fit:cover;background:rgba(255,255,255,.08);flex:0 0 auto;box-shadow:0 10px 24px rgba(0,0,0,.28)}
-.artist-song-name{font-size:12.5px;color:rgba(255,255,255,.90);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.artist-song-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto;margin-left:auto}
+.artist-song-name{font-size:12.5px;color:rgba(255,255,255,.90);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px}
+.artist-song-side{display:flex;align-items:center;gap:8px;flex-shrink:0;margin-left:auto}
+.artist-song-duration{font-size:10.5px;color:rgba(255,255,255,.34);font-variant-numeric:tabular-nums;min-width:36px;text-align:right}
+.artist-song-actions{display:flex;align-items:center;gap:6px;flex:0 0 auto;opacity:.76;transition:opacity .18s}
+.artist-song-item:hover .artist-song-actions,.artist-song-item.playing .artist-song-actions{opacity:1}
+.artist-detail-list-head{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;padding:10px 2px 8px;border-bottom:1px solid rgba(255,255,255,.05);background:rgba(10,10,14,.82);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);font-size:10.5px;color:rgba(255,255,255,.42);letter-spacing:.35px}
+.artist-detail-list-head strong{color:rgba(255,255,255,.82);font-weight:700}
+.artist-detail-list-hint{color:rgba(255,255,255,.28);white-space:nowrap}
+.artist-song-load-more{display:block;width:100%;margin-top:4px}
+.artist-song-list .artist-song-item:last-of-type{margin-bottom:0}
 .artist-song-action{width:34px;height:34px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(5,6,8,.58);color:rgba(255,255,255,.86);display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer;line-height:1;transition:transform .18s cubic-bezier(.16,1,.3,1),background .18s,border-color .18s,color .18s,box-shadow .18s}
 .artist-song-action svg{width:19px;height:19px;display:block;stroke:currentColor}
 .artist-song-action.collect{color:#ff2430;border-color:rgba(255,36,48,.34);background:rgba(255,0,0,.035);box-shadow:inset 0 0 0 1px rgba(255,36,48,.055)}
@@ -1412,6 +1492,15 @@ body.desktop-shell.diy-mode #bottom-bar.stage-mode{left:50%;width:min(1080px,cal
 .qi-info{flex:1;min-width:0}
 .qi-name{font-size:12px;color:rgba(255,255,255,.9);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .queue-item.now .qi-name{color:#eafffb}
+.queue-item.next-up,.mini-queue-item.next-up{border-color:rgba(255,255,255,.10);background:rgba(255,255,255,.04)}
+.queue-item.next-up:not(.now),.mini-queue-item.next-up:not(.now){border-color:rgba(0,245,212,.16);background:rgba(0,245,212,.035)}
+.queue-play-badge{display:inline-flex;align-items:center;gap:4px;font-size:9px;font-weight:700;letter-spacing:.35px;padding:1px 6px;border-radius:999px;margin-right:6px;vertical-align:middle;flex-shrink:0;line-height:1.35}
+.queue-play-badge.now{color:#03110f;background:rgba(0,245,212,.88);box-shadow:0 0 12px rgba(0,245,212,.18)}
+.queue-play-badge.next{color:rgba(234,255,251,.92);background:rgba(0,245,212,.14);border:1px solid rgba(0,245,212,.22)}
+.queue-next-hint{display:none;margin-top:8px;padding:8px 10px;border-radius:10px;border:1px solid rgba(0,245,212,.12);background:rgba(0,245,212,.045);font-size:10.5px;color:rgba(255,255,255,.62);line-height:1.45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.queue-next-hint.show{display:block}
+.mini-queue-item.now .mini-queue-name{display:flex;align-items:center;gap:6px}
+.queue-item.now .qi-name{display:flex;align-items:center;gap:6px;min-width:0}
 .qi-sub{font-size:10.5px;color:rgba(255,255,255,.4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .queue-artist-link{max-width:100%;border:0;background:transparent;color:rgba(var(--fc-accent-rgb),.64);font:inherit;padding:0;margin:0;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .queue-artist-link:hover{color:#fff;text-decoration:underline;text-underline-offset:3px}
@@ -1426,6 +1515,11 @@ body.desktop-shell.diy-mode #bottom-bar.stage-mode{left:50%;width:min(1080px,cal
 .queue-chip{display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:999px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.03);font-size:10.5px;color:rgba(255,255,255,.65)}
 .queue-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:8px 0 4px}
 .queue-toolbar .fx-mini-btn{display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;line-height:1}
+.pl-provider-tabs{display:flex;align-items:center;gap:4px;width:100%;margin:2px 0 8px;padding:3px;border-radius:999px;background:rgba(255,255,255,.045);border:1px solid rgba(var(--fc-accent-rgb),.12)}
+.pl-provider-tabs button{flex:1;height:26px;padding:0 10px;border:0;border-radius:999px;background:transparent;color:rgba(255,255,255,.42);font-family:inherit;font-size:10.5px;font-weight:650;letter-spacing:.4px;cursor:pointer;transition:background .22s,color .22s,box-shadow .22s}
+.pl-provider-tabs button:hover{color:rgba(255,255,255,.78)}
+.pl-provider-tabs button.active{color:#eafffb;background:rgba(0,245,212,.11);box-shadow:inset 0 0 0 1px rgba(0,245,212,.22),0 8px 24px rgba(0,245,212,.055)}
+.pl-provider-tabs button.logged-out:not(.active){opacity:.38}
 .pl-card{display:flex;align-items:center;gap:10px;padding:9px;border-radius:11px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.04);transition:all .2s;cursor:pointer;margin-bottom:7px;will-change:transform,opacity}
 .pl-card:hover{background:rgba(255,255,255,.06)}
 .pl-card img{width:44px;height:44px;border-radius:8px;object-fit:cover;background:rgba(255,255,255,.06);flex-shrink:0}
@@ -2023,6 +2117,17 @@ html.control-glass-svg-ok #visual-guide-btn:hover{
 
 <!-- 顶部搜索 -->
 <div id="search-area">
+  <div id="upload-actions">
+    <button id="upload-btn" class="icon-btn" onclick="document.getElementById('file-input').click()" title="导入音乐或封面">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    </button>
+    <button id="clear-cover-btn" class="icon-btn" onclick="clearCustomCoverForCurrent()" title="取消自定义封面" aria-label="取消自定义封面">×</button>
+    <div id="upload-tip" role="status" aria-live="polite">
+      <button class="upload-tip-close" onclick="closeUploadTip(true)" aria-label="关闭提示">×</button>
+      <span class="upload-tip-title">导入入口</span>
+      这里支持上传歌曲，也可以给当前曲目换自定义封面。
+    </div>
+  </div>
   <div id="search-stack">
     <div id="search-box">
       <button id="search-submit-btn" type="button" aria-label="搜索" title="搜索">
@@ -2038,17 +2143,6 @@ html.control-glass-svg-ok #visual-guide-btn:hover{
       <button id="search-mode-podcast" type="button" onclick="setSearchMode('podcast')" aria-selected="false">Podcast</button>
     </div>
     <div id="search-results"></div>
-  </div>
-  <div id="upload-actions">
-    <button id="upload-btn" class="icon-btn" onclick="document.getElementById('file-input').click()" title="导入音乐或封面">
-      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-    </button>
-    <button id="clear-cover-btn" class="icon-btn" onclick="clearCustomCoverForCurrent()" title="取消自定义封面" aria-label="取消自定义封面">×</button>
-    <div id="upload-tip" role="status" aria-live="polite">
-      <button class="upload-tip-close" onclick="closeUploadTip(true)" aria-label="关闭提示">×</button>
-      <span class="upload-tip-title">导入入口</span>
-      这里支持上传歌曲，也可以给当前曲目换自定义封面。
-    </div>
   </div>
 </div>
 
@@ -2073,37 +2167,37 @@ html.control-glass-svg-ok #visual-guide-btn:hover{
     </div>
 
     <div class="home-grid">
-      <button class="home-card" data-home-tone="library" type="button" onclick="openHomeLibrary()">
+      <button class="home-card" data-home-tone="library" data-home-card="library" type="button" onclick="openHomeLibrary()">
         <div class="home-card-label">Library</div>
         <div class="home-card-title" id="home-weather-card-title">我的歌单</div>
         <div class="home-card-sub" id="home-weather-card-sub">打开左侧歌单库</div>
         <div class="home-card-art" id="home-weather-art"></div>
       </button>
-      <button class="home-card" data-home-tone="mix" type="button" onclick="playHomeDaily()">
+      <button class="home-card" data-home-tone="mix" data-home-card="daily" type="button" onclick="playHomeDaily()">
         <div class="home-card-label">Daily</div>
         <div class="home-card-title" id="home-daily-title">每日推荐</div>
         <div class="home-card-sub" id="home-daily-sub">登录后同步你的今日歌曲</div>
         <div class="home-card-art" id="home-daily-art"></div>
       </button>
-      <button class="home-card" data-home-tone="playlist" type="button" onclick="playHomeSong(1)">
+      <button class="home-card" data-home-tone="playlist" data-home-card="private" type="button" onclick="playHomeSong(1)">
         <div class="home-card-label">Song</div>
         <div class="home-card-title" id="home-private-title">私人电台</div>
         <div class="home-card-sub" id="home-private-sub">从你的推荐和歌单里开播</div>
         <div class="home-card-art" id="home-private-art"></div>
       </button>
-      <button class="home-card" data-home-tone="mix" type="button" onclick="playHomeRecent()">
+      <button class="home-card" data-home-tone="mix" data-home-card="continue" type="button" onclick="playHomeRecent()">
         <div class="home-card-label">Continue</div>
         <div class="home-card-title" id="home-continue-title">继续听</div>
         <div class="home-card-sub" id="home-continue-sub">最近播放会出现在这里</div>
         <div class="home-card-art" id="home-continue-art"></div>
       </button>
-      <button class="home-card" data-home-tone="local" type="button" onclick="openHomeInsight()">
+      <button class="home-card" data-home-tone="local" data-home-card="profile" type="button" onclick="openHomeInsight()">
         <div class="home-card-label">Profile</div>
         <div class="home-card-title" id="home-profile-title">听歌画像</div>
         <div class="home-card-sub" id="home-profile-sub">播放几首后生成偏好</div>
         <div class="home-card-art" id="home-profile-art"></div>
       </button>
-      <button class="home-card" data-home-tone="local" type="button" onclick="playHomeSong(2)">
+      <button class="home-card" data-home-tone="local" data-home-card="library-song" type="button" onclick="playHomeSong(2)">
         <div class="home-card-label">Song</div>
         <div class="home-card-title" id="home-library-title">常听歌手</div>
         <div class="home-card-sub" id="home-library-sub">你的偏好会在这里汇总</div>
@@ -2419,11 +2513,17 @@ html.control-glass-svg-ok #visual-guide-btn:hover{
         <button class="fx-mini-btn ghost" onclick="clearQueue()" style="height:26px;padding:0 10px;font-size:11px">清空</button>
       </div>
     </div>
+    <div id="queue-next-hint" class="queue-next-hint"></div>
     <div id="queue-list" class="queue-list"></div>
   </div>
   <div id="pl-pane" style="display:none">
+    <div class="pl-provider-tabs" id="pl-provider-tabs">
+      <button type="button" data-pl-provider="netease" class="active" onclick="switchUserPlaylistProvider('netease')">网易</button>
+      <button type="button" data-pl-provider="qq" onclick="switchUserPlaylistProvider('qq')">QQ</button>
+      <button type="button" data-pl-provider="kg" onclick="switchUserPlaylistProvider('kg')">酷狗</button>
+    </div>
     <div class="queue-toolbar">
-      <div class="queue-chip">登录后显示网易云 / QQ 歌单</div>
+      <div class="queue-chip" id="pl-provider-chip">登录后显示个人歌单</div>
       <button class="fx-mini-btn ghost" onclick="refreshUserPlaylists(true)" style="height:26px;padding:0 10px;font-size:11px">刷新</button>
     </div>
     <div id="pl-list" style="margin-top:6px"></div>
@@ -2928,7 +3028,13 @@ var localBeatMapPrefs = readLocalBeatPrefs();
 var playbackQuality = readPlaybackQualityPreference();
 var qqPlaybackQualityCeiling = '';
 var playbackSourceCache = {};
+var playbackSourceInflight = Object.create(null);
 var playbackSourcePrefetchToken = 0;
+var playbackAudioPrefetch = { key: '', idx: -1, media: null, directUrl: '', resolvedUrl: '', token: 0 };
+var playbackAudioPrefetchToken = 0;
+var lastPlaybackPrefetchAt = 0;
+var searchHoverPrefetchTimer = null;
+var searchResultsHoverBound = false;
 var playbackQualityUiProvider = '';
 var PLAYBACK_SOURCE_CACHE_TTL_MS = 180000;
 var coverCropState = null, coverCropBound = false;
@@ -2945,6 +3051,9 @@ var emptyHomeActive = false;
 var homeForcedOpen = false;
 var homeSuppressed = false;
 var homeDiscoverState = { loading: false, loaded: false, loggedIn: false, mode: 'starter', songs: [], playlists: [], podcasts: [], error: '', updatedAt: 0 };
+var HOME_TILE_MAX = 8;
+var homePrefetchBound = false;
+var homeHoverPrefetchTimer = 0;
 var homeDiscoverToken = 0;
 var homeFeaturedReviewsState = { loading: false, loaded: false, reviews: [], index: 0, error: '', updatedAt: 0 };
 var homeFeaturedReviewsToken = 0;
@@ -3013,12 +3122,80 @@ installStartupLongTaskObserver();
 var queueViewTab = 'queue', playMode = 'loop', miniQueueOpen = false;
 var miniQueueRenderSeq = 0, queueRenderSeq = 0, playlistRenderSeq = 0;
 var queuePanelDirty = false;
-var PLAYLIST_PANEL_BATCH_SIZE = 28;
+var PLAYLIST_PANEL_BATCH_SIZE = 6;
 var playlistPanelRenderLimit = PLAYLIST_PANEL_BATCH_SIZE;
 var playlistGroupRenderLimit = { netease: PLAYLIST_PANEL_BATCH_SIZE, qq: PLAYLIST_PANEL_BATCH_SIZE, kg: PLAYLIST_PANEL_BATCH_SIZE };
 var userPlaylistsCacheAt = 0;
 var USER_PLAYLISTS_TTL_MS = 180000;
+var USER_PLAYLIST_PROVIDER_STORE_KEY = 'mineradio-pl-provider-v1';
+var userPlaylistProviderTab = 'netease';
 var userPlaylistsGrouped = { netease: [], qq: [], kg: [] };
+function normalizeUserPlaylistProvider(provider) {
+  return provider === 'qq' ? 'qq' : (provider === 'kg' ? 'kg' : 'netease');
+}
+function userPlaylistProviderLabel(provider) {
+  provider = normalizeUserPlaylistProvider(provider);
+  return provider === 'qq' ? 'QQ 音乐' : (provider === 'kg' ? '酷狗音乐' : '网易云');
+}
+function loadUserPlaylistProviderTab() {
+  try {
+    var saved = localStorage.getItem(USER_PLAYLIST_PROVIDER_STORE_KEY);
+    if (saved === 'qq' || saved === 'kg' || saved === 'netease') userPlaylistProviderTab = saved;
+  } catch (_) {}
+}
+function saveUserPlaylistProviderTab() {
+  try { localStorage.setItem(USER_PLAYLIST_PROVIDER_STORE_KEY, userPlaylistProviderTab); } catch (_) {}
+}
+loadUserPlaylistProviderTab();
+function ensureUserPlaylistProviderTab(force) {
+  var provider = normalizeUserPlaylistProvider(userPlaylistProviderTab);
+  if (!force && hasPlatformLogin(provider)) return provider;
+  if (hasPlatformLogin('netease')) return userPlaylistProviderTab = 'netease';
+  if (hasPlatformLogin('qq')) return userPlaylistProviderTab = 'qq';
+  if (hasPlatformLogin('kg')) return userPlaylistProviderTab = 'kg';
+  return userPlaylistProviderTab = provider;
+}
+function updateUserPlaylistProviderChip() {
+  var chip = document.getElementById('pl-provider-chip');
+  if (!chip) return;
+  var provider = normalizeUserPlaylistProvider(userPlaylistProviderTab);
+  reindexUserPlaylistsGrouped();
+  var count = (userPlaylistsGrouped[provider] || []).length;
+  if (!hasPlatformLogin(provider)) {
+    chip.textContent = userPlaylistProviderLabel(provider) + ' · 未登录';
+    return;
+  }
+  chip.textContent = count ? (count + ' 个歌单 · ' + userPlaylistProviderLabel(provider)) : ('暂无歌单 · ' + userPlaylistProviderLabel(provider));
+}
+function updateUserPlaylistProviderTabs() {
+  ensureUserPlaylistProviderTab();
+  var wrap = document.getElementById('pl-provider-tabs');
+  if (!wrap) return;
+  ['netease', 'qq', 'kg'].forEach(function(provider) {
+    var btn = wrap.querySelector('[data-pl-provider="' + provider + '"]');
+    if (!btn) return;
+    btn.classList.toggle('active', userPlaylistProviderTab === provider);
+    btn.classList.toggle('logged-out', !hasPlatformLogin(provider));
+  });
+  updateUserPlaylistProviderChip();
+}
+function switchUserPlaylistProvider(provider) {
+  provider = normalizeUserPlaylistProvider(provider);
+  if (!hasPlatformLogin(provider)) {
+    showToast('请先登录' + userPlaylistProviderLabel(provider));
+    openProviderLogin(provider);
+    return;
+  }
+  if (provider === userPlaylistProviderTab) return;
+  userPlaylistProviderTab = provider;
+  saveUserPlaylistProviderTab();
+  playlistPanelDetailState = { key: '', loading: false, playlist: null, tracks: [], token: 0, renderLimit: PLAYLIST_DETAIL_INITIAL_RENDER };
+  resetPlaylistPanelRenderLimit();
+  updateUserPlaylistProviderTabs();
+  renderUserPlaylistsList({ animate: true, reset: true });
+  var panel = document.getElementById('playlist-panel');
+  if (panel) panel.scrollTop = 0;
+}
 function reindexUserPlaylistsGrouped() {
   var grouped = { netease: [], qq: [], kg: [] };
   (userPlaylists || []).forEach(function(pl) {
@@ -3030,8 +3207,12 @@ function reindexUserPlaylistsGrouped() {
   userPlaylistsGrouped = grouped;
 }
 var playlistPanelLazyBound = false;
-var QUEUE_PANEL_BATCH_SIZE = 36;
+var QUEUE_PANEL_BATCH_SIZE = 14;
 var queuePanelRenderLimit = QUEUE_PANEL_BATCH_SIZE;
+var MINI_QUEUE_BATCH_SIZE = 12;
+var miniQueueRenderLimit = MINI_QUEUE_BATCH_SIZE;
+var queuePrefetchBound = false;
+var queueHoverPrefetchTimer = null;
 var queuePanelLazyBound = false;
 var PODCAST_EPISODE_INITIAL = 32;
 var PODCAST_EPISODE_BATCH = 24;
@@ -12966,17 +13147,11 @@ function loadCoverFromUrl(directUrl, opts) {
     setControlCoverSrc('');
     return;
   }
-  if (mineradioUsesWebMediaBridge() && typeof window.__mineradioResolveCoverUrl === 'function') {
-    window.__mineradioResolveCoverUrl(directUrl, false).then(function(resolved) {
-      if (!coverApplyStillCurrent(opts)) return;
-      loadCoverFromUrlResolved(resolved || directUrl, directUrl, opts);
-    }).catch(function() {
-      if (!coverApplyStillCurrent(opts)) return;
-      loadCoverFromUrlResolved(coverProxySrc(directUrl) || directUrl, directUrl, opts);
-    });
-    return;
-  }
-  loadCoverFromUrlResolved(coverProxySrc(directUrl) || directUrl, directUrl, opts);
+  resolveCoverUrlForCanvas(directUrl).then(function(safeSrc) {
+    if (!coverApplyStillCurrent(opts)) return;
+    if (!safeSrc) { finishCoverLoadError(opts); return; }
+    loadCoverFromUrlResolved(safeSrc, directUrl, opts);
+  }).catch(function(){ finishCoverLoadError(opts); });
 }
 function loadCoverFromUrlResolved(proxiedUrl, directUrl, opts) {
   opts = opts || {};
@@ -12987,7 +13162,8 @@ function loadCoverFromUrlResolved(proxiedUrl, directUrl, opts) {
     resetFloatColorsToIdle();
     return;
   }
-  var img = new Image(); img.crossOrigin = 'anonymous'; img.decoding = 'async';
+  var img = new Image(); img.decoding = 'async';
+  if (/^https?:\/\//i.test(proxiedUrl)) img.crossOrigin = 'anonymous';
   img.onload = function() {
     if (!coverApplyStillCurrent(opts)) return;
     var size = coverTextureSizeForResolution(fx.coverResolution);
@@ -12998,24 +13174,11 @@ function loadCoverFromUrlResolved(proxiedUrl, directUrl, opts) {
     applyCoverCanvas(cv, proxiedUrl || directUrl, Object.assign({}, opts, { coverKey: directUrl || proxiedUrl || '', coverSourceKind: 'url', coverSource: directUrl }));
   };
   img.onerror = function() {
-    if (mineradioUsesWebMediaBridge() && typeof window.__mineradioResolveCoverUrl === 'function' && proxiedUrl === directUrl) {
-      window.__mineradioResolveCoverUrl(directUrl, true).then(function(resolved) {
-        if (!coverApplyStillCurrent(opts)) return;
-        if (resolved && resolved !== directUrl) loadCoverFromUrlResolved(resolved, directUrl, opts);
-        else finishCoverLoadError(opts);
-      }).catch(function(){ finishCoverLoadError(opts); });
-      return;
-    }
-    var img2 = new Image(); img2.crossOrigin = 'anonymous'; img2.decoding = 'async';
-    img2.onload = function() {
+    resolveCoverUrlForCanvas(directUrl).then(function(retrySrc) {
       if (!coverApplyStillCurrent(opts)) return;
-      var size = coverTextureSizeForResolution(fx.coverResolution);
-      var cv = document.createElement('canvas'); cv.width = cv.height = size;
-      cv.getContext('2d').drawImage(img2, 0, 0, size, size);
-      applyCoverCanvas(cv, directUrl, Object.assign({}, opts, { coverKey: directUrl || '', coverSourceKind: 'url', coverSource: directUrl }));
-    };
-    img2.onerror = function() { finishCoverLoadError(opts); };
-    img2.src = coverProxySrc(directUrl) || directUrl;
+      if (!retrySrc || retrySrc === proxiedUrl) { finishCoverLoadError(opts); return; }
+      loadCoverFromUrlResolved(retrySrc, directUrl, opts);
+    }).catch(function(){ finishCoverLoadError(opts); });
   };
   img.src = proxiedUrl;
 }
@@ -14932,7 +15095,7 @@ function makeContentListManager() {
         r = podcastCollectionKey
           ? await apiJson('/api/podcast/my/items?key=' + encodeURIComponent(podcastCollectionKey) + '&limit=36')
           : (qqPlaylistId
-            ? await apiJson('/api/qq/playlist/tracks?id=' + encodeURIComponent(qqPlaylistId))
+            ? await apiJson(qqPlaylistTracksApiUrl(qqPlaylistId))
             : await apiJson('/api/playlist/tracks?id=' + encodeURIComponent(playlistId)));
       } catch (e) {
         if (!open || token !== requestToken) return;
@@ -16027,23 +16190,27 @@ async function fetchPlaybackSourceData(song, opts) {
   var cacheKey = playbackSourceCacheKey(song, opts);
   var cached = readPlaybackSourceCache(cacheKey);
   if (cached) return cached;
-  var isQQPlayback = songProviderKey(song) === 'qq';
-  var isKGPlayback = songProviderKey(song) === 'kg';
-  var provider = isKGPlayback ? 'kg' : (isQQPlayback ? 'qq' : 'netease');
-  var requestedQuality = normalizePlaybackQualityForProvider(opts.qualityOverride || playbackQuality, provider);
-  if (provider === 'netease' && requestedQuality === 'jymaster' && !hasProviderSvip('netease', loginStatus)) requestedQuality = 'hires';
-  if (provider === 'netease' && requestedQuality === 'hires' && !hasProviderSvip('netease', loginStatus)) requestedQuality = 'lossless';
-  if (isQQPlayback && qqPlaybackQualityCeiling && (requestedQuality === 'jymaster' || requestedQuality === 'hires' || requestedQuality === 'lossless')) {
-    requestedQuality = qqPlaybackQualityCeiling;
-  }
-  var qualityParam = '&quality=' + encodeURIComponent(requestedQuality);
-  var data = isKGPlayback
-    ? await apiJson(kgPlaybackUrlQuery(song, qualityParam))
-    : (isQQPlayback
-      ? await apiJson('/api/qq/song/url?mid=' + encodeURIComponent(song.mid || song.songmid || song.id || '') + '&mediaMid=' + encodeURIComponent(song.mediaMid || song.media_mid || '') + qualityParam)
-      : await apiJson('/api/song/url?id=' + song.id + qualityParam));
-  if (data && data.url) writePlaybackSourceCache(cacheKey, data);
-  return data;
+  if (playbackSourceInflight[cacheKey]) return playbackSourceInflight[cacheKey];
+  playbackSourceInflight[cacheKey] = (async function(){
+    var isQQPlayback = songProviderKey(song) === 'qq';
+    var isKGPlayback = songProviderKey(song) === 'kg';
+    var provider = isKGPlayback ? 'kg' : (isQQPlayback ? 'qq' : 'netease');
+    var requestedQuality = normalizePlaybackQualityForProvider(opts.qualityOverride || playbackQuality, provider);
+    if (provider === 'netease' && requestedQuality === 'jymaster' && !hasProviderSvip('netease', loginStatus)) requestedQuality = 'hires';
+    if (provider === 'netease' && requestedQuality === 'hires' && !hasProviderSvip('netease', loginStatus)) requestedQuality = 'lossless';
+    if (isQQPlayback && qqPlaybackQualityCeiling && (requestedQuality === 'jymaster' || requestedQuality === 'hires' || requestedQuality === 'lossless')) {
+      requestedQuality = qqPlaybackQualityCeiling;
+    }
+    var qualityParam = '&quality=' + encodeURIComponent(requestedQuality);
+    var data = isKGPlayback
+      ? await apiJson(kgPlaybackUrlQuery(song, qualityParam))
+      : (isQQPlayback
+        ? await apiJson('/api/qq/song/url?mid=' + encodeURIComponent(song.mid || song.songmid || song.id || '') + '&mediaMid=' + encodeURIComponent(song.mediaMid || song.media_mid || '') + qualityParam)
+        : await apiJson('/api/song/url?id=' + song.id + qualityParam));
+    if (data && data.url) writePlaybackSourceCache(cacheKey, data);
+    return data;
+  })().finally(function(){ delete playbackSourceInflight[cacheKey]; });
+  return playbackSourceInflight[cacheKey];
 }
 async function refreshCurrentPlaybackStream(opts) {
   opts = opts || {};
@@ -16135,15 +16302,28 @@ function qqAlbumCoverUrl(albumMid, size) {
   albumMid = String(albumMid || '').trim();
   if (!albumMid) return '';
   var px = Math.max(120, Math.min(800, Number(size) || 300));
-  return 'https://y.qq.com/music/photo_new/T002R' + px + 'x' + px + 'M000' + albumMid + '.jpg?max_age=2592000';
+  return 'https://y.gtimg.cn/music/photo_new/T002R' + px + 'x' + px + 'M000' + albumMid + '.jpg?max_age=2592000';
+}
+function qqSingerCoverUrl(singerMid, size) {
+  singerMid = String(singerMid || '').trim();
+  if (!singerMid) return '';
+  var px = Math.max(120, Math.min(800, Number(size) || 300));
+  return 'https://y.gtimg.cn/music/photo_new/T001R' + px + 'x' + px + 'M000' + singerMid + '.jpg?max_age=2592000';
 }
 function resolveSongCoverUrl(song, size) {
   if (!song) return '';
   var custom = getCustomCoverForSong(song);
   if (custom) return custom;
-  var cover = normalizeListenCoverUrl(song.cover || song.picUrl || song.albumimg || '');
-  if (!cover && songProviderKey(song) === 'qq') {
-    cover = qqAlbumCoverUrl(song.albumMid || song.album_mid || song.albummid || '', size || 300);
+  var cover = normalizeListenCoverUrl(song.cover || song.picUrl || song.albumimg || song.pic || '');
+  if (cover && /y\.qq\.com\/music\/photo_new\//i.test(cover)) {
+    cover = cover.replace('://y.qq.com/music/photo_new/', '://y.gtimg.cn/music/photo_new/');
+  }
+  if (songProviderKey(song) === 'qq') {
+    if (!cover) cover = qqAlbumCoverUrl(song.albumMid || song.album_mid || song.albummid || '', size || 300);
+    if (!cover) {
+      var singerMid = song.singerMid || song.singer_mid || (song.artists && song.artists[0] && (song.artists[0].mid || song.artists[0].id)) || '';
+      cover = qqSingerCoverUrl(singerMid, size || 300);
+    }
   }
   if (!cover) return '';
   return coverUrlWithSize(cover, size);
@@ -16154,6 +16334,10 @@ function coverUrlWithSize(url, size) {
   if (/y\.qq\.com\/music\/photo_new\/T00[12]R\d+x\d+M000/i.test(url) && size) {
     var px = Math.max(120, Math.min(800, Number(size) || 300));
     return url.replace(/(T00[12]R)\d+x\d+(M000)/i, '$1' + px + 'x' + px + '$2');
+  }
+  if (/y\.gtimg\.cn\/music\/photo_new\/T00[12]R\d+x\d+M000/i.test(url) && size) {
+    var gtPx = Math.max(120, Math.min(800, Number(size) || 300));
+    return url.replace(/(T00[12]R)\d+x\d+(M000)/i, '$1' + gtPx + 'x' + gtPx + '$2');
   }
   if (!isNeteaseCoverUrl(url)) return url;
   if (!size) return url;
@@ -16223,6 +16407,43 @@ function resolveCoverUrlForDisplay(raw, allowBlob) {
     });
   }
   return Promise.resolve(coverProxySrc(raw) || raw);
+}
+function resolveCoverUrlForCanvas(raw) {
+  raw = normalizeListenCoverUrl(raw);
+  if (!raw) return Promise.resolve('');
+  if (/^data:image\//i.test(raw)) return Promise.resolve(raw);
+  if (!mineradioUsesWebMediaBridge()) return Promise.resolve(coverProxySrc(raw) || raw);
+  if (typeof window.__mineradioResolveCoverUrlForCanvas === 'function') {
+    return window.__mineradioResolveCoverUrlForCanvas(raw, false).then(function(dataUrl) {
+      if (dataUrl) return dataUrl;
+      return window.__mineradioResolveCoverUrlForCanvas(raw, true);
+    });
+  }
+  if (typeof window.__mineradioResolveCoverUrl !== 'function') return Promise.resolve('');
+  return window.__mineradioResolveCoverUrl(raw, false).then(function(resolved) {
+    if (resolved && (/^blob:/i.test(resolved) || /^data:image\//i.test(resolved))) return resolved;
+    return window.__mineradioResolveCoverUrl(raw, true);
+  }).then(function(resolved) {
+    return (resolved && (/^blob:/i.test(resolved) || /^data:image\//i.test(resolved))) ? resolved : '';
+  });
+}
+function mergeQQSongCoverMeta(song, meta) {
+  if (!song || !meta) return song;
+  if (meta.albumMid && !song.albumMid) song.albumMid = meta.albumMid;
+  if (meta.cover && !song.cover) song.cover = meta.cover;
+  if (meta.mediaMid && !song.mediaMid) song.mediaMid = meta.mediaMid;
+  return song;
+}
+function reloadParticleCoverForSong(song, token, delay) {
+  if (!song || !coverApplyStillCurrent({ trackToken: token })) return;
+  var coverSrc = resolveSongCoverUrl(song, mineradioUsesWebMediaBridge() ? 320 : 400);
+  if (!coverSrc) return;
+  loadCoverFromUrl(coverSrc, {
+    trackToken: token,
+    deferHeavy: true,
+    delay: delay || 80,
+    timeout: 4500
+  });
 }
 function ensureHomeCoverObserver() {
   if (homeCoverObserver || typeof IntersectionObserver !== 'function') return homeCoverObserver;
@@ -16499,6 +16720,121 @@ function coverForListenArtist(artistName) {
   }
   return '';
 }
+function homeTileSong(item) {
+  if (!item) return null;
+  if (item.kind === 'song' || item.kind === 'weatherSong') return item.song || null;
+  if (item.kind === 'recent') return item.record ? songFromListenRecord(item.record) : null;
+  return null;
+}
+function homeCardSong(key) {
+  var summary = homeListenSummary();
+  if (key === 'daily') return homeDiscoverState.songs[0] || null;
+  if (key === 'private') return homeDiscoverState.songs[1] || null;
+  if (key === 'library-song') return homeDiscoverState.songs[2] || null;
+  if (key === 'continue') return summary.recent ? songFromListenRecord(summary.recent) : null;
+  return null;
+}
+function homeFeaturedReviewSong(index) {
+  var item = homeFeaturedReviewsState.reviews[index];
+  return item && item.song ? normalizeFeaturedReviewPlaySong(item.song) : null;
+}
+function isHomeSongPlaying(song) {
+  if (!song || currentIdx < 0 || !playQueue.length) return false;
+  var current = playQueue[currentIdx];
+  return !!(current && queueItemKey(current) === queueItemKey(song));
+}
+function beginHomePlayback(song) {
+  if (!song) return Promise.resolve(null);
+  primeWebPlaybackUnlockIfNeeded({});
+  showLoading({ light: !!firstPlayDone });
+  var urlFetchPromise = fetchPlaybackSourceData(song).catch(function(err){
+    console.warn('[HomePlayPrefetch]', err);
+    return null;
+  });
+  prefetchPlaybackAudioForSong(song);
+  return urlFetchPromise;
+}
+function refreshHomePlayingState() {
+  if (!emptyHomeActive) return;
+  var playingKey = currentIdx >= 0 && playQueue[currentIdx] ? queueItemKey(playQueue[currentIdx]) : '';
+  document.querySelectorAll('.home-card[data-home-card]').forEach(function(card){
+    var song = homeCardSong(card.getAttribute('data-home-card'));
+    card.classList.toggle('playing', !!(song && playingKey && queueItemKey(song) === playingKey));
+  });
+  var row = document.getElementById('home-tile-row');
+  if (row && row._homeTiles) {
+    row.querySelectorAll('.home-tile[data-home-tile-index]').forEach(function(tile){
+      var i = Number(tile.getAttribute('data-home-tile-index'));
+      var song = homeTileSong(row._homeTiles[i]);
+      tile.classList.toggle('playing', !!(song && playingKey && queueItemKey(song) === playingKey));
+    });
+  }
+  var reviewCard = document.querySelector('#home-reviews-feed .home-review-card');
+  if (reviewCard && homeFeaturedReviewsState.reviews.length) {
+    var reviewSong = homeFeaturedReviewSong(homeFeaturedReviewsState.index);
+    reviewCard.classList.toggle('playing', !!(reviewSong && playingKey && queueItemKey(reviewSong) === playingKey));
+  }
+}
+function scheduleHomeSongPrefetch(song) {
+  if (!song) return;
+  clearTimeout(homeHoverPrefetchTimer);
+  homeHoverPrefetchTimer = setTimeout(function(){
+    prefetchPlaybackSourceForSong(song);
+    prefetchPlaybackAudioForSong(song);
+  }, 260);
+}
+function bindHomePlaybackPrefetch() {
+  if (homePrefetchBound) return;
+  homePrefetchBound = true;
+  var root = document.getElementById('empty-home');
+  if (!root) return;
+  root.addEventListener('mousedown', function(e){
+    if (e.button !== 0) return;
+    var tile = e.target && e.target.closest ? e.target.closest('.home-tile[data-home-tile-index]') : null;
+    if (tile) {
+      var row = document.getElementById('home-tile-row');
+      var item = row && row._homeTiles && row._homeTiles[Number(tile.getAttribute('data-home-tile-index'))];
+      var song = homeTileSong(item);
+      if (song) {
+        fetchPlaybackSourceData(song).catch(function(){});
+        prefetchPlaybackAudioForSong(song);
+      }
+      return;
+    }
+    var card = e.target && e.target.closest ? e.target.closest('.home-card[data-home-card]') : null;
+    if (card) {
+      var cardSong = homeCardSong(card.getAttribute('data-home-card'));
+      if (cardSong) {
+        fetchPlaybackSourceData(cardSong).catch(function(){});
+        prefetchPlaybackAudioForSong(cardSong);
+      }
+      return;
+    }
+    var reviewPlay = e.target && e.target.closest ? e.target.closest('.home-review-play') : null;
+    if (reviewPlay) {
+      var reviewSong = homeFeaturedReviewSong(homeFeaturedReviewsState.index);
+      if (reviewSong) {
+        fetchPlaybackSourceData(reviewSong).catch(function(){});
+        prefetchPlaybackAudioForSong(reviewSong);
+      }
+    }
+  }, { passive: true });
+  root.addEventListener('mouseover', function(e){
+    var tile = e.target && e.target.closest ? e.target.closest('.home-tile[data-home-tile-index]') : null;
+    if (tile) {
+      var row = document.getElementById('home-tile-row');
+      var item = row && row._homeTiles && row._homeTiles[Number(tile.getAttribute('data-home-tile-index'))];
+      scheduleHomeSongPrefetch(homeTileSong(item));
+      return;
+    }
+    var card = e.target && e.target.closest ? e.target.closest('.home-card[data-home-card]') : null;
+    if (card) scheduleHomeSongPrefetch(homeCardSong(card.getAttribute('data-home-card')));
+    else if (e.target && e.target.closest && e.target.closest('.home-review-card')) scheduleHomeSongPrefetch(homeFeaturedReviewSong(homeFeaturedReviewsState.index));
+  }, { passive: true });
+  root.addEventListener('mouseleave', function(e){
+    if (!root.contains(e.relatedTarget)) clearTimeout(homeHoverPrefetchTimer);
+  }, { passive: true });
+}
 function homeTileCover(item) {
   if (!item) return '';
   if (item.kind === 'song' || item.kind === 'weatherSong') return songCoverSrc(item.song, 220);
@@ -16580,10 +16916,10 @@ function renderHomeTiles() {
   var loggedOutHome = !homeDiscoverState.loggedIn && !hasAnyPlatformLogin();
   var weatherSongs = homeWeatherRadioState.radio && homeWeatherRadioState.radio.songs || [];
   var summary = homeListenSummary();
-  if (summary.recent && tiles.length < 5) {
+  if (summary.recent && tiles.length < HOME_TILE_MAX) {
     tiles.push({ kind: 'recent', title: summary.recent.name || '继续听', sub: summary.recent.artist || summary.recent.source || '', cover: summary.recent.cover, record: summary.recent });
   }
-  if (summary.topArtist && tiles.length < 5) {
+  if (summary.topArtist && tiles.length < HOME_TILE_MAX) {
     tiles.push({
       kind: 'profile',
       title: summary.topArtist.name,
@@ -16593,25 +16929,25 @@ function renderHomeTiles() {
     });
   }
   if (!loggedOutHome) {
-    homeDiscoverState.songs.slice(0, Math.max(0, 4 - tiles.length)).forEach(function(song, i){
+    homeDiscoverState.songs.slice(0, Math.max(0, HOME_TILE_MAX - 2 - tiles.length)).forEach(function(song, i){
       tiles.push({ kind: 'song', index: i, song: song, title: song.name || '今日歌曲', sub: song.artist || songSourceLabel(song) });
     });
-    homeDiscoverState.playlists.slice(0, Math.max(0, 5 - tiles.length)).forEach(function(pl, i){
+    homeDiscoverState.playlists.slice(0, Math.max(0, HOME_TILE_MAX - tiles.length)).forEach(function(pl, i){
       tiles.push({ kind: 'playlist', index: i, title: pl.name || '推荐歌单', sub: (pl.trackCount ? pl.trackCount + ' 首' : 'Playlist') + (pl.playCount ? ' · ' + compactHomeCount(pl.playCount) + ' 播放' : ''), cover: pl.cover });
     });
-    if (tiles.length < 5) {
-      homeDiscoverState.podcasts.slice(0, 5 - tiles.length).forEach(function(p, i){
+    if (tiles.length < HOME_TILE_MAX) {
+      homeDiscoverState.podcasts.slice(0, HOME_TILE_MAX - tiles.length).forEach(function(p, i){
         tiles.push({ kind: 'podcast', index: i, title: p.name || '热门播客', sub: p.djName || p.category || 'Podcast', cover: p.cover });
       });
     }
   }
-  if (tiles.length < 5) {
-    weatherSongs.slice(0, 5 - tiles.length).forEach(function(song, i){
+  if (tiles.length < HOME_TILE_MAX) {
+    weatherSongs.slice(0, HOME_TILE_MAX - tiles.length).forEach(function(song, i){
       tiles.push({ kind: 'weatherSong', index: i, song: song, title: song.name || '天气电台歌曲', sub: song.artist || songSourceLabel(song) });
     });
   }
   if (!tiles.length) tiles = fallbackHomeTiles();
-  tiles = tiles.slice(0, 5);
+  tiles = tiles.slice(0, HOME_TILE_MAX);
   if (title) title.textContent = summary.recent ? '接着听' : (loggedOutHome ? '先从这里开始' : '你的歌单与推荐');
   if (note) {
     var liveNote = homeDiscoverState.updatedAt ? '刚刚更新 · 点击即可播放' : '点击即可播放';
@@ -16625,7 +16961,8 @@ function renderHomeTiles() {
     var coverClass = 'home-tile-cover' + (cover && !webLazyCover ? ' has-cover' : '');
     var coverAttr = coverRaw ? (' data-cover-url="' + escHtml(coverRaw) + '"') : '';
     var coverStyle = (cover && !webLazyCover) ? ('background-image:url(&quot;' + escHtml(cssImageUrl(cover)) + '&quot;)') : '';
-    return '<button class="home-tile' + (!cover && homeDiscoverState.loading ? ' home-skeleton' : '') + '" data-home-tone="' + escHtml(tone) + '" type="button" onclick="handleHomeTileClick(' + i + ')">' +
+    var playing = isHomeSongPlaying(homeTileSong(item));
+    return '<button class="home-tile' + (playing ? ' playing' : '') + (!cover && homeDiscoverState.loading ? ' home-skeleton' : '') + '" data-home-tone="' + escHtml(tone) + '" data-home-tile-index="' + i + '" type="button" onclick="handleHomeTileClick(' + i + ')">' +
       '<div class="' + coverClass + '"' + coverAttr + ' style="' + coverStyle + '"></div>' +
       '<div class="home-tile-title">' + escHtml(item.title || '') + '</div>' +
       '<div class="home-tile-sub">' + escHtml(item.sub || '') + '</div>' +
@@ -16634,6 +16971,7 @@ function renderHomeTiles() {
   row._homeTiles = tiles;
   renderHomeMosaic(tiles);
   hydrateHomeTileCovers();
+  refreshHomePlayingState();
 }
 var listenStatsCoversMigrated = false;
 var homeRecentCoverFetchToken = 0;
@@ -16770,6 +17108,7 @@ function renderHomeDiscover() {
   }
   renderHomeTiles();
   backfillRecentListenCoverIfNeeded();
+  refreshHomePlayingState();
 }
 function stopHomeFeaturedReviewsAuto() {
   if (homeFeaturedReviewsTimer) {
@@ -16879,6 +17218,7 @@ function renderHomeFeaturedReviews() {
     var coverEl = feed.querySelector('.home-review-cover[data-cover-url]');
     if (coverEl) applyHomeCoverElement(coverEl, coverEl.getAttribute('data-cover-url') || coverRaw);
   }
+  refreshHomePlayingState();
 }
 function homeFeaturedReviewGo(index, auto) {
   var reviews = homeFeaturedReviewsState.reviews || [];
@@ -16958,7 +17298,8 @@ async function playHomeFeaturedReview(index) {
   currentIdx = 0;
   safeRenderQueuePanel('home-featured-review');
   safeShelfRebuild('home-featured-review', true);
-  playQueueAt(0, { manual: true }).catch(function(e){ console.warn('[HomeFeaturedReviewPlay]', e); });
+  var reviewFetch = beginHomePlayback(song);
+  playQueueAt(0, { fromSearch: true, urlFetchPromise: reviewFetch }).catch(function(e){ console.warn('[HomeFeaturedReviewPlay]', e); });
 }
 function openHomeFeaturedReviewDetail(index) {
   var item = homeFeaturedReviewsState.reviews[index];
@@ -17360,6 +17701,7 @@ function updateEmptyHomeVisibility(opts) {
   else deactivateHomeWallpaperPreview(false);
   if (show) {
     setPeek(document.getElementById('search-area'), true, 'search');
+    bindHomePlaybackPrefetch();
     renderHomeDiscover();
     loadHomeFeaturedReviews(false);
     scheduleHomeWeatherLoad(opts.forceLoad ? 1400 : 2400);
@@ -17440,7 +17782,9 @@ async function playHomeDaily() {
   safeRenderQueuePanel('home-daily');
   safeShelfRebuild('home-daily', true);
   forcePlaybackControlsInteractive();
-  playQueueAt(0, { manual: true }).catch(function(e){ console.warn('[HomeDailyPlay]', e); });
+  var urlFetchPromise = beginHomePlayback(playQueue[0]);
+  prefetchAdjacentPlaybackSources(0);
+  playQueueAt(0, { fromSearch: true, urlFetchPromise: urlFetchPromise }).catch(function(e){ console.warn('[HomeDailyPlay]', e); });
 }
 async function playHomePrivateRadio() {
   homeForcedOpen = false;
@@ -17460,7 +17804,9 @@ async function playHomePrivateRadio() {
     safeRenderQueuePanel('home-private-radio');
     safeShelfRebuild('home-private-radio', true);
     forcePlaybackControlsInteractive();
-    playQueueAt(0).catch(function(e){ console.warn('[HomePrivatePlay]', e); });
+    var privateFetch = beginHomePlayback(playQueue[0]);
+    prefetchAdjacentPlaybackSources(0);
+    playQueueAt(0, { fromSearch: true, urlFetchPromise: privateFetch }).catch(function(e){ console.warn('[HomePrivatePlay]', e); });
     return;
   }
   var item = homeDiscoverState.playlists[0];
@@ -17485,7 +17831,9 @@ function playHomeSong(index) {
   safeRenderQueuePanel('home-song-card');
   safeShelfRebuild('home-song-card', true);
   forcePlaybackControlsInteractive();
-  playQueueAt(currentIdx).catch(function(e){ console.warn('[HomeSongPlay]', e); });
+  var cardFetch = beginHomePlayback(playQueue[currentIdx]);
+  prefetchAdjacentPlaybackSources(currentIdx);
+  playQueueAt(currentIdx, { fromSearch: true, urlFetchPromise: cardFetch }).catch(function(e){ console.warn('[HomeSongPlay]', e); });
 }
 function openHomePlaylist(index) {
   homeForcedOpen = false;
@@ -17667,7 +18015,8 @@ async function playHomeRecent(record) {
   safeRenderQueuePanel('home-recent-song');
   safeShelfRebuild('home-recent-song', true);
   forcePlaybackControlsInteractive();
-  await playQueueAt(0);
+  var recentFetch = beginHomePlayback(song);
+  playQueueAt(0, { fromSearch: true, urlFetchPromise: recentFetch }).catch(function(e){ console.warn('[HomeRecentPlay]', e); });
 }
 function openHomeInsight() {
   var summary = homeListenSummary();
@@ -17698,7 +18047,9 @@ async function playWeatherSong(index) {
   safeRenderQueuePanel('weather-radio-song');
   safeShelfRebuild('weather-radio-song', true);
   forcePlaybackControlsInteractive();
-  await playQueueAt(index, { context: activeRadioContext });
+  var weatherFetch = beginHomePlayback(playQueue[index]);
+  prefetchAdjacentPlaybackSources(index);
+  playQueueAt(index, { context: activeRadioContext, fromSearch: true, urlFetchPromise: weatherFetch }).catch(function(e){ console.warn('[WeatherSongPlay]', e); });
 }
 function handleHomeTileClick(index) {
   var row = document.getElementById('home-tile-row');
@@ -17746,6 +18097,11 @@ function currentArtistNames(song) {
 }
 var trackDetailSeq = 0;
 var detailArtistSongs = [];
+var ARTIST_DETAIL_BATCH_SIZE = 12;
+var artistDetailRenderLimit = ARTIST_DETAIL_BATCH_SIZE;
+var artistDetailScrollBound = false;
+var artistDetailPrefetchBound = false;
+var artistDetailHoverPrefetchTimer = 0;
 function normalizeArtistNameForMatch(name) {
   return String(name || '')
     .toLowerCase()
@@ -17809,34 +18165,162 @@ function renderDetailComments(comments) {
     '</div>';
   }).join('') + '</div>';
 }
+function resetArtistDetailRenderLimit() {
+  artistDetailRenderLimit = ARTIST_DETAIL_BATCH_SIZE;
+}
+function isArtistDetailSongPlaying(song) {
+  return isSearchResultPlaying(song);
+}
+function buildArtistSongItemHtml(s, i) {
+  var playing = isArtistDetailSongPlaying(s);
+  var cover = songCoverSrc(s, 80);
+  var coverHtml = cover ? '<img class="artist-song-cover" src="' + escHtml(cover) + '" alt="" loading="lazy" decoding="async" onerror="this.style.opacity=0.18">' : '<div class="artist-song-cover"></div>';
+  var durationText = searchResultDurationText(s) || (s.duration ? songDurationLabel(s) : '');
+  var vipTag = songVipTagHtml(s);
+  var playBadge = playing ? '<span class="search-play-badge">播放中</span>' : '';
+  var actionsHtml = '<div class="artist-song-actions">' +
+    '<button class="artist-song-action collect" type="button" title="收藏到歌单" aria-label="收藏到歌单" onclick="event.stopPropagation();collectArtistDetailSong(' + i + ')">' + artistCollectTrayIconSvg() + '</button>' +
+    '<button class="artist-song-action next" type="button" title="下一首播放" aria-label="下一首播放" onclick="event.stopPropagation();queueArtistDetailSongNext(' + i + ')">' + artistNextPlusIconSvg() + '</button>' +
+  '</div>';
+  return '<div class="artist-song-item' + (playing ? ' playing' : '') + '" data-artist-song-index="' + i + '" onclick="playArtistDetailSong(' + i + ')">' +
+    '<div class="artist-song-rank' + (i < 3 ? ' artist-song-rank-top' : '') + '">' + String(i + 1).padStart(2, '0') + '</div>' +
+    coverHtml +
+    '<div class="artist-song-main"><div class="artist-song-name">' + playBadge + escHtml(s.name || '') + vipTag + '</div>' +
+    '<div class="artist-song-meta">' + escHtml(s.album || '未知专辑') + '</div></div>' +
+    '<div class="artist-song-side">' +
+      (durationText ? ('<span class="artist-song-duration">' + escHtml(durationText) + '</span>') : '') +
+      actionsHtml +
+    '</div>' +
+  '</div>';
+}
+function buildArtistSongListContainerHtml() {
+  var visible = detailArtistSongs.slice(0, artistDetailRenderLimit);
+  var html = '<div class="artist-detail-list-head"><span>热门歌曲 · <strong>' + detailArtistSongs.length + '</strong> 首</span><span class="artist-detail-list-hint">点击播放 · 将载入整页歌单</span></div>';
+  html += '<div class="detail-scroll artist-song-list" id="artist-song-list">';
+  html += visible.map(function(s, i){ return buildArtistSongItemHtml(s, i); }).join('');
+  if (detailArtistSongs.length > visible.length) {
+    html += '<button type="button" class="fx-mini-btn ghost artist-song-load-more" onclick="growArtistDetailRenderLimit()">加载更多 ' + visible.length + '/' + detailArtistSongs.length + '</button>';
+  }
+  html += '</div>';
+  return html;
+}
+function growArtistDetailRenderLimit() {
+  if (!detailArtistSongs.length) return;
+  var prev = artistDetailRenderLimit;
+  var next = Math.min(detailArtistSongs.length, artistDetailRenderLimit + ARTIST_DETAIL_BATCH_SIZE);
+  if (next <= prev) return;
+  artistDetailRenderLimit = next;
+  var list = document.getElementById('artist-song-list');
+  var loadBtn = list && list.querySelector('.artist-song-load-more');
+  if (!list) {
+    var target = document.getElementById('artist-hot-songs');
+    if (target) target.innerHTML = buildArtistSongListContainerHtml();
+    bindArtistDetailListAfterRender();
+    return;
+  }
+  var wrap = document.createElement('div');
+  var chunk = '';
+  for (var i = prev; i < next; i++) chunk += buildArtistSongItemHtml(detailArtistSongs[i], i);
+  wrap.innerHTML = chunk;
+  var frag = document.createDocumentFragment();
+  while (wrap.firstChild) frag.appendChild(wrap.firstChild);
+  if (loadBtn) list.insertBefore(frag, loadBtn);
+  else list.appendChild(frag);
+  if (loadBtn) {
+    if (next >= detailArtistSongs.length) loadBtn.remove();
+    else loadBtn.textContent = '加载更多 ' + next + '/' + detailArtistSongs.length;
+  }
+  if (window.gsap && next > prev) {
+    animateListItems(list, '.artist-song-item:nth-last-child(n+' + (next - prev + (loadBtn ? 1 : 0)) + ')', { x: 0, y: 8, stagger: 0.01, duration: 0.16, limit: next - prev });
+  }
+  bindArtistDetailListAfterRender();
+}
+function refreshArtistDetailPlayingState() {
+  var list = document.getElementById('artist-song-list');
+  if (!list) return;
+  list.querySelectorAll('.artist-song-item[data-artist-song-index]').forEach(function(row){
+    var i = Number(row.getAttribute('data-artist-song-index'));
+    var song = detailArtistSongs[i];
+    var playing = isArtistDetailSongPlaying(song);
+    row.classList.toggle('playing', playing);
+    var title = row.querySelector('.artist-song-name');
+    if (!title) return;
+    var badge = title.querySelector('.search-play-badge');
+    if (playing && !badge) title.insertAdjacentHTML('afterbegin', '<span class="search-play-badge">播放中</span>');
+    else if (!playing && badge) badge.remove();
+  });
+}
+function bindArtistDetailLazyScroll() {
+  var body = document.getElementById('track-detail-body');
+  if (!body || artistDetailScrollBound) return;
+  artistDetailScrollBound = true;
+  body.addEventListener('scroll', function(){
+    if (!detailArtistSongs.length || artistDetailRenderLimit >= detailArtistSongs.length) return;
+    if (body.scrollTop + body.clientHeight >= body.scrollHeight - 140) growArtistDetailRenderLimit();
+  }, { passive: true });
+}
+function bindArtistDetailPrefetch() {
+  if (artistDetailPrefetchBound) return;
+  artistDetailPrefetchBound = true;
+  document.addEventListener('mousedown', function(e){
+    if (e.button !== 0) return;
+    var row = e.target && e.target.closest ? e.target.closest('.artist-song-item[data-artist-song-index]') : null;
+    if (!row) return;
+    var song = detailArtistSongs[Number(row.getAttribute('data-artist-song-index'))];
+    if (!song) return;
+    fetchPlaybackSourceData(song).catch(function(){});
+    prefetchPlaybackAudioForSong(song);
+  }, { passive: true });
+  document.addEventListener('mouseover', function(e){
+    var row = e.target && e.target.closest ? e.target.closest('.artist-song-item[data-artist-song-index]') : null;
+    if (!row) return;
+    var index = Number(row.getAttribute('data-artist-song-index'));
+    if (!isFinite(index) || index < 0) return;
+    clearTimeout(artistDetailHoverPrefetchTimer);
+    artistDetailHoverPrefetchTimer = setTimeout(function(){
+      var song = detailArtistSongs[index];
+      if (song) {
+        prefetchPlaybackSourceForSong(song);
+        prefetchPlaybackAudioForSong(song);
+      }
+    }, 260);
+  }, { passive: true });
+  document.addEventListener('mouseout', function(e){
+    var row = e.target && e.target.closest ? e.target.closest('.artist-song-item[data-artist-song-index]') : null;
+    if (!row) return;
+    var related = e.relatedTarget;
+    if (related && row.contains(related)) return;
+    clearTimeout(artistDetailHoverPrefetchTimer);
+  }, { passive: true });
+}
+function bindArtistDetailListAfterRender() {
+  bindArtistDetailLazyScroll();
+  bindArtistDetailPrefetch();
+  refreshArtistDetailPlayingState();
+}
 function renderArtistSongList(songs) {
   detailArtistSongs = (songs || []).map(cloneSong);
+  resetArtistDetailRenderLimit();
   if (!detailArtistSongs.length) return '<div class="detail-empty">暂无热门歌曲</div>';
-  return '<div class="detail-scroll">' + detailArtistSongs.map(function(s, i){
-    var cover = songCoverSrc(s, 80);
-    var coverHtml = cover ? '<img class="artist-song-cover" src="' + escHtml(cover) + '" alt="" onerror="this.style.opacity=0.18">' : '<div class="artist-song-cover"></div>';
-    var actionsHtml = '<div class="artist-song-actions">' +
-      '<button class="artist-song-action collect" type="button" title="收藏到歌单" aria-label="收藏到歌单" onclick="event.stopPropagation();collectArtistDetailSong(' + i + ')">' + artistCollectTrayIconSvg() + '</button>' +
-      '<button class="artist-song-action next" type="button" title="下一首播放" aria-label="下一首播放" onclick="event.stopPropagation();queueArtistDetailSongNext(' + i + ')">' + artistNextPlusIconSvg() + '</button>' +
-    '</div>';
-    return '<div class="artist-song-item" onclick="playArtistDetailSong(' + i + ')">' +
-      '<div class="artist-song-rank">' + String(i + 1).padStart(2, '0') + '</div>' +
-      coverHtml +
-      '<div class="artist-song-main"><div class="artist-song-name">' + escHtml(s.name || '') + '</div>' +
-      '<div class="artist-song-meta">' + escHtml((s.album || '未知专辑') + (s.duration ? (' · ' + songDurationLabel(s)) : '')) + '</div></div>' +
-      actionsHtml +
-    '</div>';
-  }).join('') + '</div>';
+  return buildArtistSongListContainerHtml();
 }
 function playArtistDetailSong(i) {
   var song = detailArtistSongs[i];
   if (!song) return;
+  primeWebPlaybackUnlockIfNeeded({});
+  showLoading({ light: !!firstPlayDone });
+  var urlFetchPromise = fetchPlaybackSourceData(song).catch(function(err){
+    console.warn('[ArtistDetailPlayPrefetch]', err);
+    return null;
+  });
+  prefetchPlaybackAudioForSong(song);
   playQueue = detailArtistSongs.map(cloneSong);
   currentIdx = i;
   safeRenderQueuePanel('artist-detail-play');
   safeShelfRebuild('artist-detail-play', true);
   closeTrackDetailModal();
-  playQueueAt(i).catch(function(e){ console.warn('[ArtistDetailPlay]', e); });
+  prefetchAdjacentPlaybackSources(i);
+  playQueueAt(i, { fromSearch: true, urlFetchPromise: urlFetchPromise }).catch(function(e){ console.warn('[ArtistDetailPlay]', e); });
 }
 function collectArtistDetailSong(i) {
   var song = detailArtistSongs[i];
@@ -17852,6 +18336,7 @@ function bindTrackDetailScrollers() {
   var body = document.getElementById('track-detail-body');
   bindSmoothWheelScroll(body);
   if (body) body.querySelectorAll('.detail-scroll').forEach(bindSmoothWheelScroll);
+  bindArtistDetailListAfterRender();
 }
 function closeTrackDetailModal() {
   closeGsapModal(document.getElementById('track-detail-modal'));
@@ -17903,7 +18388,7 @@ function openTrackDetailModal(type, songOverride) {
         detailRow('来源', songSourceLabel(song)) +
       '</div>' +
       '<div class="detail-chip-row">' + (artists.length ? artists.map(function(name){ return '<span class="detail-chip">' + escHtml(name) + '</span>'; }).join('') : '<span class="detail-chip">未知歌手</span>') + '</div>' +
-      '<div class="detail-section"><div class="detail-section-head"><div class="detail-section-title">热门歌曲</div></div><div id="artist-hot-songs">' + (artistDetailUrl ? '<div class="detail-loading">' + escHtml(artistLoadingText) + '</div>' : '<div class="detail-empty">' + escHtml(artistEmptyText) + '</div>') + '</div></div>';
+      '<div class="detail-section"><div id="artist-hot-songs">' + (artistDetailUrl ? '<div class="detail-loading">' + escHtml(artistLoadingText) + '</div>' : '<div class="detail-empty">' + escHtml(artistEmptyText) + '</div>') + '</div></div>';
     if (artistDetailUrl) {
       var cachedArtist = detailCacheGet(artistDetailUrl);
       if (cachedArtist) {
@@ -18730,9 +19215,9 @@ var searchAbortController = null;
 var searchPartialEmitTimer = null;
 var searchPartialEmitPending = false;
 var SEARCH_CACHE_TTL_MS = 90000;
-var SEARCH_INPUT_DEBOUNCE_MS = 200;
-var SEARCH_PARTIAL_EMIT_MS = 72;
-var SEARCH_PAGE_SIZE = 20;
+var SEARCH_INPUT_DEBOUNCE_MS = 140;
+var SEARCH_PARTIAL_EMIT_MS = 48;
+var SEARCH_PAGE_SIZE = 10;
 var searchPagingState = { query: '', mode: '', page: 0, hasMore: false, loading: false };
 var detailResponseCache = Object.create(null);
 var DETAIL_CACHE_TTL_MS = 180000;
@@ -18761,9 +19246,63 @@ function syncSearchAreaResultStateDebounced() {
   clearTimeout(syncSearchAreaTimer);
   syncSearchAreaTimer = setTimeout(syncSearchAreaResultState, 0);
 }
+var searchResultsLazyBound = false;
+function maybeLoadMoreSearchResultsOnScroll() {
+  if (!$results || !searchPagingState.hasMore || searchPagingState.loading) return;
+  if ($results.scrollTop + $results.clientHeight >= $results.scrollHeight - 120) loadMoreSearchResults();
+}
+function bindSearchResultsLazyLoad() {
+  if (!$results || searchResultsLazyBound) return;
+  searchResultsLazyBound = true;
+  $results.addEventListener('scroll', maybeLoadMoreSearchResultsOnScroll, { passive: true });
+}
+function bindSearchResultsHoverPrefetch() {
+  if (!$results || searchResultsHoverBound) return;
+  searchResultsHoverBound = true;
+  $results.addEventListener('mousedown', function(e){
+    if (e.button !== 0) return;
+    var row = e.target && e.target.closest ? e.target.closest('.search-result[data-search-index]') : null;
+    if (!row) return;
+    var index = Number(row.getAttribute('data-search-index'));
+    if (!isFinite(index) || index < 0) return;
+    var song = playlist[index];
+    if (!song) return;
+    fetchPlaybackSourceData(song).catch(function(){});
+    prefetchPlaybackAudioForSong(song);
+  }, { passive: true });
+  $results.addEventListener('mouseover', function(e){
+    var row = e.target && e.target.closest ? e.target.closest('.search-result[data-search-index]') : null;
+    if (!row) return;
+    var index = Number(row.getAttribute('data-search-index'));
+    if (!isFinite(index) || index < 0) return;
+    clearTimeout(searchHoverPrefetchTimer);
+    searchHoverPrefetchTimer = setTimeout(function(){
+      var song = playlist[index];
+      if (song) {
+        prefetchPlaybackSourceForSong(song);
+        prefetchPlaybackAudioForSong(song);
+      }
+    }, 260);
+  }, { passive: true });
+  $results.addEventListener('mouseleave', function(e){
+    if (e.target === $results || !$results.contains(e.relatedTarget)) clearTimeout(searchHoverPrefetchTimer);
+  }, { passive: true });
+}
+function prefetchSearchNextPage(q, mode) {
+  if (!q || !searchPagingState.hasMore || searchPagingState.page !== 1) return;
+  var cacheKey = searchResultKeyWithPage(q, mode, 2);
+  var cached = searchResultCache[cacheKey];
+  if (cached && Date.now() - cached.at < SEARCH_CACHE_TTL_MS) return;
+  fetchMusicSearchPage(q, mode, 2).then(function(result){
+    if (!result || !result.songs || !result.songs.length) return;
+    searchResultCache[cacheKey] = { at: Date.now(), songs: result.songs.slice(), hasMore: !!result.hasMore };
+  }).catch(function(){});
+}
 if (window.MutationObserver && $results) {
   new MutationObserver(syncSearchAreaResultStateDebounced).observe($results, { childList: true, attributes: true, attributeFilter: ['class'] });
 }
+bindSearchResultsLazyLoad();
+bindSearchResultsHoverPrefetch();
 function abortActiveSearchRequests() {
   if (searchAbortController) {
     try { searchAbortController.abort(); } catch (_) {}
@@ -19187,34 +19726,136 @@ function readPlaybackSourceCache(key) {
 }
 function writePlaybackSourceCache(key, data) {
   if (!key || !data || !data.url) return;
-  playbackSourceCache[key] = { data: data, at: Date.now() };
+  var prev = playbackSourceCache[key];
+  playbackSourceCache[key] = { data: data, at: Date.now(), resolvedUrl: prev && prev.resolvedUrl ? prev.resolvedUrl : '' };
   var keys = Object.keys(playbackSourceCache);
   if (keys.length > 24) {
     keys.sort(function(a, b){ return (playbackSourceCache[a].at || 0) - (playbackSourceCache[b].at || 0); });
     keys.slice(0, keys.length - 24).forEach(function(k){ delete playbackSourceCache[k]; });
   }
 }
-function prefetchPlaybackSourceForIndex(idx, opts) {
-  if (idx < 0 || idx >= playQueue.length) return;
-  var song = playQueue[idx];
+function rememberPlaybackSourceResolvedUrl(key, resolvedUrl) {
+  if (!key || !resolvedUrl) return;
+  var hit = playbackSourceCache[key];
+  if (hit) hit.resolvedUrl = resolvedUrl;
+}
+function canSwapPrefetchedPlaybackAudio() {
+  return !canUsePlaybackAudioGraph() || !source;
+}
+function disposePlaybackAudioPrefetchMedia() {
+  if (!playbackAudioPrefetch.media) return;
+  try {
+    playbackAudioPrefetch.media.onended = null;
+    playbackAudioPrefetch.media.pause();
+    playbackAudioPrefetch.media.removeAttribute('src');
+    playbackAudioPrefetch.media.load();
+  } catch (_) {}
+  playbackAudioPrefetch.media = null;
+}
+function cancelInFlightPlaybackAudioPrefetch(exceptKey) {
+  if (playbackAudioPrefetch.key && playbackAudioPrefetch.key !== exceptKey) {
+    playbackAudioPrefetchToken++;
+    disposePlaybackAudioPrefetchMedia();
+    playbackAudioPrefetch = { key: '', idx: -1, media: null, directUrl: '', resolvedUrl: '', token: 0 };
+  }
+}
+function resolveNextQueueIndex(fromIdx) {
+  if (!playQueue.length) return -1;
+  if (playMode === 'shuffle') return Math.floor(Math.random() * playQueue.length);
+  if (playMode === 'single') return fromIdx;
+  return (fromIdx + 1) % playQueue.length;
+}
+function takePrefetchedPlaybackAudio(key) {
+  if (!key || playbackAudioPrefetch.key !== key) return null;
+  var out = {
+    media: canSwapPrefetchedPlaybackAudio() ? playbackAudioPrefetch.media : null,
+    directUrl: playbackAudioPrefetch.directUrl,
+    resolvedUrl: playbackAudioPrefetch.resolvedUrl,
+    warm: !!(playbackAudioPrefetch.media && playbackAudioPrefetch.media.readyState >= 2)
+  };
+  if (out.media) playbackAudioPrefetch.media = null;
+  else disposePlaybackAudioPrefetchMedia();
+  playbackAudioPrefetch = { key: '', idx: -1, media: null, directUrl: '', resolvedUrl: '', token: 0 };
+  return out;
+}
+async function prefetchPlaybackAudioForSong(song, opts) {
   if (!song || song.type === 'local' || song.source === 'local') return;
+  opts = opts || {};
+  var key = playbackSourceCacheKey(song, opts);
+  if (playbackAudioPrefetch.key === key && playbackAudioPrefetch.media) return;
+  var myToken = ++playbackAudioPrefetchToken;
+  try {
+    var data = await fetchPlaybackSourceData(song, opts);
+    if (myToken !== playbackAudioPrefetchToken || !data || !data.url) return;
+    var resolvedUrl = await resolvePlaybackAudioUrl(data.url);
+    if (myToken !== playbackAudioPrefetchToken || !resolvedUrl) return;
+    rememberPlaybackSourceResolvedUrl(key, resolvedUrl);
+    disposePlaybackAudioPrefetchMedia();
+    var media = new Audio();
+    configurePlaybackAudioElement(media, data.url);
+    media.preload = 'auto';
+    media.src = resolvedUrl;
+    media.load();
+    playbackAudioPrefetch = { key: key, idx: -1, media: media, directUrl: data.url, resolvedUrl: resolvedUrl, token: myToken };
+  } catch (_) {}
+}
+function prefetchPlaybackSourceForSong(song, opts) {
+  if (!song || song.type === 'local' || song.source === 'local') return;
+  opts = opts || {};
   var key = playbackSourceCacheKey(song, opts);
   if (readPlaybackSourceCache(key)) return;
-  var token = ++playbackSourcePrefetchToken;
-  fetchPlaybackSourceData(song, opts).then(function(data){
-    if (token !== playbackSourcePrefetchToken || !data || !data.url) return;
-    writePlaybackSourceCache(key, data);
-  }).catch(function(){});
+  fetchPlaybackSourceData(song, opts).catch(function(){});
+}
+function prefetchPlaybackSourceForIndex(idx, opts) {
+  if (idx < 0 || idx >= playQueue.length) return;
+  prefetchPlaybackSourceForSong(playQueue[idx], opts);
+}
+async function prefetchPlaybackAudioForIndex(idx, opts) {
+  if (idx < 0 || idx >= playQueue.length) return;
+  var song = playQueue[idx];
+  if (!song) return;
+  playbackAudioPrefetch.idx = idx;
+  await prefetchPlaybackAudioForSong(song, opts);
+}
+function maybePrefetchNextTrackDuringPlayback() {
+  if (!audio || audio.paused || audio.ended || !playQueue.length || currentIdx < 0) return;
+  var now = Date.now();
+  if (now - lastPlaybackPrefetchAt < 3500) return;
+  var duration = getPlaybackDurationSeconds();
+  var current = getPlaybackCurrentSeconds();
+  var shouldPrefetch = false;
+  if (duration > 0) {
+    shouldPrefetch = (duration - current) <= 45 || (current / duration) >= 0.58;
+  } else if (current >= 24) {
+    shouldPrefetch = true;
+  }
+  if (!shouldPrefetch) return;
+  lastPlaybackPrefetchAt = now;
+  var nextIdx = resolveNextQueueIndex(currentIdx);
+  if (nextIdx < 0 || nextIdx === currentIdx) return;
+  prefetchPlaybackSourceForIndex(nextIdx);
+  prefetchPlaybackAudioForIndex(nextIdx);
 }
 function prefetchAdjacentPlaybackSources(fromIdx) {
   if (!playQueue.length) return;
-  prefetchPlaybackSourceForIndex(fromIdx + 1);
-  if (playQueue.length > 2) prefetchPlaybackSourceForIndex(fromIdx - 1);
+  var nextIdx = resolveNextQueueIndex(fromIdx);
+  prefetchPlaybackSourceForIndex(nextIdx);
+  if (playMode !== 'shuffle' && fromIdx + 1 < playQueue.length && fromIdx + 1 !== nextIdx) {
+    prefetchPlaybackSourceForIndex(fromIdx + 1);
+  }
+  if (playQueue.length > 2 && playMode !== 'shuffle') prefetchPlaybackSourceForIndex(fromIdx - 1);
+  if (nextIdx >= 0 && nextIdx !== fromIdx) prefetchPlaybackAudioForIndex(nextIdx);
+  else if (fromIdx + 1 < playQueue.length) prefetchPlaybackAudioForIndex(fromIdx + 1);
+}
+function isQQSongVipRequired(song) {
+  return !!(song && songProviderKey(song) === 'qq' && Number(song.fee) === 1);
 }
 function songVipTagHtml(song) {
   if (!song) return '';
   var key = songProviderKey(song);
-  var isVip = Number(song.fee) === 1 || (key === 'qq' && (song.vip === 1 || song.isVip === true));
+  var isVip = key === 'qq'
+    ? isQQSongVipRequired(song)
+    : (Number(song.fee) === 1 || (key === 'kg' && (song.vip === 1 || song.isVip === true)));
   if (!isVip) return '';
   var cls = 'tag-vip' + (key === 'kg' ? ' kg' : (key === 'qq' ? ' qq' : ''));
   return '<span class="' + cls + '">VIP</span>';
@@ -19224,12 +19865,59 @@ function songSourceTagHtml(song) {
   var label = key === 'qq' ? 'QQ' : (key === 'kg' ? 'KG' : 'NE');
   return '<span class="tag-source ' + key + '">' + label + '</span>';
 }
+function searchModeLabel(mode) {
+  mode = mode || searchMode;
+  return mode === 'qq' ? 'QQ 音乐' : (mode === 'kg' ? '酷狗音乐' : (mode === 'netease' ? '网易云' : '综合'));
+}
+function searchResultDurationText(song) {
+  var sec = songDurationSec(song);
+  if (!sec) return '';
+  return formatProgramTime(sec);
+}
+function isSearchResultPlaying(song) {
+  if (!song || currentIdx < 0 || !playQueue.length) return false;
+  var current = playQueue[currentIdx];
+  if (!current) return false;
+  return queueItemKey(current) === queueItemKey(song);
+}
+function buildSearchResultsHeadHtml(count, q) {
+  count = Math.max(0, Number(count) || 0);
+  q = String(q || '').trim();
+  var modeText = searchModeLabel(searchPagingState.mode || searchMode);
+  var title = count ? (modeText + ' · <strong>' + count + '</strong> 条结果') : (modeText + ' · 搜索中…');
+  if (q) title = '“' + escHtml(q.length > 18 ? q.slice(0, 18) + '…' : q) + '” · ' + title;
+  return '<div class="search-results-head"><span>' + title + '</span><span class="search-results-hint">点击播放 · + 下一首</span></div>';
+}
+function updateSearchResultsHead(count, q) {
+  if (!$results) return;
+  var head = $results.querySelector('.search-results-head');
+  var html = buildSearchResultsHeadHtml(count != null ? count : playlist.length, q || searchPagingState.query || ($input && $input.value.trim()) || '');
+  if (head) head.outerHTML = html;
+  else $results.insertAdjacentHTML('afterbegin', html);
+}
+function refreshSearchResultPlayingState() {
+  if (!$results || !$results.classList.contains('show')) return;
+  var playingKey = currentIdx >= 0 && playQueue[currentIdx] ? queueItemKey(playQueue[currentIdx]) : '';
+  $results.querySelectorAll('.search-result[data-search-index]').forEach(function(row){
+    var index = Number(row.getAttribute('data-search-index'));
+    var song = playlist[index];
+    var playing = !!(song && playingKey && queueItemKey(song) === playingKey);
+    row.classList.toggle('playing', playing);
+    var badge = row.querySelector('.search-play-badge');
+    if (playing) {
+      if (!badge) {
+        var title = row.querySelector('.search-result-title');
+        if (title) title.insertAdjacentHTML('afterbegin', '<span class="search-play-badge">播放中</span>');
+      }
+    } else if (badge) badge.remove();
+  });
+}
 function searchResultMetaText(song) {
   var bits = [];
   if (song.artist) bits.push(song.artist);
   if (song.album) bits.push(song.album);
-  if (songProviderKey(song) === 'qq' && !song.playable) bits.push('QQ 播放需会话/授权');
-  if (songProviderKey(song) === 'qq' && Number(song.fee) === 1) bits.push('QQ 会员');
+  if (songProviderKey(song) === 'qq' && !song.playable && !hasPlatformLogin('qq')) bits.push('QQ 需登录');
+  if (isQQSongVipRequired(song)) bits.push('QQ 会员');
   if (songProviderKey(song) === 'kg' && Number(song.fee) === 1) bits.push('酷狗会员');
   return bits.join('  ·  ') || songSourceLabel(song);
 }
@@ -19238,8 +19926,8 @@ function searchResultMetaHtml(song, index) {
   var artist = String(song.artist || '').trim();
   var bits = [];
   if (song.album) bits.push(song.album);
-  if (songProviderKey(song) === 'qq' && !song.playable) bits.push('QQ 播放需会话/授权');
-  if (songProviderKey(song) === 'qq' && Number(song.fee) === 1) bits.push('QQ 会员');
+  if (songProviderKey(song) === 'qq' && !song.playable && !hasPlatformLogin('qq')) bits.push('QQ 需登录');
+  if (isQQSongVipRequired(song)) bits.push('QQ 会员');
   if (songProviderKey(song) === 'kg' && Number(song.fee) === 1) bits.push('酷狗会员');
   var tail = bits.length ? (' · ' + escHtml(bits.join('  ·  '))) : '';
   if (!artist) return escHtml(searchResultMetaText(song));
@@ -19420,7 +20108,7 @@ async function fetchMusicSearchPage(q, mode, page) {
     hasMore = !!(neOnly && neOnly.hasMore);
     if (!hasMore && songs.length >= pageSize) hasMore = true;
   } else {
-    var per = Math.max(8, Math.ceil(pageSize / 3));
+    var per = Math.max(4, Math.ceil(pageSize / 3));
     var nePromise = searchApiJson('/api/search?keywords=' + encodeURIComponent(q) + '&limit=' + per + '&offset=' + offset);
     var qqPromise = searchApiJson('/api/qq/search?keywords=' + encodeURIComponent(q) + '&limit=' + per + '&page=' + page);
     var kgPromise = searchApiJson('/api/kg/search?keywords=' + encodeURIComponent(q) + '&limit=' + per + '&page=' + page);
@@ -19444,7 +20132,7 @@ async function fetchMusicSearchResults(q, mode, onPartial) {
     var neteaseSongs = [];
     var qqSongsMerged = [];
     var kgSongsMerged = [];
-    var per = Math.max(8, Math.ceil(SEARCH_PAGE_SIZE / 3));
+    var per = Math.max(4, Math.ceil(SEARCH_PAGE_SIZE / 3));
     function emitAllPartial() {
       if (typeof onPartial !== 'function') return;
       searchPartialEmitPending = true;
@@ -19486,21 +20174,30 @@ function buildSearchResultRowHtml(s, i) {
   var vipTag = songVipTagHtml(s);
   var sourceTag = songSourceTagHtml(s);
   var sourceClass = songProviderKey(s) + '-source';
+  var playing = isSearchResultPlaying(s);
+  var playBadge = playing ? '<span class="search-play-badge">播放中</span>' : '';
+  var durationText = searchResultDurationText(s);
   var thumb = songCoverSrc(s, 80);
   var imgTag = thumb
-    ? '<img src="' + thumb + '" data-cover-url="' + escHtml(thumb) + '" alt="" loading="lazy" onerror="mineradioRetryCoverImg(this)">'
-    : '<div style="width:40px;height:40px;border-radius:6px;background:rgba(255,255,255,0.06);flex-shrink:0"></div>';
-  return '<div class="search-result ' + sourceClass + '">' +
-    '<div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0" onclick="playSearchResult(' + i + ')">' +
+    ? '<img src="' + thumb + '" data-cover-url="' + escHtml(thumb) + '" alt="" loading="lazy" decoding="async" onerror="mineradioRetryCoverImg(this)">'
+    : '<div style="width:42px;height:42px;border-radius:8px;background:rgba(255,255,255,0.06);flex-shrink:0"></div>';
+  return '<div class="search-result ' + sourceClass + (playing ? ' playing' : '') + '" data-search-index="' + i + '">' +
+    '<span class="search-result-index">' + (i + 1) + '</span>' +
+    '<div class="search-result-main" onclick="playSearchResult(' + i + ')">' +
       imgTag +
       '<div class="search-result-info">' +
-        '<div class="search-result-title">' + escHtml(s.name) + sourceTag + vipTag + '</div>' +
+        '<div class="search-result-title">' + playBadge + escHtml(s.name) + sourceTag + vipTag + '</div>' +
         '<div class="search-result-meta">' + searchResultMetaHtml(s, i) + '</div>' +
       '</div>' +
     '</div>' +
-    '<button class="song-action-btn' + (isSongLiked(s) ? ' liked' : '') + '" data-like-index="' + i + '" title="' + (isSongLiked(s) ? '取消红心' : '红心喜欢') + '" onclick="event.stopPropagation();toggleLikeSearchResult(' + i + ')">' + heartIconSvg() + '</button>' +
-    '<button class="song-action-btn" title="收藏到歌单" onclick="event.stopPropagation();collectSearchResult(' + i + ')">' + playlistPlusIconSvg() + '</button>' +
-    '<button class="add-btn" title="下一首播放" onclick="event.stopPropagation();queueSearchResult(' + i + ')">+</button>' +
+    '<div class="search-result-side">' +
+      (durationText ? ('<span class="search-result-duration">' + durationText + '</span>') : '') +
+      '<div class="search-result-actions">' +
+        '<button class="song-action-btn' + (isSongLiked(s) ? ' liked' : '') + '" data-like-index="' + i + '" title="' + (isSongLiked(s) ? '取消红心' : '红心喜欢') + '" onclick="event.stopPropagation();toggleLikeSearchResult(' + i + ')">' + heartIconSvg() + '</button>' +
+        '<button class="song-action-btn" title="收藏到歌单" onclick="event.stopPropagation();collectSearchResult(' + i + ')">' + playlistPlusIconSvg() + '</button>' +
+        '<button class="add-btn" title="下一首播放" onclick="event.stopPropagation();queueSearchResult(' + i + ')">+</button>' +
+      '</div>' +
+    '</div>' +
   '</div>';
 }
 function updateSearchLoadMoreButton() {
@@ -19531,12 +20228,35 @@ function appendSearchResultRows(songs, startIndex) {
   while (wrap.firstChild) frag.appendChild(wrap.firstChild);
   if (loadMoreBtn) $results.insertBefore(frag, loadMoreBtn);
   else $results.appendChild(frag);
+  updateSearchResultsHead(songs.length);
   updateSearchLoadMoreButton();
+  if (window.gsap && songs.length > startIndex) {
+    var added = songs.length - startIndex;
+    animateListItems($results, '.search-result:nth-last-child(n+' + (added + (loadMoreBtn ? 1 : 0)) + ')', { x: 0, y: 8, stagger: 0.01, duration: 0.16, limit: added });
+  }
 }
 function renderSongSearchResults(songs, opts) {
   opts = opts || {};
+  var q = searchPagingState.query || ($input && $input.value.trim()) || '';
+  if (opts.softUpdate && playlist.length && songs.length === playlist.length) {
+    playlist = songs || [];
+    updateSearchResultsHead(playlist.length, q);
+    updateSearchLoadMoreButton();
+    refreshSearchResultPlayingState();
+    if (!opts.skipLikeSync) scheduleUiWarmTask(function(){ syncLikeStatusForSongs(playlist, { limit: 10, searchContext: true }); }, mineradioUsesWebMediaBridge() ? 720 : 320);
+    return;
+  }
+  if (opts.incremental && playlist.length && songs.length > playlist.length) {
+    var prevLen = playlist.length;
+    playlist = songs || [];
+    updateSearchResultsHead(playlist.length, q);
+    appendSearchResultRows(playlist, prevLen);
+    if (!opts.skipLikeSync) scheduleUiWarmTask(function(){ syncLikeStatusForSongs(playlist.slice(prevLen), { limit: 8, searchContext: true }); }, mineradioUsesWebMediaBridge() ? 720 : 320);
+    return;
+  }
   playlist = songs || [];
-  var html = playlist.map(function(s, i){ return buildSearchResultRowHtml(s, i); }).join('');
+  var html = buildSearchResultsHeadHtml(playlist.length, q);
+  html += playlist.map(function(s, i){ return buildSearchResultRowHtml(s, i); }).join('');
   if (searchPagingState.hasMore) {
     html += '<button type="button" class="fx-mini-btn ghost search-load-more" onclick="loadMoreSearchResults()" ' + (searchPagingState.loading ? 'disabled' : '') + '>' +
       (searchPagingState.loading ? '正在加载...' : ('加载更多 · 已显示 ' + playlist.length + ' 条')) +
@@ -19545,11 +20265,12 @@ function renderSongSearchResults(songs, opts) {
   $results.innerHTML = html;
   $results.classList.add('show');
   if (!opts.skipLikeSync) {
-    scheduleUiWarmTask(function(){ syncLikeStatusForSongs(playlist, { limit: 10, searchContext: true }); }, mineradioUsesWebMediaBridge() ? 900 : 480);
+    scheduleUiWarmTask(function(){ syncLikeStatusForSongs(playlist, { limit: 10, searchContext: true }); }, mineradioUsesWebMediaBridge() ? 720 : 320);
   }
   if (!opts.skipAnimate && window.gsap && !mineradioUsesWebMediaBridge()) {
-    animateListItems($results, '.search-result', { x: 0, y: 6, stagger: 0.012, duration: 0.18, limit: 18 });
+    animateListItems($results, '.search-result', { x: 0, y: 6, stagger: 0.012, duration: 0.18, limit: SEARCH_PAGE_SIZE });
   }
+  refreshSearchResultPlayingState();
 }
 async function loadMoreSearchResults() {
   if (searchPagingState.loading || !searchPagingState.hasMore) return;
@@ -19606,10 +20327,12 @@ async function doSearch(q, opts) {
   try {
     var mode = searchMode;
     var partialRendered = false;
+    var partialLen = 0;
     var songs = await fetchMusicSearchResults(q, mode, function(partial){
       if (requestSeq !== searchRequestSeq || $input.value.trim() !== q || !partial || !partial.length) return;
       partialRendered = true;
-      renderSongSearchResults(partial, { skipLikeSync: true, skipAnimate: true });
+      renderSongSearchResults(partial, { skipLikeSync: true, skipAnimate: true, incremental: partialLen > 0 && partial.length > partialLen });
+      partialLen = partial.length;
     });
     if (requestSeq !== searchRequestSeq || $input.value.trim() !== q) return;
     if (!songs.length) {
@@ -19622,7 +20345,8 @@ async function doSearch(q, opts) {
     searchLastResultQuery = searchResultKey(q, mode);
     rememberSearchQuery(q);
     if (!partialRendered) renderSongSearchResults(songs);
-    else renderSongSearchResults(songs, { skipAnimate: partialRendered });
+    else renderSongSearchResults(songs, { skipAnimate: true, softUpdate: songs.length === partialLen, skipLikeSync: songs.length === partialLen });
+    scheduleUiWarmTask(function(){ prefetchSearchNextPage(q, mode); }, 480);
     if (opts.autoPlayFirst) playSearchResult(0);
   } catch (err) {
     if (err && (err.name === 'AbortError' || String(err.message || '').indexOf('aborted') >= 0)) return;
@@ -20059,6 +20783,13 @@ function moveQueueIndexToTop(idx) {
 }
 function playSearchResult(i) {
   var song = playlist[i]; if (!song) return;
+  primeWebPlaybackUnlockIfNeeded({});
+  showLoading({ light: !!firstPlayDone });
+  var urlFetchPromise = fetchPlaybackSourceData(song).catch(function(err){
+    console.warn('[SearchPlayPrefetch]', err);
+    return null;
+  });
+  prefetchPlaybackAudioForSong(song);
   homeForcedOpen = false;
   homeSuppressed = false;
   setHomeControlsLocked(false);
@@ -20073,7 +20804,7 @@ function playSearchResult(i) {
   $results.classList.remove('show');
   $input.value = ''; $input.blur();
   prefetchAdjacentPlaybackSources(currentIdx);
-  playQueueAt(currentIdx);
+  playQueueAt(currentIdx, { fromSearch: true, urlFetchPromise: urlFetchPromise });
 }
 var firstPlayDone = false;
 
@@ -20360,12 +21091,13 @@ async function playQueueAt(idx, opts) {
   markPlayPhase('track-setup');
   var song = safePlaybackStep('hydrate-song', function(){ return hydrateCustomCover(playQueue[idx]); }) || playQueue[idx];
   playQueue[idx] = song;
+  cancelInFlightPlaybackAudioPrefetch(playbackSourceCacheKey(song, opts));
   var playbackContext = opts.context || (song && song.radioContext) || null;
   activeRadioContext = playbackContext || null;
   safeRenderQueuePanel('play-queue-at-switch', { scrollCurrent: miniQueueOpen });
   safePlaybackStep('shelf-preview-suppress', suppressShelfPreviewForPlaybackSwitch);
   pauseCurrentAudioForTrackSwitch();
-  var urlFetchPromise = fetchPlaybackSourceData(song, opts).catch(function(err){
+  var urlFetchPromise = opts.urlFetchPromise || fetchPlaybackSourceData(song, opts).catch(function(err){
     console.warn('[PlaybackUrlPrefetch]', err);
     return null;
   });
@@ -20377,7 +21109,11 @@ async function playQueueAt(idx, opts) {
   currentLocalSong = null;
   safePlaybackStep('cover-button', updateCustomCoverButton);
   safePlaybackStep('like-buttons', function(){ updateLikeButtons(song); });
-  safePlaybackStep('like-status', function(){ syncLikeStatusForSong(song); });
+  if (opts.fromSearch) {
+    scheduleUiWarmTask(function(){ syncLikeStatusForSong(song); }, 520);
+  } else {
+    safePlaybackStep('like-status', function(){ syncLikeStatusForSong(song); });
+  }
   safePlaybackStep('cinema-track-profile', function(){ resetCinemaTrackProfile(song); });
   safePlaybackStep('empty-home', function(){ if (!opts.preserveHomeState) updateEmptyHomeVisibility(); });
   safePlaybackStep('track-ui', function(){
@@ -20440,6 +21176,12 @@ async function playQueueAt(idx, opts) {
       return;
     }
     var provider = songProviderKey(song);
+    if (provider === 'qq') {
+      mergeQQSongCoverMeta(song, data);
+      playQueue[idx] = song;
+      updateControlTrackInfo(song);
+      reloadParticleCoverForSong(song, token, 60);
+    }
     var requestedQuality = normalizePlaybackQualityForProvider(opts.qualityOverride || playbackQuality, provider);
     var resolvedQualityText = playbackResolvedQualityText(data);
     if (playbackQualityWasDowngraded(requestedQuality, data.level)) {
@@ -20463,8 +21205,20 @@ async function playQueueAt(idx, opts) {
       document.getElementById('trial-banner').classList.add('show');
     }
     markPlayPhase('audio-element');
+    var sourceKey = playbackSourceCacheKey(song, opts);
+    var cacheEntry = playbackSourceCache[sourceKey];
+    var prefetched = takePrefetchedPlaybackAudio(sourceKey);
+    var usedPrefetchMedia = false;
     releaseWebPlaybackCaptureIfNeeded();
-    if (!audio) audio = new Audio();
+    if (prefetched && prefetched.media) {
+      if (audio && audio !== prefetched.media) {
+        audioFadeSerial++;
+        clearAudioFadeTimers();
+        try { audio.onended = null; audio.pause(); } catch (_) {}
+      }
+      audio = prefetched.media;
+      usedPrefetchMedia = true;
+    } else if (!audio) audio = new Audio();
     else {
       audioFadeSerial++;
       clearAudioFadeTimers();
@@ -20473,12 +21227,16 @@ async function playQueueAt(idx, opts) {
     configurePlaybackAudioElement(audio, data.url);
     bindPlaybackProgressEvents(audio);
     applyVolumeToAudio();
-    var proxyAudioUrl = await resolvePlaybackAudioUrl(data.url);
+    var proxyAudioUrl = (prefetched && prefetched.resolvedUrl) || (cacheEntry && cacheEntry.resolvedUrl) || await resolvePlaybackAudioUrl(data.url);
+    rememberPlaybackSourceResolvedUrl(sourceKey, proxyAudioUrl);
     var analysisAudioUrl = resolveBeatAnalysisAudioUrl(data.url);
-    currentPlaybackDirectUrl = data.url;
+    currentPlaybackDirectUrl = (prefetched && prefetched.directUrl) || data.url;
     playbackStreamLoadedAt = Date.now();
     playbackPausedAt = 0;
-    audio.src = proxyAudioUrl;
+    if (!usedPrefetchMedia || audio.src !== proxyAudioUrl) {
+      audio.src = proxyAudioUrl;
+      audio.load();
+    }
     updatePlaybackProgressUi();
     audio.onended = function(){
       if (token !== trackSwitchToken) return;
@@ -20487,16 +21245,18 @@ async function playQueueAt(idx, opts) {
       else setTimeout(nextTrack, 0);
     };
     scheduleAudioResumePosition(audio, opts.resumeAt, token);
-    audio.load();
     markPlayPhase('audio-start');
     var isQQPlayback = provider === 'qq';
-    var useManualPlay = !!(opts.manual || (mineradioUsesWebMediaBridge() && !opts.autoRepeat && !opts.fallbackDepth));
-    var fastSwitch = !firstVisualPlay && !opts.manual && !opts.qualitySwitch && !opts.autoRepeat;
+    var useManualPlay = !!(opts.manual || (mineradioUsesWebMediaBridge() && !opts.autoRepeat && !opts.fallbackDepth && !opts.fromSearch));
+    var fastSwitch = !opts.manual && !opts.qualitySwitch && !opts.autoRepeat && (!firstVisualPlay || !!opts.fromSearch);
+    var prefetchedWarm = !!(prefetched && prefetched.warm);
     var playbackStarted = await playAudio({
       silent: isQQPlayback,
       manual: useManualPlay,
       fade: !mineradioUsesWebMediaBridge(),
       fastSwitch: fastSwitch,
+      fromSearch: !!opts.fromSearch,
+      prefetchedWarm: prefetchedWarm,
       resume: !!(opts.resumeAt > 0.35)
     });
     if (!playbackStarted) {
@@ -20592,6 +21352,9 @@ async function playQueueAt(idx, opts) {
       fetchLyric(song, token);
     }
     safeRenderQueuePanel('play-queue-at');
+    refreshSearchResultPlayingState();
+    refreshArtistDetailPlayingState();
+    refreshHomePlayingState();
     scheduleShelfRebuild('play-queue-at', true);
     safePlaybackStep('shelf-preview-suppress-end', suppressShelfPreviewForPlaybackSwitch);
   } catch (err) {
@@ -20622,13 +21385,34 @@ async function attemptAudioPlay(opts) {
   try {
       if (!audio) return false;
       restorePlaybackGain();
+      var quickPlay = webMode && audio.src && (opts.fastSwitch || opts.fromSearch);
+      if (quickPlay) {
+        if (!audioReady) initAudio();
+        if (opts.fade !== false) preparePlaybackFadeIn();
+        try {
+          await resumeAudioAnalysis();
+          await audio.play();
+          if (!audio.paused) {
+            switchPlaybackVisualToEmily();
+            playing = true; setPlayIcon(true);
+            playbackPausedAt = 0;
+            ensurePlaybackBeatmapVisualFallback();
+            if (opts.fade !== false) startPlaybackFadeIn();
+            else restorePlaybackGain();
+            forcePlaybackControlsInteractive();
+            hideLoading();
+            return true;
+          }
+        } catch (quickErr) {
+          console.warn('Quick play retry:', quickErr && (quickErr.message || quickErr));
+        }
+      }
       if (webMode && audio.src) {
-        if (opts.fastSwitch) {
-          if (audio.readyState < 1) await waitForPlaybackAudioReady(audio, 900);
-        } else if (opts.resume) {
-          if (audio.readyState < 1) await waitForPlaybackAudioReady(audio, 4500);
+        var readyTimeout = opts.prefetchedWarm ? 420 : (opts.fastSwitch || opts.fromSearch ? 1100 : (opts.resume ? 4500 : 6500));
+        if (opts.prefetchedWarm && audio.readyState >= 2) {
+          // 预缓冲命中
         } else if (audio.readyState < 2) {
-          await waitForPlaybackAudioReady(audio, 6500);
+          await waitForPlaybackAudioReady(audio, readyTimeout);
         }
       }
       if (!audioReady) initAudio();
@@ -20668,6 +21452,8 @@ async function playAudio(opts) {
     manual: !!opts.manual,
     silent: !!opts.silent,
     fastSwitch: !!opts.fastSwitch,
+    fromSearch: !!opts.fromSearch,
+    prefetchedWarm: !!opts.prefetchedWarm,
     resume: !!opts.resume,
     fade: opts.fade
   });
@@ -20746,6 +21532,7 @@ function shuffleQueue() {
 }
 function clearQueue() {
   playQueue = []; currentIdx = -1;
+  resetMiniQueueRenderLimit();
   safeRenderQueuePanel('clear-queue');
   safeShelfRebuild('clear-queue');
   updateCustomCoverButton();
@@ -20814,6 +21601,7 @@ function cyclePlayMode() {
   var idx = modes.indexOf(playMode);
   playMode = modes[(idx + 1) % modes.length];
   updatePlayModeButton(true);
+  safeRenderQueuePanel('cycle-play-mode', { animate: false, scrollCurrent: miniQueueOpen });
   showToast('播放模式: ' + playModeLabel(playMode));
 }
 updatePlayModeButton(false);
@@ -21318,6 +22106,117 @@ function setPlaylistPanelPinned(on, silent) {
 function togglePlaylistPanelPinned() {
   setPlaylistPanelPinned(!playlistPanelPinned);
 }
+function upcomingQueueIndex() {
+  if (!playQueue.length || currentIdx < 0) return -1;
+  if (playMode === 'single') return currentIdx;
+  if (playMode === 'shuffle') return -1;
+  return (currentIdx + 1) % playQueue.length;
+}
+function queueItemPlaybackClass(i) {
+  var cls = '';
+  if (i === currentIdx) cls += ' now';
+  var nextIdx = upcomingQueueIndex();
+  if (nextIdx >= 0 && i === nextIdx && i !== currentIdx) cls += ' next-up';
+  return cls;
+}
+function queuePlaybackBadgeHtml(i) {
+  if (i === currentIdx) return '<span class="queue-play-badge now">播放中</span>';
+  var nextIdx = upcomingQueueIndex();
+  if (nextIdx >= 0 && i === nextIdx) return '<span class="queue-play-badge next">下一首</span>';
+  return '';
+}
+function updateQueuePlaybackHints() {
+  var hint = document.getElementById('queue-next-hint');
+  var nextIdx = upcomingQueueIndex();
+  if (hint) {
+    if (nextIdx >= 0 && playQueue[nextIdx]) {
+      var nextSong = playQueue[nextIdx];
+      hint.textContent = '下一首 · ' + nextSong.name + (nextSong.artist ? ' — ' + nextSong.artist : '');
+      hint.classList.add('show');
+    } else if (playMode === 'shuffle' && playQueue.length > 1) {
+      hint.textContent = '随机播放 · 队列共 ' + playQueue.length + ' 首';
+      hint.classList.add('show');
+    } else if (playMode === 'single' && playQueue[currentIdx]) {
+      hint.textContent = '单曲循环 · ' + playQueue[currentIdx].name;
+      hint.classList.add('show');
+    } else {
+      hint.textContent = '';
+      hint.classList.remove('show');
+    }
+  }
+  var $count = document.getElementById('mini-queue-count');
+  if ($count) {
+    if (!playQueue.length) $count.textContent = '0 首';
+    else {
+      var bits = [playQueue.length + ' 首'];
+      if (currentIdx >= 0) bits.push('第 ' + (currentIdx + 1) + ' 首播放中');
+      if (nextIdx >= 0 && playQueue[nextIdx]) bits.push('下一首 ' + playQueue[nextIdx].name);
+      else if (playMode === 'shuffle' && playQueue.length > 1) bits.push('随机模式');
+      $count.textContent = bits.join(' · ');
+    }
+  }
+}
+function scheduleQueueItemPrefetch(index) {
+  index = Number(index);
+  if (!isFinite(index) || index < 0 || index >= playQueue.length) return;
+  clearTimeout(queueHoverPrefetchTimer);
+  queueHoverPrefetchTimer = setTimeout(function(){
+    var song = playQueue[index];
+    if (!song) return;
+    prefetchPlaybackSourceForSong(song);
+    if (index === upcomingQueueIndex() || index === currentIdx + 1) prefetchPlaybackAudioForSong(song);
+  }, 220);
+}
+function bindMiniQueueLazyRender() {
+  var list = document.getElementById('mini-queue-list');
+  if (!list || list._miniQueueLazyBound) return;
+  list._miniQueueLazyBound = true;
+  list.addEventListener('scroll', function(){
+    if (!miniQueueOpen) return;
+    if (list.scrollTop + list.clientHeight >= list.scrollHeight - 120) growMiniQueueRenderLimit();
+  }, { passive: true });
+}
+function bindQueuePlaybackPrefetch() {
+  if (queuePrefetchBound) return;
+  queuePrefetchBound = true;
+  document.addEventListener('mouseover', function(e){
+    var item = e.target && e.target.closest ? e.target.closest('[data-queue-index]') : null;
+    if (!item) return;
+    scheduleQueueItemPrefetch(item.getAttribute('data-queue-index'));
+  }, { passive: true });
+  document.addEventListener('mousedown', function(e){
+    if (e.button !== 0) return;
+    var item = e.target && e.target.closest ? e.target.closest('[data-queue-index]') : null;
+    if (!item) return;
+    var index = Number(item.getAttribute('data-queue-index'));
+    var song = playQueue[index];
+    if (song) {
+      prefetchPlaybackSourceForSong(song);
+      prefetchPlaybackAudioForSong(song);
+    }
+  }, { passive: true });
+}
+function resetMiniQueueRenderLimit() {
+  miniQueueRenderLimit = MINI_QUEUE_BATCH_SIZE;
+}
+function growMiniQueueRenderLimit() {
+  if (!playQueue.length) return;
+  var next = Math.min(playQueue.length, (miniQueueRenderLimit || MINI_QUEUE_BATCH_SIZE) + MINI_QUEUE_BATCH_SIZE);
+  if (next <= miniQueueRenderLimit) return;
+  miniQueueRenderLimit = next;
+  renderMiniQueuePanel({ scrollCurrent: true });
+}
+function miniQueueVisibleSlice() {
+  var total = playQueue.length;
+  if (total <= MINI_QUEUE_BATCH_SIZE + 4) return { start: 0, end: total };
+  var start = Math.max(0, currentIdx - 3);
+  var end = Math.min(total, Math.max(start + miniQueueRenderLimit, currentIdx + 5));
+  if (end - start < miniQueueRenderLimit) start = Math.max(0, end - miniQueueRenderLimit);
+  var nextIdx = upcomingQueueIndex();
+  if (nextIdx >= 0 && nextIdx >= end) end = Math.min(total, nextIdx + 1);
+  if (nextIdx >= 0 && nextIdx < start) start = Math.max(0, nextIdx);
+  return { start: start, end: end };
+}
 function scrollPlaylistPanelToCurrent() {
   var panel = document.getElementById('playlist-panel');
   var list = document.getElementById('queue-list');
@@ -21341,6 +22240,7 @@ function switchPlaylistTab(tab) {
   var podcastPane = document.getElementById('podcast-pane');
   if (podcastPane) podcastPane.style.display = tab === 'podcasts' ? '' : 'none';
   if (tab === 'playlists' || tab === 'podcasts') refreshUserPlaylists();
+  if (tab === 'playlists') updateUserPlaylistProviderTabs();
   if (tab === 'queue') animateVisiblePanelList(document.getElementById('queue-list'), '.queue-item', document.getElementById('playlist-panel'), '.queue-item.now');
   if (tab === 'playlists') animateVisiblePanelList(document.getElementById('pl-list'), '.pl-card', document.getElementById('playlist-panel'));
   if (tab === 'podcasts') animateVisiblePanelList(document.getElementById('podcast-list'), '.pl-card', document.getElementById('playlist-panel'));
@@ -21377,28 +22277,34 @@ function openPlaylistPanelTab(tab, preserve) {
 function renderMiniQueuePanel(opts) {
   opts = opts || {};
   var $list = document.getElementById('mini-queue-list');
-  var $count = document.getElementById('mini-queue-count');
-  if (!$list || !$count) return;
-  var total = playQueue.length;
-  $count.textContent = total ? (total + ' 首' + (currentIdx >= 0 ? ' · 正在播放 ' + (currentIdx + 1) : '')) : '0 首';
+  if (!$list) return;
+  updateQueuePlaybackHints();
   if (!miniQueueOpen && !opts.animate && !opts.scrollCurrent) return;
-  if (!total) {
+  if (!playQueue.length) {
     $list.innerHTML = '<div class="mini-queue-empty">队列为空，先搜索或打开歌单</div>';
     return;
   }
-  $list.innerHTML = playQueue.map(function(song, i){
+  var slice = miniQueueVisibleSlice();
+  var html = '';
+  if (slice.start > 0) html += '<div class="mini-queue-empty" style="padding:8px 0;font-size:10.5px">… 上方还有 ' + slice.start + ' 首</div>';
+  for (var i = slice.start; i < slice.end; i++) {
+    var song = playQueue[i];
     var thumb = songCoverSrc(song, 60);
     var imgTag = thumb ? '<img src="' + thumb + '" alt="" loading="lazy" decoding="async" onerror="this.style.opacity=0.2">' : '<div class="mini-queue-cover"></div>';
-    return '<div class="mini-queue-item' + (i === currentIdx ? ' now' : '') + '" onclick="playQueueAt(' + i + ')">' +
+    html += '<div class="mini-queue-item' + queueItemPlaybackClass(i) + '" data-queue-index="' + i + '" onclick="playQueueAt(' + i + ')">' +
       imgTag +
-      '<div class="mini-queue-info"><div class="mini-queue-name">' + escHtml(song.name) + '</div><div class="mini-queue-sub">' + escHtml(song.artist || '') + '</div></div>' +
+      '<div class="mini-queue-info"><div class="mini-queue-name">' + queuePlaybackBadgeHtml(i) + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(song.name) + '</span></div><div class="mini-queue-sub">' + escHtml(song.artist || '') + '</div></div>' +
       '<button class="mini-queue-remove mini-queue-next" onclick="event.stopPropagation();queueIndexNext(' + i + ')" title="下一首播放">下</button>' +
       '<button class="mini-queue-remove" onclick="event.stopPropagation();removeFromQueue(' + i + ')" title="移除">×</button>' +
     '</div>';
-  }).join('');
+  }
+  if (slice.end < playQueue.length) {
+    html += '<button type="button" class="fx-mini-btn ghost" style="width:100%;margin-top:4px" onclick="growMiniQueueRenderLimit()">加载更多 ' + slice.end + '/' + playQueue.length + '</button>';
+  }
+  $list.innerHTML = html;
   if (opts.animate || opts.scrollCurrent) {
     requestAnimationFrame(function(){
-      if (opts.animate) animateListItems($list, '.mini-queue-item', { x: 0, y: 6, stagger: 0.01, duration: 0.20, limit: 16 });
+      if (opts.animate) animateListItems($list, '.mini-queue-item', { x: 0, y: 6, stagger: 0.01, duration: 0.20, limit: 14 });
       if (opts.scrollCurrent) smoothScrollToItem($list, $list.querySelector('.mini-queue-item.now'), { duration: 0.30, align: 0.42 });
     });
   }
@@ -21409,6 +22315,8 @@ document.addEventListener('click', function(e){
 bindSmoothQueueScrolling();
 bindPlaylistPanelLazyRender();
 bindQueuePanelLazyRender();
+bindQueuePlaybackPrefetch();
+bindMiniQueueLazyRender();
 bindModalBackdropClose();
 function resetQueuePanelRenderLimit() {
   queuePanelRenderLimit = QUEUE_PANEL_BATCH_SIZE;
@@ -21431,10 +22339,10 @@ function bindQueuePanelLazyRender() {
 }
 function queuePanelVisibleSlice() {
   var limit = Math.max(QUEUE_PANEL_BATCH_SIZE, Math.min(playQueue.length, queuePanelRenderLimit || QUEUE_PANEL_BATCH_SIZE));
-  if (currentIdx >= 0 && currentIdx >= limit) {
-    limit = Math.min(playQueue.length, Math.max(limit, currentIdx + 1));
-    queuePanelRenderLimit = limit;
-  }
+  var nextIdx = upcomingQueueIndex();
+  if (currentIdx >= 0 && currentIdx >= limit) limit = Math.min(playQueue.length, Math.max(limit, currentIdx + 1));
+  if (nextIdx >= 0 && nextIdx >= limit) limit = Math.min(playQueue.length, nextIdx + 1);
+  queuePanelRenderLimit = limit;
   return playQueue.slice(0, limit);
 }
 function renderQueuePanel(opts) {
@@ -21445,12 +22353,14 @@ function renderQueuePanel(opts) {
   if (!playQueue.length) {
     resetQueuePanelRenderLimit();
     $ql.innerHTML = '<div style="text-align:center;padding:24px 0;color:rgba(255,255,255,.32);font-size:11.5px">队列为空，搜索后点 + 设为下一首</div>';
+    updateQueuePlaybackHints();
     renderMiniQueuePanel();
     var panel = document.getElementById('playlist-panel');
     if (panel && (panel.classList.contains('show') || panel.classList.contains('peek')) && queueViewTab === 'queue') switchPlaylistTab('playlists');
     return;
   }
   var visibleQueue = queuePanelVisibleSlice();
+  var visibleCount = visibleQueue.length;
   $ql.innerHTML = visibleQueue.map(function(song, i){
     var thumb = songCoverSrc(song, 60);
     var imgTag = thumb
@@ -21458,9 +22368,9 @@ function renderQueuePanel(opts) {
         ? '<img src="' + thumb + '" data-cover-url="' + escHtml(thumb) + '" alt="" loading="lazy" decoding="async" onerror="mineradioRetryCoverImg(this)">'
         : '<img src="' + thumb + '" alt="" loading="lazy" decoding="async" onerror="this.style.opacity=0.2">')
       : '<div style="width:38px;height:38px;border-radius:6px;background:rgba(255,255,255,.06);flex-shrink:0"></div>';
-    return '<div class="queue-item' + (i === currentIdx ? ' now' : '') + '" onclick="playQueueAt(' + i + ')">' +
+    return '<div class="queue-item' + queueItemPlaybackClass(i) + '" data-queue-index="' + i + '" onclick="playQueueAt(' + i + ')">' +
       imgTag +
-      '<div class="qi-info"><div class="qi-name">' + escHtml(song.name) + '</div><div class="qi-sub"><button class="queue-artist-link" type="button" onclick="event.stopPropagation();openQueueArtist(' + i + ')">' + escHtml(song.artist || '未知歌手') + '</button></div></div>' +
+      '<div class="qi-info"><div class="qi-name">' + queuePlaybackBadgeHtml(i) + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(song.name) + '</span></div><div class="qi-sub"><button class="queue-artist-link" type="button" onclick="event.stopPropagation();openQueueArtist(' + i + ')">' + escHtml(song.artist || '未知歌手') + '</button></div></div>' +
       '<div class="qi-act">' +
         '<button class="' + (isSongLiked(song) ? 'liked' : '') + '" onclick="event.stopPropagation();toggleLikeQueueIndex(' + i + ')" title="' + (isSongLiked(song) ? '取消红心' : '红心喜欢') + '">' + heartIconSvg() + '</button>' +
         '<button class="queue-next" onclick="event.stopPropagation();queueIndexNext(' + i + ')" title="下一首播放">下</button>' +
@@ -21469,13 +22379,16 @@ function renderQueuePanel(opts) {
       '</div>' +
     '</div>';
   }).join('');
-  if (playQueue.length > visibleQueue.length) {
-    $ql.insertAdjacentHTML('beforeend', '<button type="button" class="fx-mini-btn ghost queue-load-more" onclick="growQueuePanelRenderLimit()">加载更多 ' + visibleQueue.length + '/' + playQueue.length + '</button>');
+  if (playQueue.length > visibleCount) {
+    $ql.insertAdjacentHTML('beforeend', '<button type="button" class="fx-mini-btn ghost queue-load-more" onclick="growQueuePanelRenderLimit()">加载更多 ' + visibleCount + '/' + playQueue.length + '</button>');
   }
+  updateQueuePlaybackHints();
   if (opts.animate && seq === queueRenderSeq) animateVisiblePanelList($ql, '.queue-item', document.getElementById('playlist-panel'), '.queue-item.now');
   renderMiniQueuePanel({ scrollCurrent: miniQueueOpen });
+  if (opts.scrollCurrent !== false && queueViewTab === 'queue') scheduleUiWarmTask(scrollPlaylistPanelToCurrent, 80);
 }
 async function refreshUserPlaylists(force) {
+  updateUserPlaylistProviderTabs();
   if (!loginStatus.loggedIn && !qqLoginStatus.loggedIn && !kgLoginStatus.loggedIn) {
     resetPlaylistPanelRenderLimit();
     document.getElementById('pl-list').innerHTML = '<div style="text-align:center;padding:24px 0;color:rgba(255,255,255,.32);font-size:11.5px">登录后显示个人歌单</div>';
@@ -21527,6 +22440,7 @@ async function refreshUserPlaylists(force) {
     var animatePanel = isPlaylistPanelVisibleForRender();
     renderUserPlaylistsList({ animate: animatePanel, reset: force });
     renderMyPodcastCollections({ animate: animatePanel });
+    updateUserPlaylistProviderTabs();
     if (emptyHomeActive) renderHomeDiscover();
     if (force || userPlaylists.length !== prevPlaylistCount) scheduleShelfRebuild('refresh-user-playlists', true);
   } catch (e) { console.warn(e); }
@@ -21540,6 +22454,22 @@ function playlistPanelProviderId(provider, id) {
   if (provider === 'qq') return 'qq:' + id;
   if (provider === 'kg') return 'kg:' + id;
   return id;
+}
+function findQQPlaylistById(pid) {
+  pid = String(pid || '');
+  return (userPlaylists || []).find(function(pl) {
+    return pl && pl.provider === 'qq' && String(pl.id || pl.qqId || '') === pid;
+  }) || (qqPlaylists || []).find(function(pl) {
+    return pl && String(pl.id || pl.qqId || '') === pid;
+  }) || null;
+}
+function qqPlaylistTracksApiUrl(plOrId, dirid) {
+  var pl = typeof plOrId === 'object' ? plOrId : findQQPlaylistById(plOrId);
+  var id = pl ? (pl.id || pl.qqId || '') : String(plOrId || '');
+  var dir = dirid != null && dirid !== '' ? dirid : (pl && pl.dirid);
+  var url = '/api/qq/playlist/tracks?id=' + encodeURIComponent(String(id || ''));
+  if (dir != null && dir !== '') url += '&dirid=' + encodeURIComponent(String(dir));
+  return url;
 }
 function playlistPanelDetailHtml(pl, provider) {
   var key = playlistPanelKey(provider, pl && pl.id);
@@ -21604,11 +22534,12 @@ function scrollPlaylistPanelDetailIntoView(key) {
     catch (e) { panel.scrollTop = top; }
   });
 }
-async function openPlaylistPanelDetail(provider, pid, title) {
+async function openPlaylistPanelDetail(provider, pid, title, dirid) {
   if (!pid) return;
   provider = provider === 'qq' ? 'qq' : (provider === 'kg' ? 'kg' : 'netease');
   var key = playlistPanelKey(provider, pid);
-  var pl = userPlaylists.find(function(item){ return playlistPanelKey(item.provider) === key; }) || { id: pid, provider: provider, name: title || '歌单详情' };
+  var pl = userPlaylists.find(function(item){ return playlistPanelKey(item.provider, item.id) === key; }) || { id: pid, provider: provider, name: title || '歌单详情', dirid: dirid || '' };
+  if (provider === 'qq' && !pl.dirid && dirid) pl.dirid = dirid;
   if (playlistPanelDetailState.key === key && !playlistPanelDetailState.loading && playlistPanelDetailState.tracks.length) {
     playlistPanelDetailState.key = '';
     playlistPanelDetailState.tracks = [];
@@ -21632,7 +22563,7 @@ async function openPlaylistPanelDetail(provider, pid, title) {
   }
   try {
     var r = provider === 'qq'
-      ? await apiJson('/api/qq/playlist/tracks?id=' + encodeURIComponent(pid))
+      ? await apiJson(qqPlaylistTracksApiUrl(pl))
       : (provider === 'kg'
         ? await apiJson('/api/kg/playlist/tracks?id=' + encodeURIComponent(pid))
         : await apiJson('/api/playlist/tracks?id=' + encodeURIComponent(pid)));
@@ -21702,32 +22633,20 @@ function resetPlaylistPanelRenderLimit() {
   playlistGroupRenderLimit = { netease: PLAYLIST_PANEL_BATCH_SIZE, qq: PLAYLIST_PANEL_BATCH_SIZE, kg: PLAYLIST_PANEL_BATCH_SIZE };
 }
 function growPlaylistPanelRenderLimit() {
-  if (!userPlaylists.length) return;
   reindexUserPlaylistsGrouped();
-  var changed = false;
-  [
-    { key: 'netease', items: userPlaylistsGrouped.netease },
-    { key: 'qq', items: userPlaylistsGrouped.qq },
-    { key: 'kg', items: userPlaylistsGrouped.kg }
-  ].forEach(function(group){
-    var current = playlistGroupRenderLimit[group.key] || PLAYLIST_PANEL_BATCH_SIZE;
-    if (group.items.length <= current) return;
-    playlistGroupRenderLimit[group.key] = Math.min(group.items.length, current + PLAYLIST_PANEL_BATCH_SIZE);
-    changed = true;
-  });
-  if (!changed) return;
+  var provider = normalizeUserPlaylistProvider(userPlaylistProviderTab);
+  var items = userPlaylistsGrouped[provider] || [];
+  var current = playlistGroupRenderLimit[provider] || PLAYLIST_PANEL_BATCH_SIZE;
+  if (items.length <= current) return;
+  playlistGroupRenderLimit[provider] = Math.min(items.length, current + PLAYLIST_PANEL_BATCH_SIZE);
   playlistPanelRenderLimit = Math.min(userPlaylists.length, (playlistPanelRenderLimit || PLAYLIST_PANEL_BATCH_SIZE) + PLAYLIST_PANEL_BATCH_SIZE);
   renderUserPlaylistsList({ animate: true });
 }
 function userPlaylistsHaveMoreToRender() {
   reindexUserPlaylistsGrouped();
-  return [
-    { key: 'netease', items: userPlaylistsGrouped.netease },
-    { key: 'qq', items: userPlaylistsGrouped.qq },
-    { key: 'kg', items: userPlaylistsGrouped.kg }
-  ].some(function(group){
-    return group.items.length > (playlistGroupRenderLimit[group.key] || PLAYLIST_PANEL_BATCH_SIZE);
-  });
+  var provider = normalizeUserPlaylistProvider(userPlaylistProviderTab);
+  var items = userPlaylistsGrouped[provider] || [];
+  return items.length > (playlistGroupRenderLimit[provider] || PLAYLIST_PANEL_BATCH_SIZE);
 }
 function bindPlaylistPanelLazyRender() {
   var panel = document.getElementById('playlist-panel');
@@ -21742,44 +22661,38 @@ function bindPlaylistPanelLazyRender() {
 function renderUserPlaylistsList(opts) {
   opts = opts || {};
   var $pl = document.getElementById('pl-list');
+  if (!$pl) return;
   var seq = ++playlistRenderSeq;
-  if (!userPlaylists.length) {
-    $pl.innerHTML = '<div style="text-align:center;padding:24px 0;color:rgba(255,255,255,.32);font-size:11.5px">未找到歌单</div>';
+  updateUserPlaylistProviderTabs();
+  var provider = normalizeUserPlaylistProvider(userPlaylistProviderTab);
+  reindexUserPlaylistsGrouped();
+  var items = userPlaylistsGrouped[provider] || [];
+  if (!hasPlatformLogin(provider)) {
+    $pl.innerHTML = '<div style="text-align:center;padding:28px 12px 16px;color:rgba(255,255,255,.32);font-size:11.5px;line-height:1.65">' +
+      escHtml(userPlaylistProviderLabel(provider)) + ' 未登录<br><button type="button" class="fx-mini-btn ghost" style="margin-top:12px" onclick="openProviderLogin(\'' + provider + '\')">前往登录</button></div>';
+    return;
+  }
+  if (!items.length) {
+    $pl.innerHTML = '<div style="text-align:center;padding:28px 12px 16px;color:rgba(255,255,255,.32);font-size:11.5px;line-height:1.65">暂无' + escHtml(userPlaylistProviderLabel(provider)) + '歌单<br><button type="button" class="fx-mini-btn ghost" style="margin-top:12px" onclick="refreshUserPlaylists(true)">刷新</button></div>';
     return;
   }
   function playlistCardHtml(pl) {
-    var provider = pl.provider === 'qq' ? 'qq' : (pl.provider === 'kg' ? 'kg' : 'netease');
-    var providerLabel = provider === 'qq' ? 'QQ' : (provider === 'kg' ? 'KG' : 'NE');
-    var thumb = pl.cover ? ((provider === 'qq' || provider === 'kg') ? pl.cover : (pl.cover + '?param=88y88')) : '';
+    var plProvider = pl.provider === 'qq' ? 'qq' : (pl.provider === 'kg' ? 'kg' : 'netease');
+    var thumb = pl.cover ? ((plProvider === 'qq' || plProvider === 'kg') ? pl.cover : (pl.cover + '?param=88y88')) : '';
     var imgTag = thumb ? '<img src="' + thumb + '" alt="" loading="lazy" decoding="async" onerror="this.style.opacity=0.2">' : '<div style="width:44px;height:44px;border-radius:8px;background:rgba(255,255,255,.06);flex-shrink:0"></div>';
-    var key = playlistPanelKey(provider, pl.id);
+    var key = playlistPanelKey(plProvider, pl.id);
     var expanded = playlistPanelDetailState.key === key ? ' expanded' : '';
-    return '<div class="pl-card' + expanded + '" data-playlist-provider="' + provider + '" data-playlist-id="' + escHtml(String(pl.id || '')) + '" data-playlist-title="' + escHtml(pl.name || '') + '">' +
+    return '<div class="pl-card' + expanded + '" data-playlist-provider="' + plProvider + '" data-playlist-id="' + escHtml(String(pl.id || '')) + '" data-playlist-dirid="' + escHtml(String(pl.dirid || '')) + '" data-playlist-title="' + escHtml(pl.name || '') + '">' +
       imgTag +
-      '<div style="flex:1;min-width:0"><div class="pl-name">' + escHtml(pl.name) + '<span class="tag-source ' + provider + '" style="margin-left:6px;vertical-align:1px">' + providerLabel + '</span></div><div class="pl-sub">' + pl.trackCount + ' 首 · ' + escHtml(pl.creator || '') + '</div></div>' +
-    '</div>' + playlistPanelDetailHtml(pl, provider);
+      '<div style="flex:1;min-width:0"><div class="pl-name">' + escHtml(pl.name) + '</div><div class="pl-sub">' + pl.trackCount + ' 首 · ' + escHtml(pl.creator || '') + '</div></div>' +
+    '</div>' + playlistPanelDetailHtml(pl, plProvider);
   }
-  var groups = [
-    { key:'netease', label:'网易云歌单', items:userPlaylistsGrouped.netease },
-    { key:'qq', label:'QQ 音乐歌单', items:userPlaylistsGrouped.qq },
-    { key:'kg', label:'酷狗歌单', items:userPlaylistsGrouped.kg }
-  ];
   if (opts.reset) resetPlaylistPanelRenderLimit();
-  if (!userPlaylistsGrouped.netease.length && !userPlaylistsGrouped.qq.length && !userPlaylistsGrouped.kg.length) reindexUserPlaylistsGrouped();
-  var renderedCount = 0;
-  function visibleGroupItems(items, groupKey) {
-    var limit = playlistGroupRenderLimit[groupKey] || PLAYLIST_PANEL_BATCH_SIZE;
-    var visible = items.slice(0, limit);
-    renderedCount += visible.length;
-    return visible;
-  }
-  $pl.innerHTML = groups.map(function(group){
-    var items = visibleGroupItems(group.items, group.key);
-    if (!items.length) return '';
-    return '<div class="pl-section-label">' + group.label + '</div>' + items.map(playlistCardHtml).join('');
-  }).join('') || '<div style="text-align:center;padding:24px 0;color:rgba(255,255,255,.32);font-size:11.5px">未找到歌单</div>';
+  var limit = playlistGroupRenderLimit[provider] || PLAYLIST_PANEL_BATCH_SIZE;
+  var visible = items.slice(0, limit);
+  $pl.innerHTML = visible.map(playlistCardHtml).join('');
   if (userPlaylistsHaveMoreToRender()) {
-    $pl.insertAdjacentHTML('beforeend', '<button type="button" class="fx-mini-btn ghost pl-load-more" data-pl-load-more="1">加载更多 ' + renderedCount + '/' + userPlaylists.length + '</button>');
+    $pl.insertAdjacentHTML('beforeend', '<button type="button" class="fx-mini-btn ghost pl-load-more" data-pl-load-more="1">加载更多 ' + visible.length + '/' + items.length + '</button>');
   }
   if (opts.animate && seq === playlistRenderSeq) animateVisiblePanelList($pl, '.pl-card', document.getElementById('playlist-panel'));
 }
@@ -21853,7 +22766,8 @@ document.getElementById('pl-list').addEventListener('click', function(e){
   if (!card) return;
   var provider = card.getAttribute('data-playlist-provider') || 'netease';
   var pid = card.getAttribute('data-playlist-id') || '';
-  openPlaylistPanelDetail(provider, pid, card.getAttribute('data-playlist-title') || '');
+  var dirid = card.getAttribute('data-playlist-dirid') || '';
+  openPlaylistPanelDetail(provider, pid, card.getAttribute('data-playlist-title') || '', dirid);
 });
 var podcastListEl = document.getElementById('podcast-list');
 if (podcastListEl) {
@@ -21956,7 +22870,7 @@ async function loadPlaylistIntoQueueById(id, autoplay, title) {
   var r = null;
   try {
     r = qqPlaylistId
-      ? await apiJson('/api/qq/playlist/tracks?id=' + encodeURIComponent(qqPlaylistId))
+      ? await apiJson(qqPlaylistTracksApiUrl(qqPlaylistId))
       : (kgPlaylistId
         ? await apiJson('/api/kg/playlist/tracks?id=' + encodeURIComponent(kgPlaylistId))
         : await apiJson('/api/playlist/tracks?id=' + encodeURIComponent(id)));
@@ -22035,6 +22949,7 @@ function bindPlaybackProgressEvents(audioEl) {
   ['loadedmetadata', 'durationchange', 'timeupdate', 'seeked', 'play', 'pause', 'emptied'].forEach(function(name){
     audioEl.addEventListener(name, updatePlaybackProgressUi);
   });
+  audioEl.addEventListener('timeupdate', maybePrefetchNextTrackDuringPlayback);
   ['play', 'playing', 'pause', 'ended', 'emptied', 'abort', 'error'].forEach(function(name){
     audioEl.addEventListener(name, function(){ syncPlaybackStateFromAudioEvent(name); });
   });
@@ -29151,6 +30066,8 @@ scheduleWebStartupTask(function(){
   else setTimeout(startQQLoginStatusAutoRefresh, 6000);
   if (startupLoginStatusPromise && startupLoginStatusPromise.then) {
     startupLoginStatusPromise.then(function(){
+      ensureUserPlaylistProviderTab(true);
+      updateUserPlaylistProviderTabs();
       if (hasAnyPlatformLogin()) {
         refreshUserPlaylists(true);
         loadHomeDiscover(true);
