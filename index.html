@@ -2579,7 +2579,7 @@ html.control-glass-svg-ok #visual-guide-btn:hover{
   <div>手势：<b id="gesture-label">待命</b></div>
   <div id="gesture-confirm" class="gesture-confirm">将手放进摄像头视野</div>
   <div class="gesture-meter"><span id="gesture-fill"></span></div>
-  <div class="gesture-legend">手掌推开粒子 · 捏合旋转 · 握拳收束</div>
+  <div class="gesture-legend">手掌推开粒子 · 捏合旋转 · 握拳收束 · 手掌悬停可选歌单</div>
 </div>
 <canvas id="hand-canvas"></canvas>
 
@@ -15552,6 +15552,75 @@ function updateShelfCardHoverSelection(e) {
   if (hit && hit.card) shelfManager.setSelected(hit.card.index);
   else shelfManager.clearSelected();
 }
+function setGestureHudState(label, progress, detail) {
+  gestureHudCache.pendingLabel = label || '待命';
+  gestureHudCache.pendingDetail = detail || '将手放进摄像头视野';
+  gestureHudCache.pendingProgress = progress || 0;
+}
+
+function flushGestureHud(force) {
+  var label = gestureHudCache.pendingLabel;
+  if (label == null) return;
+  var detail = gestureHudCache.pendingDetail || '将手放进摄像头视野';
+  var progress = gestureHudCache.pendingProgress || 0;
+  if (!force &&
+    gestureHudCache.label === label &&
+    gestureHudCache.detail === detail &&
+    Math.abs(gestureHudCache.progress - progress) < 0.03) return;
+  gestureHudCache.label = label;
+  gestureHudCache.detail = detail;
+  gestureHudCache.progress = progress;
+  var hud = document.getElementById('gesture-hud');
+  if (!hud) return;
+  var labelEl = document.getElementById('gesture-label');
+  var detailEl = document.getElementById('gesture-confirm');
+  var fill = document.getElementById('gesture-fill');
+  if (labelEl) labelEl.textContent = label;
+  if (detailEl) detailEl.textContent = detail;
+  if (fill) fill.style.width = Math.max(0, Math.min(100, progress * 100)) + '%';
+  hud.classList.add('show');
+}
+
+function scheduleGestureHandDraw(lm, isPinch, openness, isFist) {
+  gestureHandDrawPending = { lm: lm, isPinch: isPinch, openness: openness, isFist: isFist };
+  if (gestureHandDrawRaf) return;
+  gestureHandDrawRaf = requestAnimationFrame(function(){
+    gestureHandDrawRaf = 0;
+    var pending = gestureHandDrawPending;
+    gestureHandDrawPending = null;
+    if (!pending || !gestureActive) return;
+    flushGestureHud(false);
+    drawHandSkeleton(pending.lm, pending.isPinch, pending.openness, pending.isFist);
+  });
+}
+
+function raycasterFromNormPointer(normX, normY) {
+  if (!gestureShelfRaycaster) gestureShelfRaycaster = new THREE.Raycaster();
+  gestureShelfRayNdc.set(normX * 2 - 1, -(normY * 2 - 1));
+  gestureShelfRaycaster.setFromCamera(gestureShelfRayNdc, camera);
+  return gestureShelfRaycaster;
+}
+function updateShelfHandHoverSelection(normX, normY, openness) {
+  if (!gestureActive || openness < 0.42) return;
+  var now = performance.now();
+  if (now - gestureShelfHoverLastAt < 140) return;
+  gestureShelfHoverLastAt = now;
+  if (!shelfManager || !shelfManager.clearSelected || !shelfManager.setSelected) return;
+  var mode = shelfManager.getMode && shelfManager.getMode();
+  if (!mode || mode === 'off') return;
+  if (shelfManager.hasOpenContent && shelfManager.hasOpenContent()) return;
+  if (!(shelfManager.canInteract && shelfManager.canInteract())) return;
+  var fakeEvent = { clientX: clampRange(normX, 0, 1) * innerWidth, clientY: clampRange(normY, 0, 1) * innerHeight };
+  if (mode === 'side' && !shelfPinnedOpen && !shelfAlwaysVisible()) {
+    if (!shelfAutoHiddenInputReady()) {
+      shelfManager.clearSelected();
+      return;
+    }
+  }
+  var hit = pointerCardHit(raycasterFromNormPointer(normX, normY), fakeEvent, 24);
+  if (hit && hit.card) shelfManager.setSelected(hit.card.index);
+  else shelfManager.clearSelected();
+}
 function isShelfPlaylistPlayHit(hit) {
   if (!hit || !hit.card || !hit.uv || !hit.card.item || hit.card.item.type !== 'playlist') return false;
   return hit.uv.x >= 0.49 && hit.uv.x <= 0.72 && hit.uv.y >= 0.13 && hit.uv.y <= 0.42;
@@ -19022,11 +19091,30 @@ function isCloudSong(song) {
   if (song.type === 'local' || song.type === 'podcast' || song.source === 'podcast') return false;
   return !song.provider || song.provider === 'netease' || song.source === 'netease' || song.type === 'song';
 }
+function isQQNumericSongId(value) {
+  var digits = String(value || '').replace(/\D/g, '');
+  var raw = String(value || '').trim();
+  return digits.length >= 5 && !(/^[0-9A-Za-z]{10,20}$/.test(raw) && !/^\d+$/.test(raw));
+}
+function qqSongMidForApi(song) {
+  if (!song) return '';
+  var mid = String(song.mid || song.songmid || '').trim();
+  if (mid && /^[0-9A-Za-z]{10,20}$/.test(mid) && !/^\d+$/.test(mid)) return mid;
+  var id = String(song.id || '').trim();
+  if (id && /^[0-9A-Za-z]{10,20}$/.test(id) && !/^\d+$/.test(id)) return id;
+  return mid;
+}
+function qqNumericIdForApi(song) {
+  if (!song) return '';
+  var qqId = String(song.qqId || '').replace(/\D/g, '');
+  if (isQQNumericSongId(qqId)) return qqId;
+  return '';
+}
 function likeSongKey(song) {
   if (!song) return '';
   if (songProviderKey(song) === 'qq') {
-    var qqId = String(song.qqId || '').replace(/\D/g, '');
-    return qqId ? ('qq:' + qqId) : ('qqmid:' + String(song.mid || song.songmid || song.id || ''));
+    var qqId = qqNumericIdForApi(song);
+    return qqId ? ('qq:' + qqId) : ('qqmid:' + qqSongMidForApi(song));
   }
   if (songProviderKey(song) === 'kg') {
     var kgHash = String(song.hash || song.id || '').trim().toLowerCase();
@@ -19119,16 +19207,16 @@ function syncLikeStatusForSongs(songs, opts) {
   }
   if (qqLoginStatus.loggedIn && qqSongs.length) {
     var qqIds = qqSongs.map(function(s){
-      var qqId = String(s.qqId || '').replace(/\D/g, '');
+      var qqId = qqNumericIdForApi(s);
       if (qqId) return qqId;
-      return String(s.mid || s.songmid || s.id || '').trim();
+      return qqSongMidForApi(s);
     }).filter(Boolean);
     if (!qqIds.length) { /* skip qq batch */ } else {
     apiJson('/api/qq/song/like/check?ids=' + encodeURIComponent(qqIds.join(','))).then(function(r){
       if (token < likeStatusToken - 3 || !r || !r.liked) return;
       qqSongs.forEach(function(song){
-        var qqId = String(song.qqId || '').replace(/\D/g, '');
-        var qqMid = String(song.mid || song.songmid || song.id || '').trim();
+        var qqId = qqNumericIdForApi(song);
+        var qqMid = qqSongMidForApi(song);
         if (qqId && Object.prototype.hasOwnProperty.call(r.liked, qqId)) likedSongMap[likeSongKey(song)] = !!r.liked[qqId];
         else if (qqMid && Object.prototype.hasOwnProperty.call(r.liked, qqMid)) likedSongMap[likeSongKey(song)] = !!r.liked[qqMid];
       });
@@ -19204,9 +19292,8 @@ async function toggleLikeSong(song) {
   try {
     var r;
     if (provider === 'qq') {
-      var qqId = String(song.qqId || '').replace(/\D/g, '');
-      var qqMid = String(song.mid || song.songmid || '').trim();
-      if (!qqMid && String(song.id || '').trim().length >= 10 && !/^\d+$/.test(String(song.id || '').trim())) qqMid = String(song.id || '').trim();
+      var qqId = qqNumericIdForApi(song);
+      var qqMid = qqSongMidForApi(song);
       r = await apiJson('/api/qq/song/like?id=' + encodeURIComponent(qqId) + '&mid=' + encodeURIComponent(qqMid) + '&like=' + encodeURIComponent(String(next)));
     } else if (provider === 'kg') {
       r = await apiJson('/api/kg/song/like?hash=' + encodeURIComponent(String(song.hash || song.id || '')) +
@@ -19218,11 +19305,16 @@ async function toggleLikeSong(song) {
       r = await apiJson('/api/song/like?id=' + encodeURIComponent(String(song.id)) + '&like=' + encodeURIComponent(String(next)));
     }
     if (r && r.error) throw new Error(r.error);
+    if (provider === 'qq' && next && r && r.liked === false) throw new Error('QQ_LIKE_FAILED');
+    if (provider === 'qq' && !next && r && r.liked === true) throw new Error('QQ_UNLIKE_FAILED');
     likedSongMap[key] = next;
     showToast(next ? '已加入红心喜欢' : '已取消红心');
   } catch (err) {
     likedSongMap[key] = !next;
-    showToast('红心操作失败');
+    var errMsg = String((err && err.message) || err || '');
+    if (provider === 'qq' && errMsg === 'LOGIN_REQUIRED') showToast('QQ 音乐登录已失效，请重新登录');
+    else if (provider === 'qq' && errMsg === 'MISSING_QQ_SONG_ID') showToast('QQ 歌曲缺少可同步 ID');
+    else showToast('红心操作失败' + (errMsg && errMsg !== 'QQ_LIKE_FAILED' && errMsg !== 'QQ_UNLIKE_FAILED' ? ('：' + errMsg) : ''));
   } finally {
     delete likeBusyMap[key];
     updateLikeButtons(song);
@@ -28437,14 +28529,151 @@ function handleVisualGuideSurfaceClick(e) {
 // ============================================================
 //  动态库加载
 // ============================================================
+var MEDIAPIPE_VENDOR_BASE = '/vendor/mediapipe';
+var MEDIAPIPE_CDN_BASE = 'https://cdn.jsdelivr.net/npm';
+var gestureStreamStopper = null;
+
 function loadScriptOnce(src) {
-  return new Promise(function(resolve, reject){
-    var hit = document.querySelector('script[src="' + src + '"]');
-    if (hit) { resolve(); return; }
-    var sc = document.createElement('script'); sc.src = src; sc.async = true;
-    sc.onload = resolve; sc.onerror = reject;
-    document.head.appendChild(sc);
+  if (!loadScriptOnce._pending) loadScriptOnce._pending = Object.create(null);
+  var pending = loadScriptOnce._pending;
+  if (pending[src]) return pending[src];
+  pending[src] = new Promise(function(resolve, reject) {
+    var existing = document.querySelector('script[data-load-src="' + String(src).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"]');
+    var sc = existing || document.createElement('script');
+    if (!existing) {
+      sc.async = true;
+      sc.dataset.loadSrc = src;
+      sc.src = src;
+      document.head.appendChild(sc);
+    } else if (existing.dataset.loaded === '1') {
+      resolve();
+      return;
+    }
+    sc.addEventListener('load', function(){ sc.dataset.loaded = '1'; resolve(); }, { once: true });
+    sc.addEventListener('error', function(){
+      delete pending[src];
+      try { sc.remove(); } catch (_) {}
+      reject(new Error('SCRIPT_LOAD_FAILED:' + src));
+    }, { once: true });
   });
+  return pending[src];
+}
+
+async function loadScriptWithFallbacks(urls) {
+  var lastErr = null;
+  for (var i = 0; i < urls.length; i++) {
+    try {
+      await loadScriptOnce(urls[i]);
+      return urls[i];
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr || new Error('SCRIPT_LOAD_FAILED');
+}
+
+function mediapipeHandsAsset(file) {
+  return MEDIAPIPE_VENDOR_BASE + '/hands/' + file;
+}
+
+async function ensureMediaPipeGestureLibs() {
+  await loadScriptWithFallbacks([
+    MEDIAPIPE_VENDOR_BASE + '/camera_utils/camera_utils.js',
+    MEDIAPIPE_CDN_BASE + '/@mediapipe/camera_utils/camera_utils.js',
+    'https://unpkg.com/@mediapipe/camera_utils/camera_utils.js'
+  ]);
+  await loadScriptWithFallbacks([
+    MEDIAPIPE_VENDOR_BASE + '/hands/hands.js',
+    MEDIAPIPE_CDN_BASE + '/@mediapipe/hands/hands.js',
+    'https://unpkg.com/@mediapipe/hands/hands.js'
+  ]);
+  if (typeof Hands !== 'function') throw new Error('MEDIAPIPE_HANDS_MISSING');
+}
+
+function gestureCameraErrorMessage(err) {
+  var msg = String((err && err.message) || err || '').trim();
+  if (msg === 'CAMERA_UNSUPPORTED') return '当前环境不支持摄像头';
+  if (msg === 'CAMERA_DENIED' || /NotAllowedError|Permission denied/i.test(msg)) return '摄像头权限被拒绝，请在浏览器设置中允许';
+  if (msg === 'CAMERA_NOT_FOUND' || /NotFoundError|DevicesNotFound/i.test(msg)) return '未检测到可用摄像头';
+  if (/NotReadableError|TrackStartError/i.test(msg)) return '摄像头被其他程序占用';
+  if (/MEDIAPIPE|SCRIPT_LOAD_FAILED/i.test(msg)) return '手势识别库加载失败，请检查网络或刷新重试';
+  if (/secure context|https/i.test(msg)) return '摄像头需要 HTTPS 或 localhost 环境';
+  return msg || '手势启动失败';
+}
+
+async function ensureGestureCameraStream() {
+  if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+    throw new Error('CAMERA_UNSUPPORTED');
+  }
+  var stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: {
+        facingMode: 'user',
+        width: { ideal: 480, max: 640 },
+        height: { ideal: 360, max: 480 },
+        frameRate: { ideal: 20, max: 24 }
+      }
+    });
+  } catch (err) {
+    var name = String((err && err.name) || '');
+    if (name === 'NotAllowedError' || name === 'PermissionDeniedError') throw new Error('CAMERA_DENIED');
+    if (name === 'NotFoundError' || name === 'DevicesNotFoundError') throw new Error('CAMERA_NOT_FOUND');
+    throw err;
+  }
+  gestureVideo.srcObject = stream;
+  await gestureVideo.play();
+  var pumping = true;
+  function pump() {
+    if (!pumping || !gestureActive) return;
+    queueGestureHandSend();
+    gesturePumpRaf = requestAnimationFrame(pump);
+  }
+  gesturePumpRaf = requestAnimationFrame(pump);
+  return function stopStream() {
+    pumping = false;
+    if (gesturePumpRaf) cancelAnimationFrame(gesturePumpRaf);
+    gesturePumpRaf = 0;
+    if (gestureSendWatchdog) clearTimeout(gestureSendWatchdog);
+    gestureSendWatchdog = 0;
+    gestureSendBusy = false;
+    try { stream.getTracks().forEach(function(t){ t.stop(); }); } catch (_) {}
+  };
+}
+
+function clearGestureSendWatchdog() {
+  if (!gestureSendWatchdog) return;
+  clearTimeout(gestureSendWatchdog);
+  gestureSendWatchdog = 0;
+}
+
+function queueGestureHandSend() {
+  if (!gestureActive || !gestureHands || !gestureVideo) return;
+  var now = performance.now();
+  if (gestureSendBusy || now - gestureSendLastAt < GESTURE_SEND_MIN_MS) return;
+  if (gestureVideo.readyState < 2) return;
+  gestureSendBusy = true;
+  gestureSendLastAt = now;
+  var seq = ++gestureSendSeq;
+  clearGestureSendWatchdog();
+  gestureSendWatchdog = setTimeout(function(){
+    if (!gestureActive || !gestureSendBusy || seq !== gestureSendSeq) return;
+    console.warn('[Gesture] inference timeout, recovering pipeline');
+    gestureSendBusy = false;
+    gestureSendLastAt = 0;
+  }, GESTURE_SEND_TIMEOUT_MS);
+  gestureHands.send({ image: gestureVideo }).catch(function(err){
+    console.warn('[Gesture] send failed:', err);
+  }).finally(function(){
+    if (seq !== gestureSendSeq) return;
+    clearGestureSendWatchdog();
+    gestureSendBusy = false;
+  });
+}
+
+async function startGestureCameraLoop() {
+  return ensureGestureCameraStream();
 }
 
 // ============================================================
@@ -28460,6 +28689,24 @@ function stopHeadTracking(){}      // stub
 
 var gestureVideo = null, gestureCamera = null, gestureHands = null;
 var gestureActive = false;
+var gestureSendBusy = false;
+var gestureSendLastAt = 0;
+var gestureSendWatchdog = 0;
+var gestureSendSeq = 0;
+var gesturePumpRaf = 0;
+var gestureCachedRawLm = null;
+var gestureLmDirty = false;
+var gestureHandVisible = false;
+var gestureHandRaycastLastAt = 0;
+var GESTURE_SEND_MIN_MS = 80;
+var GESTURE_SEND_TIMEOUT_MS = 1400;
+var gestureHudCache = { label: '', detail: '', progress: -1, pendingLabel: null, pendingDetail: '', pendingProgress: 0 };
+var gestureShelfRaycaster = null;
+var gestureShelfRayNdc = new THREE.Vector2();
+var gestureShelfHoverLastAt = 0;
+var gestureHandDrawLastAt = 0;
+var gestureHandDrawRaf = 0;
+var gestureHandDrawPending = null;
 // 21 个关键点的平滑缓存 (EMA): [{x,y}, ...]
 var handLmSmooth = null;
 var handLmLastSeen = 0;
@@ -28529,48 +28776,85 @@ var HAND_SMOOTH_ALPHA = 0.35;
 
 async function startGestureControl() {
   if (gestureActive) return;
-  showToast('正在加载手势识别…');
+  if (!window.isSecureContext) {
+    showToast('摄像头需要 HTTPS 或 localhost');
+    fx.cam = 'off';
+    document.querySelectorAll('#cam-seg button').forEach(function(b){ b.classList.toggle('active', b.dataset.cam === 'off'); });
+    return;
+  }
+  showToast('正在启动摄像头手势…');
+  showGestureHUD('加载中', 0.12, '正在请求摄像头权限');
   try {
-    await loadScriptOnce('https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js');
-    await loadScriptOnce('https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js');
+    await ensureMediaPipeGestureLibs();
     gestureVideo = document.createElement('video');
-    gestureVideo.playsInline = true; gestureVideo.muted = true;
+    gestureVideo.playsInline = true;
+    gestureVideo.muted = true;
+    gestureVideo.autoplay = true;
+    gestureVideo.setAttribute('playsinline', '');
     gestureVideo.style.display = 'none';
     document.body.appendChild(gestureVideo);
-    gestureHands = new Hands({ locateFile: function(f){ return 'https://cdn.jsdelivr.net/npm/@mediapipe/hands/' + f; } });
-    // modelComplexity:1 比 0 更稳定, 但仍流畅. 提高 confidence 减少误检
-    gestureHands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.7, minTrackingConfidence: 0.7 });
+    gestureHands = new Hands({
+      locateFile: function(file) {
+        return mediapipeHandsAsset(file);
+      }
+    });
+    gestureHands.setOptions({ maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.65, minTrackingConfidence: 0.58 });
     gestureHands.onResults(function(res){
       if (!gestureActive) return;
       var lm = res.multiHandLandmarks && res.multiHandLandmarks[0];
-      if (!lm) { onHandLost(); return; }
-      processHandFrame(lm);
+      if (lm) {
+        gestureCachedRawLm = lm;
+        gestureLmDirty = true;
+        gestureHandVisible = true;
+        handLmLastSeen = performance.now();
+      } else {
+        gestureHandVisible = false;
+      }
     });
-    gestureCamera = new Camera(gestureVideo, { onFrame: async function(){ if (gestureHands) await gestureHands.send({ image: gestureVideo }); }, width: 480, height: 360 });
-    await gestureCamera.start();
+    await gestureHands.initialize();
+    gestureStreamStopper = await startGestureCameraLoop();
     gestureActive = true;
-    // 准备 hand canvas
     handCanvas = document.getElementById('hand-canvas');
+    if (!handCanvas) throw new Error('HAND_CANVAS_MISSING');
     handCanvasCtx = handCanvas.getContext('2d');
+    if (!handCanvasCtx) throw new Error('HAND_CANVAS_CTX_MISSING');
     resizeHandCanvas();
     handCanvas.classList.add('show');
-    showToast('手势已开启: 手掌推开 · 捏合旋转 · 握拳收束');
-    showGestureHUD('待命', 0, '把手放进视野');
+    document.getElementById('gesture-hud').classList.add('show');
+    showToast('手势已开启：手掌推开 · 捏合旋转 · 握拳收束');
+    showGestureHUD('待命', 0, '将手放进摄像头视野');
   } catch (e) {
     console.warn('Gesture failed:', e);
-    showToast('手势启动失败 (需要摄像头权限)');
+    stopGestureControl();
+    showToast(gestureCameraErrorMessage(e));
     fx.cam = 'off';
     document.querySelectorAll('#cam-seg button').forEach(function(b){ b.classList.toggle('active', b.dataset.cam === 'off'); });
   }
 }
 
 function stopGestureControl() {
-  if (!gestureActive) return;
+  if (!gestureActive && !gestureVideo && !gestureHands) return;
   try { if (gestureCamera && gestureCamera.stop) gestureCamera.stop(); } catch(e){}
+  try { if (typeof gestureStreamStopper === 'function') gestureStreamStopper(); } catch(e){}
+  gestureStreamStopper = null;
   try { if (gestureVideo && gestureVideo.srcObject) gestureVideo.srcObject.getTracks().forEach(function(t){ t.stop(); }); } catch(e){}
+  try { if (gestureHands && gestureHands.close) gestureHands.close(); } catch(e){}
   try { if (gestureVideo) gestureVideo.remove(); } catch(e){}
   gestureVideo = null; gestureHands = null; gestureCamera = null;
   gestureActive = false;
+  gestureSendBusy = false;
+  gestureSendLastAt = 0;
+  gestureSendSeq++;
+  clearGestureSendWatchdog();
+  if (gesturePumpRaf) cancelAnimationFrame(gesturePumpRaf);
+  gesturePumpRaf = 0;
+  gestureCachedRawLm = null;
+  gestureLmDirty = false;
+  gestureHandVisible = false;
+  if (gestureHandDrawRaf) cancelAnimationFrame(gestureHandDrawRaf);
+  gestureHandDrawRaf = 0;
+  gestureHandDrawPending = null;
+  gestureHudCache = { label: '', detail: '', progress: -1, pendingLabel: null, pendingDetail: '', pendingProgress: 0 };
   pinchState.active = false;
   handLmSmooth = null;
   uniforms.uHandActive.value = 0;
@@ -28596,31 +28880,31 @@ function resizeHandCanvas() {
 }
 window.addEventListener('resize', resizeHandCanvas);
 
-function onHandLost() {
-  // 平滑淡出, 不立即清零 — 给一点缓冲
+function tickGestureHandAbsent() {
   if (pinchState.active) pinchState.active = false;
   gestureGrip.target = 0;
-  uniforms.uHandActive.value *= 0.9;
+  uniforms.uHandActive.value *= 0.92;
   if (uniforms.uHandActive.value < 0.02) uniforms.uHandActive.value = 0;
-  if (performance.now() - handLmLastSeen > 600) {
+  if (performance.now() - handLmLastSeen > 700) {
     handLmSmooth = null;
+    gestureCachedRawLm = null;
+    gestureLmDirty = false;
     if (handCanvasCtx) handCanvasCtx.clearRect(0, 0, innerWidth, innerHeight);
-    showGestureHUD('待命', 0, '把手放进视野');
+    setGestureHudState('待命', 0, '把手放进视野');
   }
 }
 
-// 把单帧 21 个 landmark 平滑到 handLmSmooth, 镜像 X (摄像头是反的)
-function smoothLandmarks(lm) {
+function smoothLandmarks(rawLm) {
   if (!handLmSmooth) {
-    handLmSmooth = lm.map(function(p){ return { x: 1 - p.x, y: p.y, z: p.z || 0 }; });
+    handLmSmooth = rawLm.map(function(p){ return { x: 1 - p.x, y: p.y, z: p.z || 0 }; });
     return handLmSmooth;
   }
   var a = HAND_SMOOTH_ALPHA;
   for (var i = 0; i < 21; i++) {
-    var srcX = 1 - lm[i].x;
+    var srcX = 1 - rawLm[i].x;
     handLmSmooth[i].x += (srcX - handLmSmooth[i].x) * a;
-    handLmSmooth[i].y += (lm[i].y - handLmSmooth[i].y) * a;
-    handLmSmooth[i].z += ((lm[i].z || 0) - handLmSmooth[i].z) * a;
+    handLmSmooth[i].y += (rawLm[i].y - handLmSmooth[i].y) * a;
+    handLmSmooth[i].z += ((rawLm[i].z || 0) - handLmSmooth[i].z) * a;
   }
   return handLmSmooth;
 }
@@ -28656,10 +28940,15 @@ function processHandFrame(rawLm) {
   var ndcY = -(palm.y * 2 - 1);
   var handLocalX = ndcX * PLANE_SIZE * 0.62;
   var handLocalY = ndcY * PLANE_SIZE * 0.62;
-  if (particleLocalPointFromNdc(ndcX, ndcY, particlePointerLocalHit)) {
-    // 平滑推动 (避免 uHandXY 跳变)
-    handLocalX = particlePointerLocalHit.x;
-    handLocalY = particlePointerLocalHit.y;
+  if (!pinchState.active) {
+    var nowRay = performance.now();
+    if (nowRay - gestureHandRaycastLastAt >= 120) {
+      gestureHandRaycastLastAt = nowRay;
+      if (particleLocalPointFromNdc(ndcX, ndcY, particlePointerLocalHit)) {
+        handLocalX = particlePointerLocalHit.x;
+        handLocalY = particlePointerLocalHit.y;
+      }
+    }
   }
   var cur = uniforms.uHandXY.value;
   cur.x += (handLocalX - cur.x) * 0.48;
@@ -28671,6 +28960,7 @@ function processHandFrame(rawLm) {
   var pinchDist = Math.hypot(lm[8].x - lm[4].x, lm[8].y - lm[4].y);
   var isPinch = pinchDist < 0.075 && openness > 0.28;
   var isFist = !isPinch && gripTarget > 0.68;
+  if (!pinchState.active && !isPinch) updateShelfHandHoverSelection(palm.x, palm.y, openness);
 
   if (isPinch && !pinchState.active) {
     unlockCenteredView();
@@ -28680,9 +28970,8 @@ function processHandFrame(rawLm) {
     pinchState.lastT = performance.now();
     particleSpin.vx = particleSpin.vy = 0;
     gestureGrip.target = Math.min(0.34, gestureGrip.target);
-    showGestureHUD('捏合拖动', 1, '移动手掌 -> 旋转封面');
+    setGestureHudState('捏合拖动', 1, '移动手掌 -> 旋转封面');
   } else if (isPinch && pinchState.active) {
-    unlockCenteredView();
     var dx = palm.x - pinchState.lastX;
     var dy = palm.y - pinchState.lastY;
     var nowPinch = performance.now();
@@ -28692,117 +28981,76 @@ function processHandFrame(rawLm) {
     var spinX = dy * PARTICLE_HAND_SPIN_X;
     gestureRotation.y += spinY;
     gestureRotation.x += spinX;
+    rebaseParticleRotationIfNeeded();
     particleSpin.vy = clampParticleSpinVelocity(spinY / pinchDt * 0.48);
     particleSpin.vx = clampParticleSpinVelocity(spinX / pinchDt * 0.48);
     pinchState.lastX = palm.x;
     pinchState.lastY = palm.y;
     pinchState.lastT = nowPinch;
     gestureGrip.target = Math.min(0.34, gestureGrip.target);
-    showGestureHUD('拖动中', 1, '松手后保留惯性');
+    setGestureHudState('拖动中', 1, '松手后保留惯性');
   } else if (!isPinch && pinchState.active) {
     pinchState.active = false;
-    showGestureHUD('松开', 0.4, '可继续触碰或捏合');
+    setGestureHudState('松开', 0.4, '可继续触碰或捏合');
   } else if (isFist) {
     if (gestureGrip.lastState !== 'fist') {
       gestureGrip.pulse = 1;
       uniforms.uBurstAmt.value = Math.max(uniforms.uBurstAmt.value, 0.26);
     }
     gestureGrip.lastState = 'fist';
-    showGestureHUD('握拳收束', Math.max(0.55, gripTarget), '粒子向中心收缩');
+    setGestureHudState('握拳收束', Math.max(0.55, gripTarget), '粒子向中心收缩');
   } else {
     if (gestureGrip.lastState === 'fist' && openness > 0.58) {
       uniforms.uBurstAmt.value = Math.max(uniforms.uBurstAmt.value, 0.18);
     }
     gestureGrip.lastState = openness > 0.62 ? 'open' : 'hover';
-    showGestureHUD(openness > 0.62 ? '张开恢复' : '悬停', 0.30 + openness * 0.34, '手掌推开粒子 / 捏合旋转 / 握拳收束');
+    setGestureHudState(openness > 0.62 ? '张开恢复' : '悬停', 0.30 + openness * 0.34, '手掌推开粒子 / 捏合旋转 / 握拳收束');
   }
 
-  drawHandSkeleton(lm, isPinch, openness, isFist);
+  scheduleGestureHandDraw(lm, isPinch, openness, isFist);
 }
 
-// 画手掌骨架: 连线 + 关节圆点
-//   骨架连接表 (MediaPipe 标准)
-var HAND_BONES = [
-  [0,1],[1,2],[2,3],[3,4],        // 拇指
-  [0,5],[5,6],[6,7],[7,8],        // 食指
-  [0,9],[9,10],[10,11],[11,12],   // 中指
-  [0,13],[13,14],[14,15],[15,16], // 无名指
-  [0,17],[17,18],[18,19],[19,20], // 小指
-  [5,9],[9,13],[13,17],           // 掌横连
-];
+// 轻量手掌指示 — 避免每帧全屏渐变拖垮主线程
 function drawHandSkeleton(lm, isPinch, openness, isFist) {
   if (!handCanvasCtx) return;
+  var now = performance.now();
+  if (now - gestureHandDrawLastAt < 28) return;
+  gestureHandDrawLastAt = now;
   var ctx = handCanvasCtx;
   ctx.clearRect(0, 0, innerWidth, innerHeight);
   var W = innerWidth, H = innerHeight;
   openness = clampRange(openness == null ? 1 : openness, 0, 1);
   var palm = palmCenter(lm);
   var px = palm.x * W, py = palm.y * H;
-  var primary = isFist ? 'rgba(244,210,138,0.92)' : (isPinch ? 'rgba(156,255,223,0.95)' : 'rgba(226,247,255,0.92)');
-  var soft = isFist ? 'rgba(244,210,138,0.18)' : (isPinch ? 'rgba(156,255,223,0.20)' : 'rgba(143,233,255,0.18)');
-  var coreR = 26 + openness * 34;
+  var primary = isFist ? 'rgba(244,210,138,0.88)' : (isPinch ? 'rgba(156,255,223,0.90)' : 'rgba(226,247,255,0.82)');
+  var coreR = 24 + openness * 28;
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
-  var aura = ctx.createRadialGradient(px, py, 0, px, py, coreR * 2.15);
-  aura.addColorStop(0, isFist ? 'rgba(244,210,138,0.26)' : 'rgba(255,255,255,0.22)');
-  aura.addColorStop(0.28, soft);
-  aura.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = aura;
+  ctx.fillStyle = isFist ? 'rgba(244,210,138,0.16)' : 'rgba(143,233,255,0.14)';
   ctx.beginPath();
-  ctx.arc(px, py, coreR * 2.15, 0, Math.PI * 2);
+  ctx.arc(px, py, coreR * 1.85, 0, Math.PI * 2);
   ctx.fill();
-
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  var ringR = 34 + openness * 48;
-  for (var r = 0; r < 3; r++) {
-    var alpha = (0.18 - r * 0.045) + (isFist ? 0.08 : 0);
-    ctx.strokeStyle = primary.replace(/0\.\d+\)/, alpha.toFixed(3) + ')');
-    ctx.lineWidth = 1.2 + r * 0.55;
-    ctx.beginPath();
-    ctx.arc(px, py, ringR + r * 13 + Math.sin(uniforms.uTime.value * 1.5 + r) * 2, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-
+  ctx.strokeStyle = primary;
+  ctx.lineWidth = isPinch ? 2.0 : 1.35;
+  ctx.beginPath();
+  ctx.arc(px, py, coreR + 12, 0, Math.PI * 2);
+  ctx.stroke();
   var tips = [4, 8, 12, 16, 20];
+  ctx.fillStyle = 'rgba(255,255,255,0.78)';
   for (var i = 0; i < tips.length; i++) {
     var p = lm[tips[i]];
-    var tx = p.x * W, ty = p.y * H;
-    var dx = tx - px, dy = ty - py;
-    var dist = Math.sqrt(dx * dx + dy * dy);
-    var beamAlpha = clampRange(0.26 - dist / 720, 0.045, 0.18) * (0.55 + openness * 0.45);
-    var grad = ctx.createLinearGradient(px, py, tx, ty);
-    grad.addColorStop(0, 'rgba(255,255,255,' + (beamAlpha * 0.20).toFixed(3) + ')');
-    grad.addColorStop(0.65, 'rgba(255,255,255,' + (beamAlpha * 0.42).toFixed(3) + ')');
-    grad.addColorStop(1, primary.replace(/0\.\d+\)/, Math.min(0.72, beamAlpha + 0.14).toFixed(3) + ')'));
-    ctx.strokeStyle = grad;
-    ctx.lineWidth = tips[i] === 8 || tips[i] === 4 ? 1.7 : 1.05;
     ctx.beginPath();
-    ctx.moveTo(px, py);
-    ctx.quadraticCurveTo(px + dx * 0.42 - dy * 0.05, py + dy * 0.42 + dx * 0.05, tx, ty);
-    ctx.stroke();
-    var dotR = (tips[i] === 8 || tips[i] === 4 ? 4.2 : 3.0) + (isFist ? 0.8 : 0);
-    var dot = ctx.createRadialGradient(tx, ty, 0, tx, ty, dotR * 4.2);
-    dot.addColorStop(0, 'rgba(255,255,255,0.92)');
-    dot.addColorStop(0.32, primary);
-    dot.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = dot;
-    ctx.beginPath();
-    ctx.arc(tx, ty, dotR * 4.2, 0, Math.PI * 2);
+    ctx.arc(p.x * W, p.y * H, tips[i] === 8 || tips[i] === 4 ? 3.6 : 2.6, 0, Math.PI * 2);
     ctx.fill();
   }
-
   ctx.beginPath();
-  ctx.arc(px, py, isFist ? 7.2 : 5.4, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(255,255,255,' + (isFist ? 0.82 : 0.62).toFixed(3) + ')';
+  ctx.arc(px, py, isFist ? 6.5 : 5, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.88)';
   ctx.fill();
-
   if (isPinch) {
     var t1 = lm[4], t2 = lm[8];
     ctx.strokeStyle = 'rgba(220,255,241,0.88)';
-    ctx.lineWidth = 2.0;
-    ctx.shadowColor = 'rgba(126,226,168,0.82)';
-    ctx.shadowBlur = 20;
+    ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(t1.x * W, t1.y * H);
     ctx.lineTo(t2.x * W, t2.y * H);
@@ -28813,6 +29061,19 @@ function drawHandSkeleton(lm, isPinch, openness, isFist) {
 
 // 每帧调用 — 应用惯性旋转 + handActive 衰减
 function tickGestureRotation(dt) {
+  if (gestureActive) {
+    if (gestureLmDirty && gestureCachedRawLm) {
+      try { processHandFrame(gestureCachedRawLm); } catch (err) { console.warn('[Gesture] frame error:', err); }
+      gestureLmDirty = false;
+    } else if (!gestureHandVisible) {
+      tickGestureHandAbsent();
+    }
+    if (pinchState.active && performance.now() - handLmLastSeen > 450) {
+      pinchState.active = false;
+      setGestureHudState('跟踪中断', 0.2, '请重新放入手掌');
+      flushGestureHud(false);
+    }
+  }
   if (Math.abs(particleSpin.vx) > 0.0001 || Math.abs(particleSpin.vy) > 0.0001) {
     var rx = particleSpin.vx * dt;
     var ry = particleSpin.vy * dt;
@@ -28836,13 +29097,8 @@ function tickGestureRotation(dt) {
 }
 
 function showGestureHUD(label, progress, detail) {
-  var hud = document.getElementById('gesture-hud');
-  if (!hud) return;
-  document.getElementById('gesture-label').textContent = label || '待命';
-  document.getElementById('gesture-confirm').textContent = detail || '将手放进摄像头视野';
-  var fill = document.getElementById('gesture-fill');
-  if (fill) fill.style.width = Math.max(0, Math.min(100, (progress || 0) * 100)) + '%';
-  hud.classList.add('show');
+  setGestureHudState(label, progress, detail);
+  flushGestureHud(true);
 }
 function showGestureCursor(){}  // stub: 兼容旧调用
 function hideGestureCursor(){}  // stub: 兼容旧调用
