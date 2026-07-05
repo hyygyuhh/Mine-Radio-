@@ -3,20 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mineradio — 在线音乐可视化播放器</title>
-<meta name="description" content="Mineradio — 在线音乐可视化播放器。搜索播放、歌单、歌词、3D 歌单架与粒子视觉预设；配合 Mineradio Bridge 浏览器扩展即可使用。">
-<meta name="keywords" content="Mineradio网页版,Mineradio音乐播放器,mineradio官网,mineradio音乐播放器,mineradio网页版,mineradio,mineradio下载,Mineradio下载">
+<title>Mineradio — 网页版音乐可视化播放器</title>
+<meta name="description" content="Mineradio 网页版 — 音乐可视化播放器。搜索播放、歌单、歌词、3D 歌单架与粒子视觉预设；配合 Mineradio Bridge 浏览器扩展即可使用。">
+<meta name="keywords" content="Mineradio,音乐播放器,网页版,音乐可视化,Bridge扩展">
 <link rel="canonical" href="https://mineradio.art/">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="Mineradio网页版音乐可视化播放器">
+<meta property="og:site_name" content="Mineradio">
 <meta property="og:title" content="Mineradio — 网页版音乐可视化播放器">
-<meta property="og:description" content="Mineradio 网页版 — 在线音乐可视化播放器。搜索播放、歌单、歌词、3D 歌单架与粒子视觉预设；配合 Mineradio Bridge 浏览器扩展即可使用。">
+<meta property="og:description" content="Mineradio 网页版 — 暗色高级音乐可视化播放器。搜索播放、歌单、歌词、3D 歌单架与粒子视觉预设；配合 Mineradio Bridge 浏览器扩展即可使用。">
 <meta property="og:url" content="https://mineradio.art/">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://mineradio.art/icons/icon512.png">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Mineradio — 网页版音乐可视化播放器">
-<meta name="twitter:description" content="Mineradio 网页版 — 在线音乐可视化播放器。搜索播放、歌单、歌词、3D 歌单架与粒子视觉预设；配合 Mineradio Bridge 浏览器扩展即可使用。">
+<meta name="twitter:description" content="Mineradio 网页版 — 暗色高级音乐可视化播放器。搜索播放、歌单、歌词、3D 歌单架与粒子视觉预设；配合 Mineradio Bridge 浏览器扩展即可使用。">
 <meta name="twitter:image" content="https://mineradio.art/icons/icon512.png">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#08090B">
@@ -1073,7 +1073,27 @@ body.login-guide-active #login-guide-canvas{opacity:1}
 #track-detail-body::-webkit-scrollbar{width:0;height:0}
 .track-detail-modal::-webkit-scrollbar,.track-detail-modal *::-webkit-scrollbar{width:0!important;height:0!important}
 .track-detail-modal *{scrollbar-width:none;-ms-overflow-style:none}
-.detail-hero{display:flex;align-items:center;gap:16px;padding:14px;border-radius:16px;border:1px solid rgba(255,255,255,.10);background:linear-gradient(135deg,rgba(255,255,255,.075),rgba(255,255,255,.032));margin-bottom:14px;box-shadow:inset 0 1px 0 rgba(255,255,255,.07)}
+.detail-hero{display:flex;align-items:center;gap:16px;padding:14px;border-radius:16px;border:1px solid rgba(255,255,255,.10);background:linear-gradient(135deg,rgba(255,255,255,.075),rgba(255,255,255,.032));margin-bottom:14px;box-shadow:inset 0 1px 0 rgba(255,255,255,.07);transition:background .18s,border-color .18s,box-shadow .18s}
+.detail-hero.playing{border-color:rgba(0,245,212,.28);background:rgba(0,245,212,.045);box-shadow:inset 2px 0 0 rgba(0,245,212,.68),0 12px 32px rgba(0,245,212,.05)}
+.detail-hero-main{min-width:0;flex:1}
+.detail-artist-link{border:0;background:transparent;padding:0;margin:0;font:inherit;font-size:11px;color:rgba(0,245,212,.78);cursor:pointer;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;display:block}
+.detail-artist-link:hover{color:#fff;text-decoration:underline;text-underline-offset:3px}
+.detail-action-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.detail-action-btn{height:34px;padding:0 12px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:rgba(255,255,255,.86);font-family:inherit;font-size:11px;font-weight:650;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background .18s,border-color .18s,transform .18s,color .18s;line-height:1}
+.detail-action-btn:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.22);transform:translateY(-1px)}
+.detail-action-btn.primary{border-color:rgba(0,245,212,.34);background:rgba(0,245,212,.10);color:#eafffb}
+.detail-action-btn.primary:hover{background:rgba(0,245,212,.16);border-color:rgba(0,245,212,.48)}
+.detail-action-btn.liked{color:#ff5060;border-color:rgba(255,48,56,.34);background:rgba(255,0,0,.035)}
+.detail-action-btn svg{width:15px;height:15px;flex-shrink:0;display:block}
+.detail-action-btn .heart-svg{width:14px;height:14px}
+.detail-comment-list-head{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;padding:10px 2px 8px;border-bottom:1px solid rgba(255,255,255,.05);background:rgba(10,10,14,.82);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);font-size:10.5px;color:rgba(255,255,255,.42);letter-spacing:.35px}
+.detail-comment-list-head strong{color:rgba(255,255,255,.82);font-weight:700}
+.detail-comment-list-hint{color:rgba(255,255,255,.28);white-space:nowrap}
+.detail-comment-load-more{display:block;width:100%;margin-top:4px}
+.detail-comment-like{color:rgba(0,245,212,.72);font-size:10.5px;white-space:nowrap;flex-shrink:0}
+.comment-item{transition:background .18s,border-color .18s}
+.comment-item:hover{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.12)}
+.comment-item.top-comment{border-color:rgba(244,210,138,.18);background:rgba(244,210,138,.035)}
 .detail-cover{width:72px;height:72px;border-radius:12px;object-fit:cover;background:rgba(255,255,255,.07);flex-shrink:0;box-shadow:0 14px 36px rgba(0,0,0,.34)}
 .detail-artist-avatar{display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 35% 24%,rgba(255,255,255,.18),rgba(255,255,255,.04) 44%,rgba(255,255,255,.025));border:1px solid rgba(255,255,255,.075);color:rgba(255,255,255,.74);font-size:20px;font-weight:800}
 .detail-title{font-size:18px;font-weight:760;color:rgba(255,255,255,.96);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -1089,7 +1109,7 @@ body.login-guide-active #login-guide-canvas{opacity:1}
 .detail-loading,.detail-empty{padding:14px 4px;text-align:center;color:rgba(255,255,255,.34);font-size:11.5px}
 .detail-scroll{max-height:none;overflow:visible;padding-right:0;scrollbar-width:none;-ms-overflow-style:none}
 .detail-scroll::-webkit-scrollbar{width:0;height:0}
-.comment-item,.artist-song-item{display:flex;gap:11px;padding:10px;border-radius:13px;border:1px solid rgba(255,255,255,.075);background:rgba(255,255,255,.045);margin-bottom:7px}
+.comment-item,.artist-song-item{display:flex;gap:11px;padding:10px;border-radius:13px;border:1px solid rgba(255,255,255,.075);background:rgba(255,255,255,.045);margin-bottom:7px;align-items:flex-start}
 .comment-avatar{width:32px;height:32px;border-radius:50%;object-fit:cover;background:rgba(255,255,255,.07);flex-shrink:0}
 .comment-main,.artist-song-main{min-width:0;flex:1}
 .comment-meta,.artist-song-meta{font-size:10.5px;color:rgba(255,255,255,.38);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -18096,6 +18116,10 @@ function currentArtistNames(song) {
   return text.split(/\s*\/\s*|\s*,\s*|、/).map(function(s){ return s.trim(); }).filter(Boolean);
 }
 var trackDetailSeq = 0;
+var detailCurrentSong = null;
+var detailComments = [];
+var SONG_DETAIL_COMMENT_BATCH = 10;
+var songDetailCommentRenderLimit = SONG_DETAIL_COMMENT_BATCH;
 var detailArtistSongs = [];
 var ARTIST_DETAIL_BATCH_SIZE = 12;
 var artistDetailRenderLimit = ARTIST_DETAIL_BATCH_SIZE;
@@ -18154,16 +18178,155 @@ function commentTimeLabel(ms) {
   }
 }
 function renderDetailComments(comments) {
-  if (!comments || !comments.length) return '<div class="detail-empty">暂无评论</div>';
-  return '<div class="detail-scroll">' + comments.map(function(c){
-    var user = c.user || {};
-    var avatar = user.avatar ? coverUrlWithSize(user.avatar, 64) : '';
-    return '<div class="comment-item">' +
-      (avatar ? '<img class="comment-avatar" src="' + avatar + '" alt="">' : '<div class="comment-avatar"></div>') +
-      '<div class="comment-main"><div class="comment-meta">' + escHtml(user.nickname || '音乐用户') + (c.likedCount ? (' · ' + c.likedCount + ' 赞') : '') + (c.time ? (' · ' + escHtml(commentTimeLabel(c.time))) : '') + '</div>' +
-      '<div class="comment-text">' + escHtml(c.content || '') + '</div></div>' +
-    '</div>';
-  }).join('') + '</div>';
+  detailComments = (comments || []).slice();
+  resetSongDetailCommentRenderLimit();
+  if (!detailComments.length) return '<div class="detail-empty">暂无评论</div>';
+  return buildDetailCommentsContainerHtml();
+}
+function resetSongDetailCommentRenderLimit() {
+  songDetailCommentRenderLimit = SONG_DETAIL_COMMENT_BATCH;
+}
+function isSongDetailPlaying(song) {
+  return isSearchResultPlaying(song);
+}
+function canOpenArtistFromSong(song) {
+  if (!song) return false;
+  return !!(String(song.artist || '').trim() || currentArtistId(song) || currentQQArtistMid(song) || currentKGArtistId(song));
+}
+function buildDetailArtistSubHtml(song) {
+  song = song || {};
+  var artist = String(song.artist || '').trim();
+  if (!artist) return escHtml(song.type === 'local' ? '本地文件' : '未知歌手');
+  if (canOpenArtistFromSong(song)) {
+    return '<button class="detail-artist-link" type="button" onclick="openDetailCurrentArtist()">' + escHtml(artist) + '</button>';
+  }
+  return escHtml(artist);
+}
+function buildSongDetailHeroHtml(song) {
+  song = song || {};
+  var playing = isSongDetailPlaying(song);
+  var cover = songCoverSrc(song, 180);
+  var coverHtml = cover ? '<img class="detail-cover" src="' + escHtml(cover) + '" alt="" loading="lazy" decoding="async" onerror="this.style.opacity=0.18">' : '<div class="detail-cover"></div>';
+  var vipTag = songVipTagHtml(song);
+  var playBadge = playing ? '<span class="search-play-badge">播放中</span>' : '';
+  var liked = isSongLiked(song);
+  return '<div class="detail-hero' + (playing ? ' playing' : '') + '" id="song-detail-hero">' + coverHtml +
+    '<div class="detail-hero-main">' +
+      '<div class="detail-title">' + playBadge + escHtml(song.name || '当前歌曲') + vipTag + '</div>' +
+      '<div class="detail-sub">' + buildDetailArtistSubHtml(song) + '</div>' +
+      '<div class="detail-action-row">' +
+        '<button class="detail-action-btn primary" type="button" onclick="playDetailCurrentSong()">播放</button>' +
+        '<button class="detail-action-btn detail-like-btn' + (liked ? ' liked' : '') + '" type="button" onclick="toggleLikeDetailSong(detailCurrentSong)">' + heartIconSvg() + (liked ? ' 已喜欢' : ' 喜欢') + '</button>' +
+        '<button class="detail-action-btn" type="button" onclick="collectDetailSong(detailCurrentSong)">' + artistCollectTrayIconSvg() + ' 收藏</button>' +
+        '<button class="detail-action-btn" type="button" onclick="queueDetailSongNext(detailCurrentSong)">' + artistNextPlusIconSvg() + ' 下一首</button>' +
+        (canOpenArtistFromSong(song) ? '<button class="detail-action-btn" type="button" onclick="openDetailCurrentArtist()">歌手</button>' : '') +
+      '</div>' +
+    '</div></div>';
+}
+function buildDetailCommentItemHtml(c, i) {
+  var user = c.user || {};
+  var avatar = user.avatar ? coverUrlWithSize(user.avatar, 64) : '';
+  var top = (Number(c.likedCount) || 0) >= 100;
+  return '<div class="comment-item' + (top ? ' top-comment' : '') + '" data-comment-index="' + i + '">' +
+    (avatar ? '<img class="comment-avatar" src="' + escHtml(coverProxySrc(avatar)) + '" alt="" loading="lazy" decoding="async">' : '<div class="comment-avatar"></div>') +
+    '<div class="comment-main"><div class="comment-meta">' + escHtml(user.nickname || '音乐用户') + (c.time ? (' · ' + escHtml(commentTimeLabel(c.time))) : '') + '</div>' +
+    '<div class="comment-text">' + escHtml(c.content || '') + '</div></div>' +
+    (c.likedCount ? ('<div class="detail-comment-like">' + escHtml(String(c.likedCount)) + ' 赞</div>') : '') +
+  '</div>';
+}
+function buildDetailCommentsContainerHtml() {
+  var visible = detailComments.slice(0, songDetailCommentRenderLimit);
+  var html = '<div class="detail-comment-list-head"><span>评论 · <strong>' + detailComments.length + '</strong> 条</span><span class="detail-comment-list-hint">按热度排序</span></div>';
+  html += '<div class="detail-scroll song-comment-list" id="song-comment-list">';
+  html += visible.map(function(c, i){ return buildDetailCommentItemHtml(c, i); }).join('');
+  if (detailComments.length > visible.length) {
+    html += '<button type="button" class="fx-mini-btn ghost detail-comment-load-more" onclick="growSongDetailCommentRenderLimit()">加载更多 ' + visible.length + '/' + detailComments.length + '</button>';
+  }
+  html += '</div>';
+  return html;
+}
+function growSongDetailCommentRenderLimit() {
+  if (!detailComments.length) return;
+  var prev = songDetailCommentRenderLimit;
+  var next = Math.min(detailComments.length, songDetailCommentRenderLimit + SONG_DETAIL_COMMENT_BATCH);
+  if (next <= prev) return;
+  songDetailCommentRenderLimit = next;
+  var list = document.getElementById('song-comment-list');
+  var loadBtn = list && list.querySelector('.detail-comment-load-more');
+  if (!list) {
+    var target = document.getElementById('song-comments');
+    if (target) target.innerHTML = buildDetailCommentsContainerHtml();
+    bindSongDetailListAfterRender();
+    return;
+  }
+  var wrap = document.createElement('div');
+  var chunk = '';
+  for (var i = prev; i < next; i++) chunk += buildDetailCommentItemHtml(detailComments[i], i);
+  wrap.innerHTML = chunk;
+  var frag = document.createDocumentFragment();
+  while (wrap.firstChild) frag.appendChild(wrap.firstChild);
+  if (loadBtn) list.insertBefore(frag, loadBtn);
+  else list.appendChild(frag);
+  if (loadBtn) {
+    if (next >= detailComments.length) loadBtn.remove();
+    else loadBtn.textContent = '加载更多 ' + next + '/' + detailComments.length;
+  }
+  if (window.gsap && next > prev) {
+    animateListItems(list, '.comment-item:nth-last-child(n+' + (next - prev + (loadBtn ? 1 : 0)) + ')', { x: 0, y: 8, stagger: 0.01, duration: 0.16, limit: next - prev });
+  }
+}
+function refreshSongDetailPlayingState() {
+  if (!detailCurrentSong) return;
+  var hero = document.getElementById('song-detail-hero');
+  if (!hero) return;
+  var playing = isSongDetailPlaying(detailCurrentSong);
+  hero.classList.toggle('playing', playing);
+  var title = hero.querySelector('.detail-title');
+  if (!title) return;
+  var badge = title.querySelector('.search-play-badge');
+  if (playing && !badge) title.insertAdjacentHTML('afterbegin', '<span class="search-play-badge">播放中</span>');
+  else if (!playing && badge) badge.remove();
+}
+function refreshSongDetailLikeState() {
+  if (!detailCurrentSong) return;
+  var btn = document.querySelector('#song-detail-hero .detail-like-btn');
+  if (!btn) return;
+  var liked = isSongLiked(detailCurrentSong);
+  btn.classList.toggle('liked', liked);
+  btn.innerHTML = heartIconSvg() + (liked ? ' 已喜欢' : ' 喜欢');
+}
+function refreshSongDetailUiState() {
+  refreshSongDetailPlayingState();
+  refreshSongDetailLikeState();
+}
+function bindSongDetailListAfterRender() {
+  bindArtistDetailLazyScroll();
+  refreshSongDetailUiState();
+}
+function playDetailCurrentSong() {
+  var song = detailCurrentSong;
+  if (!song) return;
+  primeWebPlaybackUnlockIfNeeded({});
+  showLoading({ light: !!firstPlayDone });
+  var urlFetchPromise = fetchPlaybackSourceData(song).catch(function(err){
+    console.warn('[DetailPlayPrefetch]', err);
+    return null;
+  });
+  prefetchPlaybackAudioForSong(song);
+  var key = queueItemKey(song);
+  var matchIdx = -1;
+  for (var i = 0; i < playQueue.length; i++) if (queueItemKey(playQueue[i]) === key) { matchIdx = i; break; }
+  if (matchIdx >= 0) currentIdx = matchIdx;
+  else { playQueue.unshift(cloneSong(song)); currentIdx = 0; }
+  safeRenderQueuePanel('detail-song-play');
+  safeShelfRebuild('detail-song-play', true);
+  closeTrackDetailModal();
+  prefetchAdjacentPlaybackSources(currentIdx);
+  playQueueAt(currentIdx, { fromSearch: true, urlFetchPromise: urlFetchPromise }).catch(function(e){ console.warn('[DetailPlay]', e); });
+}
+function openDetailCurrentArtist() {
+  if (!detailCurrentSong) return;
+  openArtistDetailForSong(detailCurrentSong);
 }
 function resetArtistDetailRenderLimit() {
   artistDetailRenderLimit = ARTIST_DETAIL_BATCH_SIZE;
@@ -18255,8 +18418,9 @@ function bindArtistDetailLazyScroll() {
   if (!body || artistDetailScrollBound) return;
   artistDetailScrollBound = true;
   body.addEventListener('scroll', function(){
-    if (!detailArtistSongs.length || artistDetailRenderLimit >= detailArtistSongs.length) return;
-    if (body.scrollTop + body.clientHeight >= body.scrollHeight - 140) growArtistDetailRenderLimit();
+    if (body.scrollTop + body.clientHeight < body.scrollHeight - 140) return;
+    if (detailArtistSongs.length && artistDetailRenderLimit < detailArtistSongs.length) growArtistDetailRenderLimit();
+    if (detailComments.length && songDetailCommentRenderLimit < detailComments.length) growSongDetailCommentRenderLimit();
   }, { passive: true });
 }
 function bindArtistDetailPrefetch() {
@@ -18337,6 +18501,7 @@ function bindTrackDetailScrollers() {
   bindSmoothWheelScroll(body);
   if (body) body.querySelectorAll('.detail-scroll').forEach(bindSmoothWheelScroll);
   bindArtistDetailListAfterRender();
+  bindSongDetailListAfterRender();
 }
 function closeTrackDetailModal() {
   closeGsapModal(document.getElementById('track-detail-modal'));
@@ -18354,6 +18519,8 @@ function openTrackDetailModal(type, songOverride) {
   var artists = currentArtistNames(song);
   var seq = ++trackDetailSeq;
   if (type === 'artist') {
+    detailCurrentSong = null;
+    detailComments = [];
     var providerKey = songProviderKey(song);
     var artistId = currentArtistId(song);
     var qqArtistMid = currentQQArtistMid(song);
@@ -18448,16 +18615,15 @@ function openTrackDetailModal(type, songOverride) {
     }
   } else {
     heading.textContent = '歌曲详情';
+    detailCurrentSong = cloneSong(song);
+    detailComments = [];
     var detailIsQQ = songProviderKey(song) === 'qq';
     var detailIsKG = songProviderKey(song) === 'kg';
     var detailCanLoadComments = isCloudSong(song) || detailIsQQ || detailIsKG;
     var detailCommentTitle = detailIsQQ ? 'QQ 音乐评论' : (detailIsKG ? '酷狗音乐评论' : '网易云评论');
     var detailEmptyText = detailIsQQ ? '当前 QQ 歌曲暂无评论' : (detailIsKG ? '当前酷狗歌曲暂无评论' : '本地文件暂无网易云评论');
     body.innerHTML =
-      '<div class="detail-hero">' + coverHtml +
-        '<div style="min-width:0;flex:1"><div class="detail-title">' + escHtml(title) + '</div>' +
-        '<div class="detail-sub">' + escHtml(song.artist || (song.type === 'local' ? '本地文件' : '未知歌手')) + '</div></div>' +
-      '</div>' +
+      buildSongDetailHeroHtml(song) +
       '<div class="detail-grid">' +
         detailRow('歌曲名', title) +
         detailRow('歌手', song.artist || '未知歌手') +
@@ -18471,6 +18637,7 @@ function openTrackDetailModal(type, songOverride) {
         (isSongLiked(song) ? '<span class="detail-chip">红心喜欢</span>' : '') +
         (getCustomCoverForSong(song) ? '<span class="detail-chip">自定义封面</span>' : '') +
         (hasCustomLyricForSong(song) ? '<span class="detail-chip">自定义歌词</span>' : '') +
+        (songVipTagHtml(song) ? ('<span class="detail-chip">' + escHtml(songProviderKey(song) === 'qq' ? 'QQ 会员' : '会员') + '</span>') : '') +
       '</div>' +
       '<div class="detail-section"><div class="detail-section-head"><div class="detail-section-title">' + detailCommentTitle + '</div></div><div id="song-comments">' + (detailCanLoadComments ? '<div class="detail-loading">正在载入评论...</div>' : '<div class="detail-empty">' + detailEmptyText + '</div>') + '</div></div>';
     if (detailCanLoadComments) {
@@ -18483,6 +18650,7 @@ function openTrackDetailModal(type, songOverride) {
       if (cachedComments) {
         var targetCachedComments = document.getElementById('song-comments');
         if (targetCachedComments) targetCachedComments.innerHTML = cachedComments.error ? '<div class="detail-empty">评论加载失败</div>' : renderDetailComments(cachedComments.comments || []);
+        bindSongDetailListAfterRender();
       } else {
       apiJson(commentUrl).then(function(r){
         if (seq !== trackDetailSeq) return;
@@ -18490,6 +18658,7 @@ function openTrackDetailModal(type, songOverride) {
         var target = document.getElementById('song-comments');
         if (target) target.innerHTML = r && !r.error ? renderDetailComments(r.comments || []) : '<div class="detail-empty">评论加载失败</div>';
         bindTrackDetailScrollers();
+        bindSongDetailListAfterRender();
       }).catch(function(){
         var target = document.getElementById('song-comments');
         if (seq === trackDetailSeq && target) target.innerHTML = '<div class="detail-empty">评论加载失败</div>';
@@ -19031,6 +19200,7 @@ async function toggleLikeSong(song) {
   updateLikeButtons(song);
   safeRenderQueuePanel('like-toggle-optimistic', { scrollCurrent: miniQueueOpen });
   refreshSearchResultActionStates();
+  refreshSongDetailLikeState();
   try {
     var r;
     if (provider === 'qq') {
@@ -19058,6 +19228,7 @@ async function toggleLikeSong(song) {
     updateLikeButtons(song);
     safeRenderQueuePanel('like-toggle-final', { scrollCurrent: miniQueueOpen });
     refreshSearchResultActionStates();
+    refreshSongDetailLikeState();
   }
 }
 function toggleLikeCurrent() { toggleLikeSong(currentCoverSong()); }
@@ -21354,6 +21525,7 @@ async function playQueueAt(idx, opts) {
     safeRenderQueuePanel('play-queue-at');
     refreshSearchResultPlayingState();
     refreshArtistDetailPlayingState();
+    refreshSongDetailUiState();
     refreshHomePlayingState();
     scheduleShelfRebuild('play-queue-at', true);
     safePlaybackStep('shelf-preview-suppress-end', suppressShelfPreviewForPlaybackSwitch);
