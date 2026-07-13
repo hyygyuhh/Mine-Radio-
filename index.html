@@ -33,7 +33,7 @@
 <script src="vendor/three.r128.min.js"></script>
 <script src="vendor/music-tempo.min.js"></script>
 <script src="vendor/gsap.min.js"></script>
-<script src="web-bridge.js"></script>
+<script src="web-bridge.js?v=20260713-qqcover-size"></script>
 <script>
 try {
   document.documentElement.classList.add(localStorage.getItem('mineradio-diy-player-mode-v1') === '1' ? 'diy-mode-preload' : 'simple-mode-preload');
@@ -13156,6 +13156,7 @@ function hideAIDepthChip() {
 
 function loadCoverFromUrl(directUrl, opts) {
   opts = opts || {};
+  directUrl = upgradeMixedContentUrl(directUrl);
   if (!directUrl || typeof directUrl !== 'string' || !/^https?:\/\//i.test(directUrl)) {
     if (!coverApplyStillCurrent(opts)) return;
     currentCoverSource = null;
@@ -13175,8 +13176,16 @@ function loadCoverFromUrl(directUrl, opts) {
 }
 function loadCoverFromUrlResolved(proxiedUrl, directUrl, opts) {
   opts = opts || {};
-  document.getElementById('album-bg').style.backgroundImage = "url(" + directUrl + ")";
-  document.getElementById('album-bg').classList.add('visible');
+  try {
+    window.__mineradioLastCoverDebug = Object.assign({}, window.__mineradioLastCoverDebug || {}, {
+      requested: directUrl || '',
+      resolved: proxiedUrl || '',
+      resolvedKind: /^data:image\//i.test(proxiedUrl || '') ? 'data' : (/^blob:/i.test(proxiedUrl || '') ? 'blob' : (/^https?:/i.test(proxiedUrl || '') ? 'url' : 'empty')),
+      resolvedAt: Date.now(),
+      error: ''
+    });
+  } catch (_) {}
+  setAlbumBackground(proxiedUrl || directUrl);
   if (!proxiedUrl) {
     uniforms.uHasCover.value = 0; setCoverDepthState(0, 0, 1);
     resetFloatColorsToIdle();
@@ -13186,6 +13195,15 @@ function loadCoverFromUrlResolved(proxiedUrl, directUrl, opts) {
   if (/^https?:\/\//i.test(proxiedUrl)) img.crossOrigin = 'anonymous';
   img.onload = function() {
     if (!coverApplyStillCurrent(opts)) return;
+    try {
+      window.__mineradioLastCoverDebug = Object.assign({}, window.__mineradioLastCoverDebug || {}, {
+        loadedKind: /^data:image\//i.test(proxiedUrl || '') ? 'data' : (/^blob:/i.test(proxiedUrl || '') ? 'blob' : 'url'),
+        naturalWidth: img.naturalWidth || img.width || 0,
+        naturalHeight: img.naturalHeight || img.height || 0,
+        loadedAt: Date.now(),
+        error: ''
+      });
+    } catch (_) {}
     var size = coverTextureSizeForResolution(fx.coverResolution);
     var cv = document.createElement('canvas'); cv.width = cv.height = size;
     var cx = cv.getContext('2d');
@@ -13194,6 +13212,13 @@ function loadCoverFromUrlResolved(proxiedUrl, directUrl, opts) {
     applyCoverCanvas(cv, proxiedUrl || directUrl, Object.assign({}, opts, { coverKey: directUrl || proxiedUrl || '', coverSourceKind: 'url', coverSource: directUrl }));
   };
   img.onerror = function() {
+    try {
+      window.__mineradioLastCoverDebug = Object.assign({}, window.__mineradioLastCoverDebug || {}, {
+        failedSrc: proxiedUrl || '',
+        error: 'image_load_error',
+        failedAt: Date.now()
+      });
+    } catch (_) {}
     resolveCoverUrlForCanvas(directUrl).then(function(retrySrc) {
       if (!coverApplyStillCurrent(opts)) return;
       if (!retrySrc || retrySrc === proxiedUrl) { finishCoverLoadError(opts); return; }
@@ -16129,13 +16154,27 @@ function isProxyableCoverUrl(url) {
 function mineradioUsesWebMediaBridge() {
   return !!(window.__mineradioWebMode);
 }
-function audioProxyPathFromDirect(url) {
+function isHttpsPage() {
+  return String(location && location.protocol || '').toLowerCase() === 'https:';
+}
+function upgradeMixedContentUrl(url) {
+  url = String(url || '').trim();
   if (!url) return '';
-  if (mineradioUsesWebMediaBridge()) return url;
+  if (/^\/\//.test(url)) return 'https:' + url;
+  if (!isHttpsPage() || !/^http:\/\//i.test(url)) return url;
+  if (/(?:music\.126\.net|music\.163\.com|126\.net|qpic\.y\.qq\.com|y\.gtimg\.cn|gtimg\.cn|qqmusic\.qq\.com|stream\.qqmusic\.qq\.com|kugou\.com|kugou\.net)/i.test(url)) {
+    return url.replace(/^http:\/\//i, 'https://');
+  }
+  return url;
+}
+function audioProxyPathFromDirect(url) {
+  url = upgradeMixedContentUrl(url);
+  if (!url) return '';
+  if (mineradioUsesWebMediaBridge() && !/^http:\/\//i.test(url)) return url;
   return '/api/audio?url=' + encodeURIComponent(url);
 }
 function resolveBeatAnalysisAudioUrl(url) {
-  url = String(url || '').trim();
+  url = upgradeMixedContentUrl(url);
   if (!url) return '';
   if (/^\/api\/audio/i.test(url)) return url.indexOf('purpose=') >= 0 ? url : (url + (url.indexOf('?') >= 0 ? '&' : '?') + 'purpose=analysis');
   if (mineradioUsesWebMediaBridge() || /^https?:\/\//i.test(url)) {
@@ -16240,11 +16279,22 @@ async function fetchAnalysisAudioArrayBuffer(analysisUrl, directUrl) {
   return resp.arrayBuffer();
 }
 async function resolvePlaybackAudioUrl(url) {
-  url = String(url || '').trim();
-  if (!url) return '';
-  if (/^blob:/i.test(url) || /^data:/i.test(url)) return url;
-  if (mineradioUsesWebMediaBridge()) return url;
-  return audioProxyPathFromDirect(url);
+  var rawUrl = String(url || '').trim();
+  if (!rawUrl) return '';
+  if (/^blob:/i.test(rawUrl) || /^data:/i.test(rawUrl)) return rawUrl;
+  var safeUrl = upgradeMixedContentUrl(rawUrl);
+  if (mineradioUsesWebMediaBridge()) {
+    if (/^http:\/\//i.test(rawUrl)) {
+      try {
+        var proxied = await apiJson('/api/audio?url=' + encodeURIComponent(rawUrl), { bridgeTimeoutMs: 15000 });
+        if (proxied && proxied.url) return proxied.url;
+      } catch (err) {
+        console.warn('[WebAudioProxy]', err);
+      }
+    }
+    return safeUrl;
+  }
+  return audioProxyPathFromDirect(safeUrl);
 }
 var webPlaybackUnlockDone = false;
 function configurePlaybackAudioElement(audioEl, srcUrl) {
@@ -16378,10 +16428,11 @@ function primeWebPlaybackUnlockIfNeeded(opts) {
   } catch (_) {}
 }
 function coverProxySrc(url, cacheBust) {
+  url = upgradeMixedContentUrl(url);
   if (!url) return '';
   if (isInlineCoverSrc(url)) return url;
   if (!isProxyableCoverUrl(url)) return '';
-  if (mineradioUsesWebMediaBridge()) return url;
+  if (mineradioUsesWebMediaBridge() && !/^http:\/\//i.test(url)) return url;
   return '/api/cover?url=' + encodeURIComponent(url) + (cacheBust ? '&v=' + Date.now() : '');
 }
 function isNeteaseCoverUrl(url) {
@@ -16390,13 +16441,20 @@ function isNeteaseCoverUrl(url) {
 function qqAlbumCoverUrl(albumMid, size) {
   albumMid = String(albumMid || '').trim();
   if (!albumMid) return '';
-  var px = Math.max(120, Math.min(800, Number(size) || 300));
+  var px = qqCoverSize(size);
   return 'https://y.gtimg.cn/music/photo_new/T002R' + px + 'x' + px + 'M000' + albumMid + '.jpg?max_age=2592000';
+}
+function qqCoverSize(size) {
+  var n = Number(size) || 300;
+  if (n <= 150) return 150;
+  if (n <= 300) return 300;
+  if (n <= 500) return 500;
+  return 800;
 }
 function qqSingerCoverUrl(singerMid, size) {
   singerMid = String(singerMid || '').trim();
   if (!singerMid) return '';
-  var px = Math.max(120, Math.min(800, Number(size) || 300));
+  var px = qqCoverSize(size);
   return 'https://y.gtimg.cn/music/photo_new/T001R' + px + 'x' + px + 'M000' + singerMid + '.jpg?max_age=2592000';
 }
 function resolveSongCoverUrl(song, size) {
@@ -16418,14 +16476,15 @@ function resolveSongCoverUrl(song, size) {
   return coverUrlWithSize(cover, size);
 }
 function coverUrlWithSize(url, size) {
+  url = upgradeMixedContentUrl(url);
   if (!url || isInlineCoverSrc(url) || !/^https?:\/\//i.test(url)) return url || '';
   if (/\{size\}/i.test(url)) return url.replace(/\{size\}/gi, String(size || 240));
   if (/y\.qq\.com\/music\/photo_new\/T00[12]R\d+x\d+M000/i.test(url) && size) {
-    var px = Math.max(120, Math.min(800, Number(size) || 300));
+    var px = qqCoverSize(size);
     return url.replace(/(T00[12]R)\d+x\d+(M000)/i, '$1' + px + 'x' + px + '$2');
   }
   if (/y\.gtimg\.cn\/music\/photo_new\/T00[12]R\d+x\d+M000/i.test(url) && size) {
-    var gtPx = Math.max(120, Math.min(800, Number(size) || 300));
+    var gtPx = qqCoverSize(size);
     return url.replace(/(T00[12]R)\d+x\d+(M000)/i, '$1' + gtPx + 'x' + gtPx + '$2');
   }
   if (!isNeteaseCoverUrl(url)) return url;
@@ -16443,6 +16502,7 @@ function normalizeListenCoverUrl(url) {
       if (m) url = decodeURIComponent(m[1]);
     } catch (e) { return ''; }
   }
+  url = upgradeMixedContentUrl(url);
   if (/^data:/i.test(url) || /^https?:\/\//i.test(url)) return url;
   if (/^\/\//.test(url)) return 'https:' + url;
   return '';
@@ -16504,8 +16564,27 @@ function resolveCoverUrlForCanvas(raw) {
   if (!mineradioUsesWebMediaBridge()) return Promise.resolve(coverProxySrc(raw) || raw);
   if (typeof window.__mineradioResolveCoverUrlForCanvas === 'function') {
     return window.__mineradioResolveCoverUrlForCanvas(raw, false).then(function(dataUrl) {
+      try {
+        window.__mineradioLastCoverDebug = {
+          requested: raw,
+          resolved: dataUrl || '',
+          resolvedKind: /^data:image\//i.test(dataUrl || '') ? 'data' : (dataUrl ? 'other' : 'empty'),
+          via: 'cover-data-primary',
+          resolvedAt: Date.now(),
+          error: ''
+        };
+      } catch (_) {}
       if (dataUrl) return dataUrl;
       return window.__mineradioResolveCoverUrlForCanvas(raw, true);
+    }).then(function(finalUrl) {
+      try {
+        window.__mineradioLastCoverDebug = Object.assign({}, window.__mineradioLastCoverDebug || {}, {
+          resolved: finalUrl || '',
+          resolvedKind: /^data:image\//i.test(finalUrl || '') ? 'data' : (finalUrl ? 'other' : 'empty'),
+          finalAt: Date.now()
+        });
+      } catch (_) {}
+      return finalUrl;
     });
   }
   if (typeof window.__mineradioResolveCoverUrl !== 'function') return Promise.resolve('');
@@ -18275,7 +18354,7 @@ function buildSongDetailHeroHtml(song) {
   song = song || {};
   var playing = isSongDetailPlaying(song);
   var cover = songCoverSrc(song, 180);
-  var coverHtml = cover ? '<img class="detail-cover" src="' + escHtml(cover) + '" alt="" loading="lazy" decoding="async" onerror="this.style.opacity=0.18">' : '<div class="detail-cover"></div>';
+  var coverHtml = cover ? coverImgHtml(cover, 'class="detail-cover"') : '<div class="detail-cover"></div>';
   var vipTag = songVipTagHtml(song);
   var playBadge = playing ? '<span class="search-play-badge">播放中</span>' : '';
   var liked = isSongLiked(song);
@@ -18297,7 +18376,7 @@ function buildDetailCommentItemHtml(c, i) {
   var avatar = user.avatar ? coverUrlWithSize(user.avatar, 64) : '';
   var top = (Number(c.likedCount) || 0) >= 100;
   return '<div class="comment-item' + (top ? ' top-comment' : '') + '" data-comment-index="' + i + '">' +
-    (avatar ? '<img class="comment-avatar" src="' + escHtml(coverProxySrc(avatar)) + '" alt="" loading="lazy" decoding="async">' : '<div class="comment-avatar"></div>') +
+    (avatar ? coverImgHtml(avatar, 'class="comment-avatar"') : '<div class="comment-avatar"></div>') +
     '<div class="comment-main"><div class="comment-meta">' + escHtml(user.nickname || '音乐用户') + (c.time ? (' · ' + escHtml(commentTimeLabel(c.time))) : '') + '</div>' +
     '<div class="comment-text">' + escHtml(c.content || '') + '</div></div>' +
     (c.likedCount ? ('<div class="detail-comment-like">' + escHtml(String(c.likedCount)) + ' 赞</div>') : '') +
@@ -18406,7 +18485,7 @@ function isArtistDetailSongPlaying(song) {
 function buildArtistSongItemHtml(s, i) {
   var playing = isArtistDetailSongPlaying(s);
   var cover = songCoverSrc(s, 80);
-  var coverHtml = cover ? '<img class="artist-song-cover" src="' + escHtml(cover) + '" alt="" loading="lazy" decoding="async" onerror="this.style.opacity=0.18">' : '<div class="artist-song-cover"></div>';
+  var coverHtml = cover ? coverImgHtml(cover, 'class="artist-song-cover"') : '<div class="artist-song-cover"></div>';
   var durationText = searchResultDurationText(s) || (s.duration ? songDurationLabel(s) : '');
   var vipTag = songVipTagHtml(s);
   var playBadge = playing ? '<span class="search-play-badge">播放中</span>' : '';
@@ -18583,7 +18662,7 @@ function openTrackDetailModal(type, songOverride) {
   var body = document.getElementById('track-detail-body');
   if (!heading || !body) return;
   var cover = songCoverSrc(song, 180);
-  var coverHtml = cover ? '<img class="detail-cover" src="' + cover + '" alt="">' : '<div class="detail-cover"></div>';
+  var coverHtml = cover ? coverImgHtml(cover, 'class="detail-cover"') : '<div class="detail-cover"></div>';
   var title = song.name || '当前歌曲';
   var artists = currentArtistNames(song);
   var seq = ++trackDetailSeq;
@@ -18640,8 +18719,9 @@ function openTrackDetailModal(type, songOverride) {
           if (cachedArtist.artist && cachedArtist.artist.avatar) {
             var avatarElCached = document.getElementById('artist-detail-cover');
             if (avatarElCached) {
+              var avatarSrcCached = coverProxySrc(coverUrlWithSize(cachedArtist.artist.avatar, 180)) || upgradeMixedContentUrl(coverUrlWithSize(cachedArtist.artist.avatar, 180));
               avatarElCached.textContent = '';
-              avatarElCached.style.backgroundImage = 'url("' + coverUrlWithSize(cachedArtist.artist.avatar, 180).replace(/"/g, '\\"') + '")';
+              avatarElCached.style.backgroundImage = 'url("' + avatarSrcCached.replace(/"/g, '\\"') + '")';
               avatarElCached.style.backgroundSize = 'cover';
               avatarElCached.style.backgroundPosition = 'center';
             }
@@ -18667,8 +18747,9 @@ function openTrackDetailModal(type, songOverride) {
         if (r && r.artist && r.artist.avatar) {
           var avatarEl = document.getElementById('artist-detail-cover');
           if (avatarEl) {
+            var avatarSrc = coverProxySrc(coverUrlWithSize(r.artist.avatar, 180)) || upgradeMixedContentUrl(coverUrlWithSize(r.artist.avatar, 180));
             avatarEl.textContent = '';
-            avatarEl.style.backgroundImage = 'url("' + coverUrlWithSize(r.artist.avatar, 180).replace(/"/g, '\\"') + '")';
+            avatarEl.style.backgroundImage = 'url("' + avatarSrc.replace(/"/g, '\\"') + '")';
             avatarEl.style.backgroundSize = 'cover';
             avatarEl.style.backgroundPosition = 'center';
           }
@@ -19355,7 +19436,7 @@ function renderCollectModal() {
   if (!current || !list) return;
   var song = collectTargetSong || {};
   var cover = songCoverSrc(song, 80);
-  current.innerHTML = (cover ? '<img src="' + cover + '" alt="">' : '<div class="cover-placeholder"></div>') +
+  current.innerHTML = (cover ? coverImgHtml(cover, '') : '<div class="cover-placeholder"></div>') +
     '<div style="min-width:0"><div class="collect-title">' + escHtml(song.name || '当前歌曲') + '</div><div class="collect-sub">' + escHtml(song.artist || '') + '</div></div>';
   if (!loginStatus.loggedIn) {
     list.innerHTML = '<div class="collect-empty">登录后显示你的歌单</div>';
@@ -19373,7 +19454,7 @@ function renderCollectModal() {
   list.innerHTML = mine.map(function(pl){
     var thumb = pl.cover ? coverUrlWithSize(pl.cover, 80) : '';
     return '<div class="collect-item" data-collect-pid="' + escHtml(String(pl.id || '')) + '" onclick="addCollectTargetToPlaylist(this.getAttribute(\'data-collect-pid\'))">' +
-      (thumb ? '<img src="' + thumb + '" alt="">' : '<div class="cover-placeholder"></div>') +
+      (thumb ? coverImgHtml(thumb, '') : '<div class="cover-placeholder"></div>') +
       '<div style="min-width:0"><div class="collect-title">' + escHtml(pl.name || '') + '</div><div class="collect-sub">' + (pl.trackCount || 0) + ' 首</div></div>' +
     '</div>';
   }).join('');
@@ -19465,6 +19546,13 @@ function cloneSong(song){ return hydrateCustomCover(Object.assign({}, song)); }
 function avatarSrc(url) {
   if (!url) return '';
   return coverProxySrc(url, true);
+}
+function coverImgHtml(src, extraAttrs) {
+  var raw = String(src || '').trim();
+  if (!raw) return '';
+  var display = coverProxySrc(raw) || upgradeMixedContentUrl(raw);
+  if (!display) return '';
+  return '<img ' + (extraAttrs || '') + ' src="' + escHtml(display) + '" data-cover-url="' + escHtml(raw) + '" alt="" loading="lazy" decoding="async" onerror="mineradioRetryCoverImg(this)">';
 }
 
 // ============================================================
@@ -19759,7 +19847,7 @@ function programMetaText(item) {
 }
 function searchThumbHtml(src) {
   return src
-    ? '<img src="' + coverUrlWithSize(src, 80) + '" alt="" loading="lazy" onerror="this.style.opacity=0.2">'
+    ? coverImgHtml(coverUrlWithSize(src, 80), '')
     : '<div style="width:40px;height:40px;border-radius:6px;background:rgba(255,255,255,0.06);flex-shrink:0"></div>';
 }
 function renderPodcastRadios(items, label) {
@@ -20442,7 +20530,7 @@ function buildSearchResultRowHtml(s, i) {
   var durationText = searchResultDurationText(s);
   var thumb = songCoverSrc(s, 80);
   var imgTag = thumb
-    ? '<img src="' + thumb + '" data-cover-url="' + escHtml(thumb) + '" alt="" loading="lazy" decoding="async" onerror="mineradioRetryCoverImg(this)">'
+    ? coverImgHtml(thumb, '')
     : '<div style="width:42px;height:42px;border-radius:8px;background:rgba(255,255,255,0.06);flex-shrink:0"></div>';
   return '<div class="search-result ' + sourceClass + (playing ? ' playing' : '') + '" data-search-index="' + i + '">' +
     '<span class="search-result-index">' + (i + 1) + '</span>' +
@@ -22554,7 +22642,7 @@ function renderMiniQueuePanel(opts) {
   for (var i = slice.start; i < slice.end; i++) {
     var song = playQueue[i];
     var thumb = songCoverSrc(song, 60);
-    var imgTag = thumb ? '<img src="' + thumb + '" alt="" loading="lazy" decoding="async" onerror="this.style.opacity=0.2">' : '<div class="mini-queue-cover"></div>';
+    var imgTag = thumb ? coverImgHtml(thumb, '') : '<div class="mini-queue-cover"></div>';
     html += '<div class="mini-queue-item' + queueItemPlaybackClass(i) + '" data-queue-index="' + i + '" onclick="playQueueAt(' + i + ')">' +
       imgTag +
       '<div class="mini-queue-info"><div class="mini-queue-name">' + queuePlaybackBadgeHtml(i) + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(song.name) + '</span></div><div class="mini-queue-sub">' + escHtml(song.artist || '') + '</div></div>' +
@@ -22628,9 +22716,7 @@ function renderQueuePanel(opts) {
   $ql.innerHTML = visibleQueue.map(function(song, i){
     var thumb = songCoverSrc(song, 60);
     var imgTag = thumb
-      ? (mineradioUsesWebMediaBridge()
-        ? '<img src="' + thumb + '" data-cover-url="' + escHtml(thumb) + '" alt="" loading="lazy" decoding="async" onerror="mineradioRetryCoverImg(this)">'
-        : '<img src="' + thumb + '" alt="" loading="lazy" decoding="async" onerror="this.style.opacity=0.2">')
+      ? coverImgHtml(thumb, '')
       : '<div style="width:38px;height:38px;border-radius:6px;background:rgba(255,255,255,.06);flex-shrink:0"></div>';
     return '<div class="queue-item' + queueItemPlaybackClass(i) + '" data-queue-index="' + i + '" onclick="playQueueAt(' + i + ')">' +
       imgTag +
@@ -22741,7 +22827,7 @@ function playlistPanelDetailHtml(pl, provider) {
   var tracks = playlistPanelDetailState.tracks || [];
   var loading = playlistPanelDetailState.loading;
   var cover = pl && pl.cover ? ((provider === 'qq' || provider === 'kg') ? pl.cover : (pl.cover + '?param=96y96')) : '';
-  var img = cover ? '<img class="pl-detail-cover" src="' + escHtml(cover) + '" alt="" decoding="async" onerror="this.style.opacity=0.2">' : '<div class="pl-detail-cover"></div>';
+  var img = cover ? coverImgHtml(cover, 'class="pl-detail-cover"') : '<div class="pl-detail-cover"></div>';
   var renderLimit = loading ? 0 : Math.max(PLAYLIST_DETAIL_INITIAL_RENDER, playlistPanelDetailState.renderLimit || PLAYLIST_DETAIL_INITIAL_RENDER);
   renderLimit = Math.min(tracks.length, renderLimit);
   var visibleTracks = loading ? [] : tracks.slice(0, renderLimit);
@@ -22749,7 +22835,7 @@ function playlistPanelDetailHtml(pl, provider) {
     ? '<div class="pl-detail-row"><div style="width:34px;height:34px;border-radius:7px;background:rgba(255,255,255,.06)"></div><div style="flex:1;min-width:0"><div class="pl-detail-row-title">正在载入歌单</div><div class="pl-detail-row-artist">请稍候</div></div></div>'
     : visibleTracks.map(function(song, i){
         var thumb = songCoverSrc(song, 60);
-        var imgTag = thumb ? '<img src="' + escHtml(thumb) + '" alt="" loading="lazy" decoding="async" onerror="this.style.opacity=0.2">' : '<div style="width:34px;height:34px;border-radius:7px;background:rgba(255,255,255,.06);flex:0 0 auto"></div>';
+        var imgTag = thumb ? coverImgHtml(thumb, '') : '<div style="width:34px;height:34px;border-radius:7px;background:rgba(255,255,255,.06);flex:0 0 auto"></div>';
         return '<div class="pl-detail-row" data-pl-detail-row="' + i + '">' +
           imgTag +
           '<div style="flex:1;min-width:0"><div class="pl-detail-row-title">' + escHtml(song.name || '') + '</div>' +
@@ -22943,7 +23029,7 @@ function renderUserPlaylistsList(opts) {
   function playlistCardHtml(pl) {
     var plProvider = pl.provider === 'qq' ? 'qq' : (pl.provider === 'kg' ? 'kg' : 'netease');
     var thumb = pl.cover ? ((plProvider === 'qq' || plProvider === 'kg') ? pl.cover : (pl.cover + '?param=88y88')) : '';
-    var imgTag = thumb ? '<img src="' + thumb + '" alt="" loading="lazy" decoding="async" onerror="this.style.opacity=0.2">' : '<div style="width:44px;height:44px;border-radius:8px;background:rgba(255,255,255,.06);flex-shrink:0"></div>';
+    var imgTag = thumb ? coverImgHtml(thumb, '') : '<div style="width:44px;height:44px;border-radius:8px;background:rgba(255,255,255,.06);flex-shrink:0"></div>';
     var key = playlistPanelKey(plProvider, pl.id);
     var expanded = playlistPanelDetailState.key === key ? ' expanded' : '';
     return '<div class="pl-card' + expanded + '" data-playlist-provider="' + plProvider + '" data-playlist-id="' + escHtml(String(pl.id || '')) + '" data-playlist-dirid="' + escHtml(String(pl.dirid || '')) + '" data-playlist-title="' + escHtml(pl.name || '') + '">' +
@@ -22975,7 +23061,7 @@ function renderMyPodcastCollections(opts) {
   }
   $pod.innerHTML = items.map(function(pc){
     var thumb = pc.cover ? coverUrlWithSize(pc.cover, 88) : '';
-    var imgTag = thumb ? '<img src="' + thumb + '" alt="" loading="lazy" decoding="async" onerror="this.style.opacity=0.2">' : '<div style="width:44px;height:44px;border-radius:8px;background:rgba(0,245,212,.07);flex-shrink:0"></div>';
+    var imgTag = thumb ? coverImgHtml(thumb, '') : '<div style="width:44px;height:44px;border-radius:8px;background:rgba(0,245,212,.07);flex-shrink:0"></div>';
     return '<div class="pl-card podcast-card" data-podcast-key="' + escHtml(pc.key || '') + '" data-podcast-title="' + escHtml(pc.title || '') + '">' +
       imgTag +
       '<div style="flex:1;min-width:0"><div class="pl-name">' + escHtml(pc.title || '') + '</div><div class="pl-sub">' + (pc.count || 0) + ' 项 · ' + escHtml(pc.sub || '') + '</div></div>' +
@@ -23061,7 +23147,7 @@ function renderMyPodcastRadioItems(key, title, items) {
   $pod.innerHTML = '<div class="podcast-inline-head"><div class="pl-section-label">' + escHtml(title || '我的播客') + '</div><button class="fx-mini-btn ghost" data-podcast-back="1" style="height:24px;padding:0 9px;font-size:10.5px">返回</button></div>' +
     items.map(function(r){
       var thumb = r.cover ? coverUrlWithSize(r.cover, 88) : '';
-      var imgTag = thumb ? '<img src="' + thumb + '" alt="" loading="lazy" decoding="async" onerror="this.style.opacity=0.2">' : '<div style="width:44px;height:44px;border-radius:8px;background:rgba(0,245,212,.07);flex-shrink:0"></div>';
+      var imgTag = thumb ? coverImgHtml(thumb, '') : '<div style="width:44px;height:44px;border-radius:8px;background:rgba(0,245,212,.07);flex-shrink:0"></div>';
       return '<div class="pl-card podcast-card podcast-child" data-podcast-radio-id="' + escHtml(String(r.id || r.radioId || '')) + '" data-podcast-title="' + escHtml(r.name || '') + '">' +
         imgTag +
         '<div style="flex:1;min-width:0"><div class="pl-name">' + escHtml(r.name || '') + '</div><div class="pl-sub">' + escHtml((r.djName || r.artist || 'Podcast') + (r.programCount ? (' · ' + r.programCount + ' 集') : '')) + '</div></div>' +
@@ -28529,9 +28615,17 @@ function handleVisualGuideSurfaceClick(e) {
 // ============================================================
 //  动态库加载
 // ============================================================
-var MEDIAPIPE_VENDOR_BASE = '/vendor/mediapipe';
 var MEDIAPIPE_CDN_BASE = 'https://cdn.jsdelivr.net/npm';
 var gestureStreamStopper = null;
+
+function resolveMineradioAsset(relPath) {
+  relPath = String(relPath || '').replace(/^\/+/, '');
+  try {
+    return new URL(relPath, location.href).href;
+  } catch (_) {
+    return '/' + relPath;
+  }
+}
 
 function loadScriptOnce(src) {
   if (!loadScriptOnce._pending) loadScriptOnce._pending = Object.create(null);
@@ -28573,17 +28667,12 @@ async function loadScriptWithFallbacks(urls) {
 }
 
 function mediapipeHandsAsset(file) {
-  return MEDIAPIPE_VENDOR_BASE + '/hands/' + file;
+  return resolveMineradioAsset('vendor/mediapipe/hands/' + file);
 }
 
 async function ensureMediaPipeGestureLibs() {
   await loadScriptWithFallbacks([
-    MEDIAPIPE_VENDOR_BASE + '/camera_utils/camera_utils.js',
-    MEDIAPIPE_CDN_BASE + '/@mediapipe/camera_utils/camera_utils.js',
-    'https://unpkg.com/@mediapipe/camera_utils/camera_utils.js'
-  ]);
-  await loadScriptWithFallbacks([
-    MEDIAPIPE_VENDOR_BASE + '/hands/hands.js',
+    resolveMineradioAsset('vendor/mediapipe/hands/hands.js'),
     MEDIAPIPE_CDN_BASE + '/@mediapipe/hands/hands.js',
     'https://unpkg.com/@mediapipe/hands/hands.js'
   ]);
@@ -28597,6 +28686,8 @@ function gestureCameraErrorMessage(err) {
   if (msg === 'CAMERA_NOT_FOUND' || /NotFoundError|DevicesNotFound/i.test(msg)) return '未检测到可用摄像头';
   if (/NotReadableError|TrackStartError/i.test(msg)) return '摄像头被其他程序占用';
   if (/MEDIAPIPE|SCRIPT_LOAD_FAILED/i.test(msg)) return '手势识别库加载失败，请检查网络或刷新重试';
+  if (/is not a function/i.test(msg) && /mediapipe|wasm|createMediapipe/i.test(msg)) return '手势识别资源加载失败，请刷新页面';
+  if (/is not a function/i.test(msg)) return '手势模块初始化失败：' + msg;
   if (/secure context|https/i.test(msg)) return '摄像头需要 HTTPS 或 localhost 环境';
   return msg || '手势启动失败';
 }
@@ -28663,9 +28754,15 @@ function queueGestureHandSend() {
     gestureSendBusy = false;
     gestureSendLastAt = 0;
   }, GESTURE_SEND_TIMEOUT_MS);
-  gestureHands.send({ image: gestureVideo }).catch(function(err){
+  var sendPromise = gestureHands.send({ image: gestureVideo });
+  if (!sendPromise || typeof sendPromise.then !== 'function') {
+    clearGestureSendWatchdog();
+    gestureSendBusy = false;
+    return;
+  }
+  sendPromise.catch(function(err){
     console.warn('[Gesture] send failed:', err);
-  }).finally(function(){
+  }).then(function(){
     if (seq !== gestureSendSeq) return;
     clearGestureSendWatchdog();
     gestureSendBusy = false;
@@ -28802,8 +28899,13 @@ async function startGestureControl() {
     gestureHands.onResults(function(res){
       if (!gestureActive) return;
       var lm = res.multiHandLandmarks && res.multiHandLandmarks[0];
-      if (lm) {
-        gestureCachedRawLm = lm;
+      if (lm && lm.length) {
+        var copy = new Array(lm.length);
+        for (var li = 0; li < lm.length; li++) {
+          var pt = lm[li];
+          copy[li] = { x: pt.x, y: pt.y, z: pt.z || 0 };
+        }
+        gestureCachedRawLm = copy;
         gestureLmDirty = true;
         gestureHandVisible = true;
         handLmLastSeen = performance.now();
@@ -28838,7 +28940,7 @@ function stopGestureControl() {
   try { if (typeof gestureStreamStopper === 'function') gestureStreamStopper(); } catch(e){}
   gestureStreamStopper = null;
   try { if (gestureVideo && gestureVideo.srcObject) gestureVideo.srcObject.getTracks().forEach(function(t){ t.stop(); }); } catch(e){}
-  try { if (gestureHands && gestureHands.close) gestureHands.close(); } catch(e){}
+  try { if (gestureHands && typeof gestureHands.close === 'function') gestureHands.close(); } catch(e){}
   try { if (gestureVideo) gestureVideo.remove(); } catch(e){}
   gestureVideo = null; gestureHands = null; gestureCamera = null;
   gestureActive = false;
@@ -28895,16 +28997,20 @@ function tickGestureHandAbsent() {
 }
 
 function smoothLandmarks(rawLm) {
-  if (!handLmSmooth) {
-    handLmSmooth = rawLm.map(function(p){ return { x: 1 - p.x, y: p.y, z: p.z || 0 }; });
+  if (!rawLm || !rawLm.length) return handLmSmooth || [];
+  if (!handLmSmooth || handLmSmooth.length !== rawLm.length) {
+    handLmSmooth = new Array(rawLm.length);
+    for (var i = 0; i < rawLm.length; i++) {
+      handLmSmooth[i] = { x: 1 - rawLm[i].x, y: rawLm[i].y, z: rawLm[i].z || 0 };
+    }
     return handLmSmooth;
   }
   var a = HAND_SMOOTH_ALPHA;
-  for (var i = 0; i < 21; i++) {
-    var srcX = 1 - rawLm[i].x;
-    handLmSmooth[i].x += (srcX - handLmSmooth[i].x) * a;
-    handLmSmooth[i].y += (rawLm[i].y - handLmSmooth[i].y) * a;
-    handLmSmooth[i].z += ((rawLm[i].z || 0) - handLmSmooth[i].z) * a;
+  for (var j = 0; j < rawLm.length; j++) {
+    var srcX = 1 - rawLm[j].x;
+    handLmSmooth[j].x += (srcX - handLmSmooth[j].x) * a;
+    handLmSmooth[j].y += (rawLm[j].y - handLmSmooth[j].y) * a;
+    handLmSmooth[j].z += ((rawLm[j].z || 0) - handLmSmooth[j].z) * a;
   }
   return handLmSmooth;
 }
