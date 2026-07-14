@@ -275,6 +275,9 @@
   function handleBinaryApiResponse(path, query, data) {
     if (!data || !data.__binary) return null;
     if (data.error) throw new Error(data.error);
+    if (data.dataUrl && /^data:(image\/|application\/octet-stream)/i.test(data.dataUrl)) {
+      return data.dataUrl;
+    }
     var cacheKey = path + '?' + JSON.stringify(query || {});
     if (blobUrlCache.has(cacheKey)) return blobUrlCache.get(cacheKey);
     var buffer = normalizeBinaryBuffer(data.buffer);
@@ -414,11 +417,14 @@
     var task = (async function () {
       try {
         var data = await fetchCoverBinary(url, cacheBust);
+        if (data && data.error) throw new Error(data.error);
+        if (data && data.dataUrl && /^data:image\//i.test(data.dataUrl)) return data.dataUrl;
         var dataUrl = arrayBufferToDataUrl(normalizeBinaryBuffer(data && data.buffer), data && data.contentType);
         if (dataUrl) return dataUrl;
       } catch (_) {}
       try {
         var blobUrl = await resolveWebCoverUrl(url, true);
+        if (blobUrl && /^data:image\//i.test(blobUrl)) return blobUrl;
         if (blobUrl && /^blob:/i.test(blobUrl)) {
           var resp = await global.__mineradioNativeFetch(blobUrl);
           var blob = await resp.blob();
@@ -431,7 +437,11 @@
         }
       } catch (_) {}
       return '';
-    })();
+    })().then(function (resolved) {
+      // Don't permanent-cache failures — Bridge/CORS fixes need a later retry.
+      if (!resolved) coverResolveCache.delete(cacheKey);
+      return resolved;
+    });
     coverResolveCache.set(cacheKey, task);
     return task;
   }
