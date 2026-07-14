@@ -33,7 +33,7 @@
 <script src="vendor/three.r128.min.js"></script>
 <script src="vendor/music-tempo.min.js"></script>
 <script src="vendor/gsap.min.js"></script>
-<script src="web-bridge.js?v=20260713-qqcover-size"></script>
+<script src="web-bridge.js"></script>
 <script>
 try {
   document.documentElement.classList.add(localStorage.getItem('mineradio-diy-player-mode-v1') === '1' ? 'diy-mode-preload' : 'simple-mode-preload');
@@ -13176,16 +13176,8 @@ function loadCoverFromUrl(directUrl, opts) {
 }
 function loadCoverFromUrlResolved(proxiedUrl, directUrl, opts) {
   opts = opts || {};
-  try {
-    window.__mineradioLastCoverDebug = Object.assign({}, window.__mineradioLastCoverDebug || {}, {
-      requested: directUrl || '',
-      resolved: proxiedUrl || '',
-      resolvedKind: /^data:image\//i.test(proxiedUrl || '') ? 'data' : (/^blob:/i.test(proxiedUrl || '') ? 'blob' : (/^https?:/i.test(proxiedUrl || '') ? 'url' : 'empty')),
-      resolvedAt: Date.now(),
-      error: ''
-    });
-  } catch (_) {}
-  setAlbumBackground(proxiedUrl || directUrl);
+  document.getElementById('album-bg').style.backgroundImage = "url(" + directUrl + ")";
+  document.getElementById('album-bg').classList.add('visible');
   if (!proxiedUrl) {
     uniforms.uHasCover.value = 0; setCoverDepthState(0, 0, 1);
     resetFloatColorsToIdle();
@@ -13195,15 +13187,6 @@ function loadCoverFromUrlResolved(proxiedUrl, directUrl, opts) {
   if (/^https?:\/\//i.test(proxiedUrl)) img.crossOrigin = 'anonymous';
   img.onload = function() {
     if (!coverApplyStillCurrent(opts)) return;
-    try {
-      window.__mineradioLastCoverDebug = Object.assign({}, window.__mineradioLastCoverDebug || {}, {
-        loadedKind: /^data:image\//i.test(proxiedUrl || '') ? 'data' : (/^blob:/i.test(proxiedUrl || '') ? 'blob' : 'url'),
-        naturalWidth: img.naturalWidth || img.width || 0,
-        naturalHeight: img.naturalHeight || img.height || 0,
-        loadedAt: Date.now(),
-        error: ''
-      });
-    } catch (_) {}
     var size = coverTextureSizeForResolution(fx.coverResolution);
     var cv = document.createElement('canvas'); cv.width = cv.height = size;
     var cx = cv.getContext('2d');
@@ -13212,13 +13195,6 @@ function loadCoverFromUrlResolved(proxiedUrl, directUrl, opts) {
     applyCoverCanvas(cv, proxiedUrl || directUrl, Object.assign({}, opts, { coverKey: directUrl || proxiedUrl || '', coverSourceKind: 'url', coverSource: directUrl }));
   };
   img.onerror = function() {
-    try {
-      window.__mineradioLastCoverDebug = Object.assign({}, window.__mineradioLastCoverDebug || {}, {
-        failedSrc: proxiedUrl || '',
-        error: 'image_load_error',
-        failedAt: Date.now()
-      });
-    } catch (_) {}
     resolveCoverUrlForCanvas(directUrl).then(function(retrySrc) {
       if (!coverApplyStillCurrent(opts)) return;
       if (!retrySrc || retrySrc === proxiedUrl) { finishCoverLoadError(opts); return; }
@@ -16438,23 +16414,22 @@ function coverProxySrc(url, cacheBust) {
 function isNeteaseCoverUrl(url) {
   return /(?:music\.163|126\.net|126\.cdn)/i.test(String(url || ''));
 }
+function snapQQCoverSize(size) {
+  var n = Number(size) || 300;
+  if (n <= 180) return 150;
+  if (n <= 400) return 300;
+  return 500;
+}
 function qqAlbumCoverUrl(albumMid, size) {
   albumMid = String(albumMid || '').trim();
   if (!albumMid) return '';
-  var px = qqCoverSize(size);
+  var px = snapQQCoverSize(size);
   return 'https://y.gtimg.cn/music/photo_new/T002R' + px + 'x' + px + 'M000' + albumMid + '.jpg?max_age=2592000';
-}
-function qqCoverSize(size) {
-  var n = Number(size) || 300;
-  if (n <= 150) return 150;
-  if (n <= 300) return 300;
-  if (n <= 500) return 500;
-  return 800;
 }
 function qqSingerCoverUrl(singerMid, size) {
   singerMid = String(singerMid || '').trim();
   if (!singerMid) return '';
-  var px = qqCoverSize(size);
+  var px = snapQQCoverSize(size);
   return 'https://y.gtimg.cn/music/photo_new/T001R' + px + 'x' + px + 'M000' + singerMid + '.jpg?max_age=2592000';
 }
 function resolveSongCoverUrl(song, size) {
@@ -16479,13 +16454,10 @@ function coverUrlWithSize(url, size) {
   url = upgradeMixedContentUrl(url);
   if (!url || isInlineCoverSrc(url) || !/^https?:\/\//i.test(url)) return url || '';
   if (/\{size\}/i.test(url)) return url.replace(/\{size\}/gi, String(size || 240));
-  if (/y\.qq\.com\/music\/photo_new\/T00[12]R\d+x\d+M000/i.test(url) && size) {
-    var px = qqCoverSize(size);
-    return url.replace(/(T00[12]R)\d+x\d+(M000)/i, '$1' + px + 'x' + px + '$2');
-  }
-  if (/y\.gtimg\.cn\/music\/photo_new\/T00[12]R\d+x\d+M000/i.test(url) && size) {
-    var gtPx = qqCoverSize(size);
-    return url.replace(/(T00[12]R)\d+x\d+(M000)/i, '$1' + gtPx + 'x' + gtPx + '$2');
+  // QQ album/singer CDN only serves 150 / 300 / 500 — 320/400 etc. return 404
+  if (/y\.(?:qq\.com|gtimg\.cn)\/music\/photo_new\/T00[12]R\d+x\d+M000/i.test(url)) {
+    var qqPx = snapQQCoverSize(size || 300);
+    return url.replace(/(T00[12]R)\d+x\d+(M000)/i, '$1' + qqPx + 'x' + qqPx + '$2');
   }
   if (!isNeteaseCoverUrl(url)) return url;
   if (!size) return url;
@@ -16564,27 +16536,8 @@ function resolveCoverUrlForCanvas(raw) {
   if (!mineradioUsesWebMediaBridge()) return Promise.resolve(coverProxySrc(raw) || raw);
   if (typeof window.__mineradioResolveCoverUrlForCanvas === 'function') {
     return window.__mineradioResolveCoverUrlForCanvas(raw, false).then(function(dataUrl) {
-      try {
-        window.__mineradioLastCoverDebug = {
-          requested: raw,
-          resolved: dataUrl || '',
-          resolvedKind: /^data:image\//i.test(dataUrl || '') ? 'data' : (dataUrl ? 'other' : 'empty'),
-          via: 'cover-data-primary',
-          resolvedAt: Date.now(),
-          error: ''
-        };
-      } catch (_) {}
       if (dataUrl) return dataUrl;
       return window.__mineradioResolveCoverUrlForCanvas(raw, true);
-    }).then(function(finalUrl) {
-      try {
-        window.__mineradioLastCoverDebug = Object.assign({}, window.__mineradioLastCoverDebug || {}, {
-          resolved: finalUrl || '',
-          resolvedKind: /^data:image\//i.test(finalUrl || '') ? 'data' : (finalUrl ? 'other' : 'empty'),
-          finalAt: Date.now()
-        });
-      } catch (_) {}
-      return finalUrl;
     });
   }
   if (typeof window.__mineradioResolveCoverUrl !== 'function') return Promise.resolve('');
@@ -16597,14 +16550,14 @@ function resolveCoverUrlForCanvas(raw) {
 }
 function mergeQQSongCoverMeta(song, meta) {
   if (!song || !meta) return song;
-  if (meta.albumMid && !song.albumMid) song.albumMid = meta.albumMid;
-  if (meta.cover && !song.cover) song.cover = meta.cover;
+  if (meta.albumMid) song.albumMid = meta.albumMid;
+  if (meta.cover) song.cover = meta.cover;
   if (meta.mediaMid && !song.mediaMid) song.mediaMid = meta.mediaMid;
   return song;
 }
 function reloadParticleCoverForSong(song, token, delay) {
   if (!song || !coverApplyStillCurrent({ trackToken: token })) return;
-  var coverSrc = resolveSongCoverUrl(song, mineradioUsesWebMediaBridge() ? 320 : 400);
+  var coverSrc = resolveSongCoverUrl(song, 300);
   if (!coverSrc) return;
   loadCoverFromUrl(coverSrc, {
     trackToken: token,
@@ -16679,6 +16632,34 @@ function mineradioRetryCoverImg(img) {
 }
 function cssImageUrl(url) {
   return String(url || '').replace(/\\/g, '\\\\').replace(/"/g, '%22');
+}
+function setArtistDetailAvatar(url, fallbackInitial) {
+  var avatarEl = document.getElementById('artist-detail-cover');
+  if (!avatarEl) return;
+  var normalized = normalizeListenCoverUrl(url);
+  if (!normalized) {
+    avatarEl.style.backgroundImage = '';
+    if (fallbackInitial) avatarEl.textContent = fallbackInitial;
+    return;
+  }
+  var sized = coverUrlWithSize(normalized, 180);
+  var proxied = coverProxySrc(sized) || upgradeMixedContentUrl(sized);
+  avatarEl.textContent = '';
+  if (proxied) {
+    avatarEl.style.backgroundImage = 'url("' + cssImageUrl(proxied) + '")';
+    avatarEl.style.backgroundSize = 'cover';
+    avatarEl.style.backgroundPosition = 'center';
+  }
+  if (mineradioUsesWebMediaBridge()) {
+    resolveCoverUrlForDisplay(sized || normalized, false).then(function(resolved) {
+      var el = document.getElementById('artist-detail-cover');
+      if (!el || !el.isConnected || !resolved) return;
+      el.textContent = '';
+      el.style.backgroundImage = 'url("' + cssImageUrl(resolved) + '")';
+      el.style.backgroundSize = 'cover';
+      el.style.backgroundPosition = 'center';
+    }).catch(function(){});
+  }
 }
 function setHomeArt(id, url, size) {
   var el = document.getElementById(id);
@@ -18717,14 +18698,9 @@ function openTrackDetailModal(type, songOverride) {
             if (titleElCached) titleElCached.textContent = cachedArtist.artist.name;
           }
           if (cachedArtist.artist && cachedArtist.artist.avatar) {
-            var avatarElCached = document.getElementById('artist-detail-cover');
-            if (avatarElCached) {
-              var avatarSrcCached = coverProxySrc(coverUrlWithSize(cachedArtist.artist.avatar, 180)) || upgradeMixedContentUrl(coverUrlWithSize(cachedArtist.artist.avatar, 180));
-              avatarElCached.textContent = '';
-              avatarElCached.style.backgroundImage = 'url("' + avatarSrcCached.replace(/"/g, '\\"') + '")';
-              avatarElCached.style.backgroundSize = 'cover';
-              avatarElCached.style.backgroundPosition = 'center';
-            }
+            setArtistDetailAvatar(cachedArtist.artist.avatar, artistInitial);
+          } else if (cachedArtist.songs && cachedArtist.songs[0] && cachedArtist.songs[0].cover) {
+            setArtistDetailAvatar(cachedArtist.songs[0].cover, artistInitial);
           }
           if (targetCached) targetCached.innerHTML = cachedArtist.error ? '<div class="detail-empty">歌手主页加载失败</div>' : renderArtistSongList(cachedArtist.songs || []);
         }
@@ -18745,14 +18721,9 @@ function openTrackDetailModal(type, songOverride) {
           if (titleEl) titleEl.textContent = r.artist.name;
         }
         if (r && r.artist && r.artist.avatar) {
-          var avatarEl = document.getElementById('artist-detail-cover');
-          if (avatarEl) {
-            var avatarSrc = coverProxySrc(coverUrlWithSize(r.artist.avatar, 180)) || upgradeMixedContentUrl(coverUrlWithSize(r.artist.avatar, 180));
-            avatarEl.textContent = '';
-            avatarEl.style.backgroundImage = 'url("' + avatarSrc.replace(/"/g, '\\"') + '")';
-            avatarEl.style.backgroundSize = 'cover';
-            avatarEl.style.backgroundPosition = 'center';
-          }
+          setArtistDetailAvatar(r.artist.avatar, artistInitial);
+        } else if (r && r.songs && r.songs[0] && r.songs[0].cover) {
+          setArtistDetailAvatar(r.songs[0].cover, artistInitial);
         }
         if (target) target.innerHTML = r && !r.error ? renderArtistSongList(r.songs || []) : '<div class="detail-empty">歌手主页加载失败</div>';
         bindTrackDetailScrollers();
@@ -18916,7 +18887,10 @@ function clearCustomCoverForCurrent() {
     }
   }
   if (key && currentLocalSong && songCustomCoverKey(currentLocalSong) === key) delete currentLocalSong.customCover;
-  if (currentIdx >= 0 && playQueue[currentIdx] && playQueue[currentIdx].cover) loadCoverFromUrl(coverUrlWithSize(playQueue[currentIdx].cover, 400));
+  if (currentIdx >= 0 && playQueue[currentIdx] && playQueue[currentIdx].cover) {
+    var nowSong = playQueue[currentIdx];
+    loadCoverFromUrl(resolveSongCoverUrl(nowSong, songProviderKey(nowSong) === 'qq' ? 300 : 400) || coverUrlWithSize(nowSong.cover, 300));
+  }
   else loadCoverFromUrl('');
   safeRenderQueuePanel('custom-cover-clear', { scrollCurrent: miniQueueOpen });
   safeShelfRebuild('custom-cover-clear');
@@ -21493,7 +21467,7 @@ async function playQueueAt(idx, opts) {
     };
     if (customCover) applyCoverDataUrl(customCover, coverOpts);
     else {
-      var coverSrc = resolveSongCoverUrl(song, webMode ? 320 : 400);
+      var coverSrc = resolveSongCoverUrl(song, songProviderKey(song) === 'qq' ? 300 : (webMode ? 300 : 400));
       loadCoverFromUrl(coverSrc, coverOpts);
     }
   });
