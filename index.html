@@ -42,6 +42,62 @@ try {
   document.documentElement.classList.add('simple-mode-preload');
 }
 </script>
+<script>
+(function () {
+  function upgradeUrl(url) {
+    if (!url || typeof url !== 'string') return url;
+    return url.indexOf('http://') === 0 ? ('https://' + url.slice(7)) : url;
+  }
+  function fixMediaEl(el) {
+    if (!el) return;
+    var src = el.getAttribute('src');
+    if (src && src.indexOf('http://') === 0) el.setAttribute('src', upgradeUrl(src));
+  }
+  function fixStyleUrl(el) {
+    if (!el || !el.style) return;
+    var bg = el.style.backgroundImage || '';
+    if (bg && bg.indexOf('http://') >= 0) {
+      el.style.backgroundImage = bg.replace(/url\(\s*["']?http:\/\//gi, function (m) {
+        return m.replace('http://', 'https://');
+      });
+    }
+  }
+  function scanRoot(root) {
+    if (!root) return;
+    if (root.nodeType === 1) {
+      if (/^IMG|AUDIO|VIDEO$/i.test(root.tagName)) fixMediaEl(root);
+      fixStyleUrl(root);
+    }
+    if (!root.querySelectorAll) return;
+    root.querySelectorAll('img[src^="http://"],audio[src^="http://"],video[src^="http://"]').forEach(fixMediaEl);
+    root.querySelectorAll('[style*="http://"]').forEach(fixStyleUrl);
+  }
+  function patchSetter(Proto, prop) {
+    var desc = Object.getOwnPropertyDescriptor(Proto.prototype, prop);
+    if (!desc || !desc.set) return;
+    Object.defineProperty(Proto.prototype, prop, {
+      configurable: true,
+      enumerable: desc.enumerable,
+      get: desc.get,
+      set: function (v) { desc.set.call(this, upgradeUrl(v)); }
+    });
+  }
+  patchSetter(HTMLImageElement, 'src');
+  patchSetter(HTMLMediaElement, 'src');
+  if (document.documentElement) {
+    new MutationObserver(function (list) {
+      list.forEach(function (m) {
+        m.addedNodes.forEach(function (node) { scanRoot(node); });
+      });
+    }).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['src', 'style'] });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () { scanRoot(document); });
+  } else {
+    scanRoot(document);
+  }
+})();
+</script>
 <link rel="stylesheet" href="styles/main.css">
 </head>
 <body>

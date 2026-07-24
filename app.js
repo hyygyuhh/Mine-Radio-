@@ -7478,6 +7478,7 @@ function coverApplyStillCurrent(opts) {
 function setControlCoverSrc(src) {
   var cover = document.getElementById('control-cover');
   if (!cover) return;
+  src = normalizeListenCoverUrl(src) || src;
   if (!src) {
     cover.style.backgroundImage = '';
     cover.classList.add('cover-empty');
@@ -10277,6 +10278,7 @@ function setAlbumBackground(src) {
     bg.style.backgroundImage = '';
     return;
   }
+  src = normalizeListenCoverUrl(src) || src;
   bg.style.backgroundImage = "url(" + src + ")";
   bg.classList.add('visible');
 }
@@ -13394,6 +13396,7 @@ async function fetchAnalysisAudioArrayBuffer(analysisUrl, directUrl) {
 async function resolvePlaybackAudioUrl(url) {
   url = String(url || '').trim();
   if (!url) return '';
+  if (/^http:\/\//i.test(url)) url = 'https://' + url.slice(7);
   if (/^blob:/i.test(url) || /^data:/i.test(url)) return url;
   if (mineradioUsesWebMediaBridge()) return url;
   return audioProxyPathFromDirect(url);
@@ -13530,6 +13533,7 @@ function primeWebPlaybackUnlockIfNeeded(opts) {
   } catch (_) {}
 }
 function coverProxySrc(url, cacheBust) {
+  url = normalizeListenCoverUrl(url);
   if (!url) return '';
   if (isInlineCoverSrc(url)) return url;
   if (!isProxyableCoverUrl(url)) return '';
@@ -13592,6 +13596,7 @@ function resolveSongCoverUrl(song, size) {
   return coverUrlWithSize(cover, size);
 }
 function coverUrlWithSize(url, size) {
+  url = normalizeListenCoverUrl(url);
   if (!url || isInlineCoverSrc(url) || !/^https?:\/\//i.test(url)) return url || '';
   if (/\{size\}/i.test(url)) return url.replace(/\{size\}/gi, String(qqOfficialCoverSize(size || 300)));
   if (/y\.qq\.com\/music\/photo_new\/T00[12]R\d+x\d+M000/i.test(url)) {
@@ -13772,7 +13777,8 @@ function mineradioRetryCoverImg(img) {
   }).catch(function(){ img.style.opacity = 0.2; });
 }
 function cssImageUrl(url) {
-  return String(url || '').replace(/\\/g, '\\\\').replace(/"/g, '%22');
+  url = normalizeListenCoverUrl(url) || String(url || '');
+  return url.replace(/\\/g, '\\\\').replace(/"/g, '%22');
 }
 function setHomeArt(id, url, size) {
   var el = document.getElementById(id);
