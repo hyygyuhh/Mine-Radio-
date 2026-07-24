@@ -1026,6 +1026,24 @@ body.login-guide-active #login-guide-canvas{opacity:1}
 .login-extension-foot{margin-top:8px;font-size:10px;line-height:1.42;color:rgba(255,255,255,.30)}
 .login-extension-foot button{border:0;background:none;padding:0;color:rgba(244,210,138,.72);cursor:pointer;font:inherit;text-decoration:underline;text-underline-offset:2px}
 .login-extension-foot button:hover{color:rgba(244,210,138,.96)}
+.login-donate-row{margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.06);text-align:center}
+.login-donate-btn{border:0;background:none;padding:0;color:rgba(244,210,138,.72);cursor:pointer;font:inherit;font-size:11px;letter-spacing:.35px;text-decoration:underline;text-underline-offset:3px;transition:color .2s}
+.login-donate-btn:hover{color:rgba(244,210,138,.98)}
+#donate-modal.modal-mask{z-index:51}
+.donate-modal{width:min(360px,92vw);max-width:min(360px,92vw);padding:26px 24px 22px}
+.donate-modal h2{margin-bottom:8px}
+.donate-modal .desc{margin-bottom:16px}
+.donate-qr-wrap{margin:0 auto 10px;max-width:220px}
+.donate-qr-card{padding:12px;border-radius:16px;border:1px solid rgba(244,210,138,.22);background:linear-gradient(180deg,rgba(7,193,96,.06),rgba(22,119,255,.06),rgba(255,255,255,.02))}
+.donate-qr-badges{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.donate-qr-badge{height:24px;padding:0 10px;border-radius:999px;font-size:10.5px;font-weight:700;letter-spacing:.35px;display:inline-flex;align-items:center;justify-content:center}
+.donate-qr-badge.wechat{color:#7dffb8;border:1px solid rgba(7,193,96,.28);background:rgba(7,193,96,.10)}
+.donate-qr-badge.alipay{color:#8ec5ff;border:1px solid rgba(22,119,255,.28);background:rgba(22,119,255,.10)}
+.donate-qr-shell{position:relative;width:100%;aspect-ratio:1;border-radius:12px;overflow:hidden;background:#fff;box-shadow:0 10px 28px rgba(0,0,0,.24),inset 0 0 0 1px rgba(0,0,0,.06)}
+.donate-qr-shell img{width:100%;height:100%;display:block;object-fit:contain;background:#fff}
+.donate-qr-fallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:14px;font-size:10px;line-height:1.45;color:rgba(0,0,0,.42);text-align:center;background:repeating-linear-gradient(45deg,#f7f7f7,#f7f7f7 8px,#efefef 8px,#efefef 16px)}
+.donate-qr-shell.has-image .donate-qr-fallback{display:none}
+.donate-modal-note{margin-top:12px;font-size:10.5px;line-height:1.5;color:rgba(255,255,255,.36)}
 #bridge-extension-notice{position:fixed;z-index:201;top:72px;right:24px;width:min(330px,calc(100vw - 48px));padding:13px 14px;border-radius:14px;border:1px solid rgba(244,210,138,.24);background:rgba(12,13,18,.88);color:rgba(255,255,255,.88);box-shadow:0 20px 54px rgba(0,0,0,.40),inset 0 1px 0 rgba(255,255,255,.08);backdrop-filter:blur(26px) saturate(1.25);-webkit-backdrop-filter:blur(26px) saturate(1.25);opacity:0;pointer-events:none;transform:translateY(-8px);transition:opacity .26s,transform .26s}
 #bridge-extension-notice.show{opacity:1;pointer-events:auto;transform:translateY(0)}
 #bridge-extension-notice .bridge-extension-actions{display:flex;gap:8px;margin-top:10px}
@@ -2781,6 +2799,33 @@ html.control-glass-svg-ok #visual-guide-btn:hover{
       <button id="login-refresh-status-btn" class="modal-btn" type="button" onclick="refreshProviderLoginStatus()">刷新登录状态</button>
       <button id="refresh-qr-btn" class="modal-btn primary" type="button" onclick="refreshQr()">刷新二维码</button>
       <button id="login-official-fallback-btn" class="modal-btn" type="button" onclick="openProviderWebLogin()">官网登录</button>
+    </div>
+    <div class="login-donate-row">
+      <button class="login-donate-btn" type="button" onclick="showDonateModal()">赞赏支持 · 请作者喝杯咖啡</button>
+    </div>
+  </div>
+</div>
+
+<!-- 赞赏模态 -->
+<div id="donate-modal" class="modal-mask" onclick="if(event.target===this)closeDonateModal()">
+  <div class="modal donate-modal">
+    <h2>赞赏支持</h2>
+    <div class="desc">如果 Mineradio 帮到了你，欢迎扫码支持持续开发。<br>微信 / 支付宝均可，金额随意。</div>
+    <div class="donate-qr-wrap">
+      <div class="donate-qr-card">
+        <div class="donate-qr-badges">
+          <span class="donate-qr-badge wechat">微信支付</span>
+          <span class="donate-qr-badge alipay">支付宝</span>
+        </div>
+        <div id="donate-qr-shell" class="donate-qr-shell">
+          <img id="donate-qr-img" src="icons/donate-qr.png" alt="微信支付宝赞赏码" onload="markDonateQrLoaded()" onerror="markDonateQrFailed()">
+          <div class="donate-qr-fallback">请将二合一收款码保存为<br><b>icons/donate-qr.png</b></div>
+        </div>
+      </div>
+    </div>
+    <div class="donate-modal-note">扫码后自动识别微信或支付宝，不会收集任何账号信息。</div>
+    <div class="btn-row">
+      <button class="modal-btn primary" type="button" onclick="closeDonateModal()">关闭</button>
     </div>
   </div>
 </div>
@@ -27488,6 +27533,30 @@ function closeLoginModal() {
   stopQrPoll();
   stopLoginExtensionProbe();
   closeGsapModal(document.getElementById('login-modal'));
+}
+var DONATE_QR_CONFIG = {
+  qr: 'icons/donate-qr.png'
+};
+function markDonateQrLoaded() {
+  var shell = document.getElementById('donate-qr-shell');
+  if (shell) shell.classList.add('has-image');
+}
+function markDonateQrFailed() {
+  var shell = document.getElementById('donate-qr-shell');
+  if (shell) shell.classList.remove('has-image');
+}
+function applyDonateQrSources() {
+  var img = document.getElementById('donate-qr-img');
+  if (img && DONATE_QR_CONFIG.qr) {
+    img.src = DONATE_QR_CONFIG.qr + (DONATE_QR_CONFIG.qr.indexOf('?') >= 0 ? '&' : '?') + 'v=' + Date.now();
+  }
+}
+function showDonateModal() {
+  applyDonateQrSources();
+  openGsapModal(document.getElementById('donate-modal'));
+}
+function closeDonateModal() {
+  closeGsapModal(document.getElementById('donate-modal'));
 }
 function setLoginProvider(provider, silent) {
   loginProvider = (provider === 'qq' || provider === 'kg') ? provider : 'netease';
