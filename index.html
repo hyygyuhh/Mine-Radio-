@@ -2800,7 +2800,7 @@ html.control-glass-svg-ok #visual-guide-btn:hover{
       <button id="refresh-qr-btn" class="modal-btn primary" type="button" onclick="refreshQr()">刷新二维码</button>
       <button id="login-official-fallback-btn" class="modal-btn" type="button" onclick="openProviderWebLogin()">官网登录</button>
     </div>
-    <div class="login-donate-row">
+    <div id="login-donate-row" class="login-donate-row">
       <button class="login-donate-btn" type="button" onclick="showDonateModal()">赞赏支持 · 请作者喝杯咖啡</button>
     </div>
   </div>
@@ -2850,6 +2850,9 @@ html.control-glass-svg-ok #visual-guide-btn:hover{
       <button id="account-add-kg" class="modal-btn" onclick="openProviderLogin('kg')">补登酷狗音乐</button>
     </div>
     <div id="account-hint" class="account-hint">QQ 音乐真实登录暂未接入，当前先预览双平台账号交互。</div>
+    <div class="login-donate-row">
+      <button class="login-donate-btn" type="button" onclick="showDonateModal()">赞赏支持 · 请作者喝杯咖啡</button>
+    </div>
     <div class="btn-row">
       <button class="modal-btn" onclick="closeUserModal()">关闭</button>
       <button id="account-logout-btn" class="modal-btn primary" onclick="logoutActiveAccount()">退出当前平台</button>
