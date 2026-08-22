@@ -1,4 +1,4 @@
-﻿*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 html,body{font-family:var(--font-sans);background:#000;color:#fff;overflow:hidden;height:100vh;width:100vw;user-select:none;-webkit-font-smoothing:antialiased}
 body.cursor-hidden,body.cursor-hidden *{cursor:none!important}
 html.desktop-shell-root,html.desktop-shell-root body{background:transparent}
@@ -1452,6 +1452,10 @@ body.desktop-shell.diy-mode #bottom-bar.stage-mode{left:50%;width:min(1080px,cal
 .hotkey-group{margin-top:12px}
 .hotkey-group-title{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:rgba(var(--fc-accent-rgb),.78);margin:0 0 8px}
 .hotkey-row{display:grid;grid-template-columns:minmax(112px,1fr) 180px 86px minmax(126px,1.15fr);gap:9px;align-items:center;min-height:46px;margin:6px 0;padding:9px;border-radius:12px;border:1px solid rgba(255,255,255,.065);background:rgba(255,255,255,.028)}
+.hotkey-row-fixed{background:rgba(255,255,255,.02);border-style:dashed}
+.hotkey-key-fixed{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:0 12px;border-radius:10px;border:1px solid rgba(255,255,255,.10);background:rgba(0,0,0,.22);color:rgba(255,255,255,.82);font:700 12px/1 var(--font-sans);letter-spacing:.04em}
+.hotkey-fixed-spacer{display:block}
+.hotkey-group-fixed{margin-top:16px;padding-top:4px;border-top:1px solid rgba(255,255,255,.06)}
 .hotkey-name{min-width:0;font-size:12.5px;font-weight:760;color:rgba(255,255,255,.88);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hotkey-key{height:30px;border-radius:9px;border:1px solid rgba(255,255,255,.11);background:rgba(0,0,0,.22);color:#fff;font:760 11.5px/1 var(--font-sans);cursor:pointer;padding:0 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hotkey-key:hover,.hotkey-key.capturing{border-color:rgba(var(--fc-accent-rgb),.42);background:rgba(var(--fc-accent-rgb),.10)}

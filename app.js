@@ -1,4 +1,7 @@
-﻿'use strict';
+'use strict';
+
+window.markDonateQrLoaded = window.markDonateQrLoaded || function(){};
+window.markDonateQrFailed = window.markDonateQrFailed || function(){};
 
 // ============================================================
 //  Global State
@@ -36,6 +39,209 @@ var loginQrHint = '';
 var loginQrHintClass = '';
 var activeAccountProvider = 'netease';
 var dualAccountMode = false;
+var AUTH_SESSION_STORE_KEY = 'mineradio-auth-session-v1';
+function readAuthSessionState() {
+  try {
+    var raw = JSON.parse(localStorage.getItem(AUTH_SESSION_STORE_KEY) || '{}') || {};
+    return {
+      revoked: {
+        netease: Number(raw.revoked && raw.revoked.netease) || 0,
+        qq: Number(raw.revoked && raw.revoked.qq) || 0,
+        kg: Number(raw.revoked && raw.revoked.kg) || 0
+      },
+      activeProvider: /^(netease|qq|kg)$/.test(String(raw.activeProvider || '')) ? raw.activeProvider : 'netease',
+      dualMode: raw.dualMode === true
+    };
+  } catch (e) {
+    return { revoked: { netease: 0, qq: 0, kg: 0 }, activeProvider: 'netease', dualMode: false };
+  }
+}
+function writeAuthSessionState(patch) {
+  var cur = readAuthSessionState();
+  var next = Object.assign({}, cur, patch || {});
+  if (patch && patch.revoked) next.revoked = Object.assign({}, cur.revoked, patch.revoked);
+  try { localStorage.setItem(AUTH_SESSION_STORE_KEY, JSON.stringify(next)); } catch (e) {}
+  return next;
+}
+function normalizeAuthProvider(provider) {
+  return provider === 'qq' ? 'qq' : (provider === 'kg' ? 'kg' : 'netease');
+}
+function authLogoutFlagKey(provider) {
+  return 'mineradio-logout-' + normalizeAuthProvider(provider) + '-v1';
+}
+function authLoggedOutStatus(provider) {
+  provider = normalizeAuthProvider(provider);
+  if (provider === 'qq') {
+    return { provider: 'qq', loggedIn: false, preview: false, nickname: 'QQ 音乐', userId: '', avatar: '', vipType: 0, stale: false, playbackKeyReady: false };
+  }
+  if (provider === 'kg') {
+    return { provider: 'kg', loggedIn: false, nickname: '酷狗音乐', userId: '', avatar: '', vipType: 0, isVip: false, vipLabel: '无VIP' };
+  }
+  return { loggedIn: false };
+}
+function markAuthProviderRevoked(provider) {
+  provider = normalizeAuthProvider(provider);
+  try { localStorage.setItem(authLogoutFlagKey(provider), String(Date.now())); } catch (e) {}
+  var patch = { revoked: {} };
+  patch.revoked[provider] = Date.now();
+  writeAuthSessionState(patch);
+}
+function clearAuthProviderRevoked(provider) {
+  provider = normalizeAuthProvider(provider);
+  try { localStorage.removeItem(authLogoutFlagKey(provider)); } catch (e) {}
+  var patch = { revoked: {} };
+  patch.revoked[provider] = 0;
+  writeAuthSessionState(patch);
+}
+function beginExplicitProviderLogin(provider) {
+  clearAuthProviderRevoked(provider || loginProvider);
+}
+function isAuthProviderRevoked(provider) {
+  provider = normalizeAuthProvider(provider);
+  try {
+    if (localStorage.getItem(authLogoutFlagKey(provider))) return true;
+  } catch (e) {}
+  var state = readAuthSessionState();
+  return !!(state.revoked && state.revoked[provider]);
+}
+function syncAuthRevocationFlags() {
+  var state = readAuthSessionState();
+  ['netease', 'qq', 'kg'].forEach(function(provider) {
+    var flagTs = 0;
+    try { flagTs = Number(localStorage.getItem(authLogoutFlagKey(provider))) || 0; } catch (e) {}
+    var storeTs = Number(state.revoked && state.revoked[provider]) || 0;
+    if (flagTs && !storeTs) {
+      var patch = { revoked: {} };
+      patch.revoked[provider] = flagTs;
+      writeAuthSessionState(patch);
+      state = readAuthSessionState();
+    } else if (!flagTs && storeTs) {
+      try { localStorage.setItem(authLogoutFlagKey(provider), String(storeTs)); } catch (e) {}
+    }
+  });
+}
+function bootstrapRevokedAuthState() {
+  syncAuthRevocationFlags();
+  var touched = false;
+  if (isAuthProviderRevoked('netease')) {
+    loginStatus = authLoggedOutStatus('netease');
+    touched = true;
+  }
+  if (isAuthProviderRevoked('qq')) {
+    qqLoginStatus = authLoggedOutStatus('qq');
+    qqLoginWasLoggedIn = false;
+    touched = true;
+  }
+  if (isAuthProviderRevoked('kg')) {
+    kgLoginStatus = authLoggedOutStatus('kg');
+    touched = true;
+  }
+  if (!touched) return;
+  activeAccountProvider = firstLoggedProvider();
+  if (!hasAnyPlatformLogin()) resetHomeDiscoverForLogout();
+  ['netease', 'qq', 'kg'].forEach(function(provider) {
+    if (isAuthProviderRevoked(provider)) enforceAuthRevocationOnServer(provider).catch(function() {});
+  });
+}
+function persistAccountPreferences() {
+  writeAuthSessionState({
+    activeProvider: normalizeAuthProvider(activeAccountProvider),
+    dualMode: !!dualAccountMode
+  });
+}
+function loadAccountPreferences() {
+  var state = readAuthSessionState();
+  activeAccountProvider = normalizeAuthProvider(state.activeProvider);
+  dualAccountMode = !!state.dualMode;
+}
+function authLogoutApiPath(provider) {
+  provider = normalizeAuthProvider(provider);
+  if (provider === 'kg') return '/api/kg/logout';
+  if (provider === 'qq') return '/api/qq/logout';
+  return '/api/logout';
+}
+async function enforceAuthRevocationOnServer(provider) {
+  if (!isAuthProviderRevoked(provider)) return;
+  try { await apiJson(authLogoutApiPath(provider)); } catch (e) {}
+}
+function applyAuthRevocationToLoginInfo(provider, info) {
+  if (!isAuthProviderRevoked(provider)) return info;
+  return authLoggedOutStatus(provider);
+}
+function applyProviderLoginStatus(provider, info) {
+  provider = normalizeAuthProvider(provider);
+  if (isAuthProviderRevoked(provider)) return authLoggedOutStatus(provider);
+  if (provider === 'qq') return normalizeQQLoginStatus(info);
+  if (provider === 'kg') {
+    return Object.assign({ provider: 'kg', loggedIn: false, nickname: '酷狗音乐', userId: '', avatar: '', vipType: 0, isVip: false, vipLabel: '无VIP' }, info || {});
+  }
+  return info || { loggedIn: false };
+}
+function resetHomeDiscoverForLogout() {
+  if (!homeDiscoverState) return;
+  homeDiscoverState.loading = false;
+  homeDiscoverState.loaded = false;
+  homeDiscoverState.loggedIn = false;
+  homeDiscoverState.mode = 'starter';
+  homeDiscoverState.songs = [];
+  homeDiscoverState.playlists = [];
+  homeDiscoverState.podcasts = [];
+  homeDiscoverState.error = '';
+}
+function clearProviderClientState(provider) {
+  provider = normalizeAuthProvider(provider);
+  if (provider === 'kg') {
+    kgLoginStatus = { provider: 'kg', loggedIn: false, nickname: '酷狗音乐', userId: '', avatar: '', vipType: 0, isVip: false };
+    userPlaylists = userPlaylists.filter(function(pl){ return pl.provider !== 'kg'; });
+    return;
+  }
+  if (provider === 'qq') {
+    qqLoginStatus = { provider: 'qq', loggedIn: false, preview: false, nickname: 'QQ 音乐', userId: '', avatar: '', vipType: 0 };
+    qqPlaylists = [];
+    userPlaylists = userPlaylists.filter(function(pl){ return pl.provider !== 'qq'; });
+    qqLoginWasLoggedIn = false;
+    return;
+  }
+  loginStatus = { loggedIn: false };
+  myPodcastCollections = [];
+  myPodcastItems = {};
+  likedSongMap = {};
+  closeCollectModal();
+  updateLikeButtons();
+  userPlaylists = qqPlaylists.slice();
+}
+async function finalizeProviderLogout(provider, opts) {
+  opts = opts || {};
+  provider = normalizeAuthProvider(provider);
+  markAuthProviderRevoked(provider);
+  stopQrPoll();
+  try { await apiJson(authLogoutApiPath(provider)); } catch (e) {}
+  if (provider === 'qq') {
+    try {
+      if (window.desktopWindow && typeof window.desktopWindow.clearQQMusicLogin === 'function') {
+        await window.desktopWindow.clearQQMusicLogin();
+      }
+    } catch (e) {}
+  } else if (provider === 'netease') {
+    try {
+      if (window.desktopWindow && typeof window.desktopWindow.clearNeteaseMusicLogin === 'function') {
+        await window.desktopWindow.clearNeteaseMusicLogin();
+      }
+    } catch (e) {}
+  }
+  clearProviderClientState(provider);
+  if (loggedPlatformCount() < 2) dualAccountMode = false;
+  activeAccountProvider = firstLoggedProvider();
+  persistAccountPreferences();
+  if (!hasAnyPlatformLogin()) resetHomeDiscoverForLogout();
+  safeRenderQueuePanel('logout', { scrollCurrent: miniQueueOpen });
+  renderUserBtn();
+  safeShelfRebuild('logout');
+  if (hasAnyPlatformLogin()) updateUserModalUi();
+  else closeUserModal();
+  if (!opts.silent && opts.toast) showToast(opts.toast);
+}
+loadAccountPreferences();
 var qqCookieBusy = false;
 var neteaseWebLoginBusy = false;
 var qqWebLoginBusy = false;
@@ -63,6 +269,7 @@ var UPLOAD_TIP_STORE_KEY = 'mineradio-upload-tip-seen';
 var DIY_MODE_STORE_KEY = 'mineradio-diy-player-mode-v1';
 var DIY_MODE_BTN_IDS = ['diy-mode-btn', 'fullscreen-diy-btn', 'web-diy-btn'];
 var PLAYLIST_PANEL_PIN_STORE_KEY = 'mineradio-playlist-panel-pinned-v1';
+var FX_PANEL_PIN_STORE_KEY = 'mineradio-fx-panel-pinned-v1';
 var USER_CAPSULE_AUTO_HIDE_STORE_KEY = 'mineradio-user-capsule-auto-hide-v1';
 var FX_FAB_AUTO_HIDE_STORE_KEY = 'mineradio-fx-fab-auto-hide-v1';
 var CONTROLS_AUTO_HIDE_STORE_KEY = 'mineradio-controls-auto-hide-v1';
@@ -80,6 +287,13 @@ var HOTKEY_ACTIONS = [
   { key:'volumeDown', label:'音量降低', category:'音量', local:'ArrowDown', global:'Ctrl+Alt+ArrowDown' },
   { key:'toggleFullscreen', label:'全屏', category:'窗口', local:'KeyF', global:'Ctrl+Alt+KeyF' },
   { key:'toggleDesktopLyrics', label:'桌面歌词', category:'歌词', local:'Alt+KeyL', global:'Ctrl+Alt+KeyL' }
+];
+var HOTKEY_FIXED_SHORTCUTS = [
+  { category:'DIY', label:'打开 / 关闭视觉控制台', keys:'P' },
+  { category:'DIY', label:'控制台分页切换', keys:'1 – 5' },
+  { category:'界面', label:'歌词面板', keys:'L' },
+  { category:'界面', label:'沉浸模式', keys:'I' },
+  { category:'界面', label:'关闭面板 / 弹窗', keys:'Esc' }
 ];
 var hotkeyCaptureState = null;
 var hotkeyGlobalStatus = {};
@@ -498,6 +712,8 @@ function applyDiyMode(on, opts) {
     var volume = document.getElementById('volume-control');
     if (quality) quality.classList.remove('open');
     if (volume) volume.classList.remove('open');
+  } else {
+    applyFxPanelPinState();
   }
   if (opts.toast) showToast(diyPlayerMode ? 'DIY 玩家模式已开启' : '已切回简约模式');
   if (opts.animate && window.gsap) {
@@ -723,6 +939,7 @@ var fxDefaults = {
   lyricWeight: 900,
   visualTintMode: 'auto',
   visualTintColor: '#9db8cf',
+  appTheme: 'default',
   uiAccentColor: '#ffffff',
   homeAccentColor: '#ffffff',
   homeIconColor: '#ffffff',
@@ -768,6 +985,58 @@ var fxDefaults = {
   performanceQuality: 'high',
   liveBackgroundKeep: false,
   cam: 'off',
+  lyricBackgroundAdapt: 0.72,
+  lyricDisplayMode: 'cinema',
+  lyricTranslationMode: 'multi',
+  lyricMotionStyle: 'float',
+  lyricCustomLineCount: 10,
+  lyricGlitchCameraBind: true,
+  lyricGlitchIntensity: 1,
+  lyricGlitchSlice: 1,
+  lyricGlitchChroma: 1,
+  lyricGlitchRate: 1,
+  lyricGlitchJitter: 1,
+  lyricContextOpacity: 0.72,
+  lyricContextSpread: 1,
+  lyricTranslationGap: 1,
+  lyricEdgeFade: 0.55,
+  lyricMotionSoftness: 0.72,
+  lyricTranslationScale: 0.65,
+  lyricTranslationOpacity: 0.86,
+  sonicAudioMonitorEnabled: true,
+  sonicAudioAutoTrack: true,
+  sonicAudioSensitivity: 62,
+  sonicAudioBandStart: 1,
+  sonicAudioBandEnd: 4,
+  sonicAudioThreshold: 42,
+  sonicAudioPulse: 68,
+  sonicGroundAmplitude: 50,
+  sonicGroundMotionSpeed: 50,
+  sonicGroundDensity: 46,
+  sonicGroundRange: 82,
+  sonicGroundLower: 68,
+  sonicGroundDepth: 62,
+  sonicGroundAutoRotate: 50,
+  sonicGroundColorMode: 'cover',
+  sonicGroundBaseColor: '#05070c',
+  sonicGroundCoolColor: '#0066ff',
+  sonicGroundWarmColor: '#ff3c19',
+  sonicGroundAccentColor: '#33e6ff',
+  sonicGroundGlow: 68,
+  sonicGroundSubBass: 90,
+  sonicGroundBass: 92,
+  sonicGroundLowMid: 50,
+  sonicGroundMid: 50,
+  sonicGroundHighMid: 50,
+  sonicGroundPresence: 50,
+  sonicGroundBrilliance: 50,
+  sonicGroundAir: 48,
+  sonicGroundFloatingEnabled: true,
+  sonicGroundFloatingIntensity: 55,
+  sonicGroundFloatingMinSize: 9,
+  sonicGroundFloatingMaxSize: 26,
+  sonicGroundFloatingSpeed: 77,
+  sonicGroundFloatingCount: 80,
 };
 var PACKAGED_DEFAULT_USER_FX_ARCHIVE_NAME = '默认测试';
 var PACKAGED_DEFAULT_USER_FX_ARCHIVE_EXPORTED_AT = 1782276031784;
@@ -806,6 +1075,7 @@ var PACKAGED_DEFAULT_FX_SNAPSHOT = Object.freeze({
   lyricWeight: 900,
   visualTintMode: 'auto',
   visualTintColor: '#9db8cf',
+  appTheme: 'default',
   uiAccentColor: '#ffffff',
   homeAccentColor: '#ffffff',
   homeIconColor: '#ffffff',
@@ -868,11 +1138,17 @@ function normalizeDevelopmentLockedFxState() {
   if (!fx) return;
   fx.wallpaperMode = false;
 }
+function migrateVisualPresetIndex(p) {
+  p = clampRange(Number(p) || 0, 0, 8);
+  if (p === 8) return 0;
+  var max = typeof presetMeta !== 'undefined' && presetMeta && presetMeta.length ? presetMeta.length - 1 : 7;
+  return clampRange(p, 0, max);
+}
 function readSavedPlaybackVisualPreset() {
   try {
     var raw = JSON.parse(localStorage.getItem(LYRIC_LAYOUT_STORE_KEY) || '{}') || {};
     if (!Object.prototype.hasOwnProperty.call(raw, 'preset')) return fxDefaults.preset;
-    var savedPreset = clampRange(Number(raw.preset) || 0, 0, 6);
+    var savedPreset = migrateVisualPresetIndex(raw.preset);
     if (savedPreset === 3 && raw.visualPresetSchema !== VISUAL_PRESET_SCHEMA) savedPreset = 5;
     return savedPreset;
   } catch (e) {
@@ -883,6 +1159,9 @@ var playbackVisualPreset = readSavedPlaybackVisualPreset();
 var startupVisualPreviewActive = false;
 var fx = Object.assign({}, fxDefaults, readSavedLyricLayout());
 normalizeDevelopmentLockedFxState();
+if (window.MineradioThemes && typeof window.MineradioThemes.applyStructure === 'function') {
+  window.MineradioThemes.applyStructure(fx.appTheme || window.MineradioThemes.readStored());
+}
 var presetTransition = { active:false, start:-10, duration:0.92, from:0, to:0 };
 var controlsAutoHide = readBooleanPreference(CONTROLS_AUTO_HIDE_STORE_KEY, false);
 var controlsHovering = false;
@@ -892,7 +1171,7 @@ var controlsLastMoveAt = 0;
 var controlsShelfSuppressUntil = 0;
 var cursorHideTimer = null;
 var CURSOR_HIDE_DELAY = 2500;
-var fxPanelPinned = false;
+var fxPanelPinned = readBooleanPreference(FX_PANEL_PIN_STORE_KEY, false);
 var playlistPanelPinned = readBooleanPreference(PLAYLIST_PANEL_PIN_STORE_KEY, false);
 var userCapsuleAutoHide = readBooleanPreference(USER_CAPSULE_AUTO_HIDE_STORE_KEY, false);
 var fxFabAutoHide = readBooleanPreference(FX_FAB_AUTO_HIDE_STORE_KEY, false);
@@ -947,6 +1226,19 @@ function isDeepBackgroundMode() {
   if (isLiveBackgroundKeepMode()) return false;
   return !!(document.hidden || desktopRuntimeState.minimized || desktopRuntimeState.visible === false);
 }
+function homeVisualRenderTier() {
+  if (!emptyHomeActive) return 0;
+  if (!playing || currentIdx < 0) return 2;
+  return 1;
+}
+function isHomeVisualIdleMode() {
+  return homeVisualRenderTier() === 2;
+}
+function updateRenderPowerClasses() {
+  document.body.classList.toggle('render-deep-sleep', isDeepBackgroundMode());
+  document.body.classList.toggle('render-background-eco', isVisibleBackgroundMode());
+  document.body.classList.toggle('render-home-idle', homeVisualRenderTier() > 0);
+}
 function currentPerformanceBackgroundMode() {
   return normalizePerformanceBackgroundMode(fx && fx.performanceBackground, fx && fx.liveBackgroundKeep === true);
 }
@@ -961,10 +1253,6 @@ function isHiddenForBackgroundOptimization() {
 }
 function isVisibleBackgroundMode() {
   return false;
-}
-function updateRenderPowerClasses() {
-  document.body.classList.toggle('render-deep-sleep', isDeepBackgroundMode());
-  document.body.classList.toggle('render-background-eco', isVisibleBackgroundMode());
 }
 function safeObjectKeys(obj) {
   try { return obj ? Object.keys(obj) : []; } catch (e) { return []; }
@@ -1246,10 +1534,13 @@ function renderQualityProfile() {
 function getRenderPixelRatio() {
   var device = window.devicePixelRatio || 1;
   if (isDeepBackgroundMode()) return Math.min(device, 0.30);
+  var homeTier = homeVisualRenderTier();
   var cssPixels = Math.max(1, innerWidth * innerHeight);
   var quality = renderQualityProfile();
   var budgetCap = Math.sqrt(quality.budget / cssPixels);
   var cap = Math.min(quality.cap, budgetCap);
+  if (homeTier === 2) cap = Math.min(cap, 0.82);
+  else if (homeTier === 1) cap = Math.min(cap, 1.0);
   return Math.max(quality.min, Math.min(device, cap));
 }
 function getRenderPixelLoad() {
@@ -1576,11 +1867,20 @@ function updateFreeCamera(dt) {
   scheduleFreeCameraStateSave(720);
 }
 function flushPersistentVisualState() {
-  try { saveLyricLayout(); } catch (e) {}
+  try { saveLyricLayout({ immediate: true }); } catch (e) {}
   try { saveFreeCameraState(); } catch (e) {}
+  try { persistAccountPreferences(); } catch (e) {}
+  try {
+    if (window.MineradioThemes && typeof window.MineradioThemes.applyStructure === 'function' && fx && fx.appTheme) {
+      window.MineradioThemes.applyStructure(fx.appTheme);
+    }
+  } catch (e) {}
 }
 window.addEventListener('beforeunload', flushPersistentVisualState);
 window.addEventListener('pagehide', flushPersistentVisualState);
+document.addEventListener('visibilitychange', function(){
+  if (document.visibilityState === 'hidden') flushPersistentVisualState();
+});
 
 function resetBeatCameraSync(t) {
   beatCam.nextIdx = 0;
@@ -5154,7 +5454,7 @@ function readSavedLyricLayout() {
   try {
     var savedLayoutRaw = localStorage.getItem(LYRIC_LAYOUT_STORE_KEY);
     var raw = savedLayoutRaw ? (JSON.parse(savedLayoutRaw) || {}) : packagedDefaultLyricLayoutRaw();
-    var savedPreset = clampRange(Number(raw.preset) || 0, 0, 6);
+    var savedPreset = migrateVisualPresetIndex(raw.preset);
     if (savedPreset === 3 && raw.visualPresetSchema !== VISUAL_PRESET_SCHEMA) {
       savedPreset = 5;
     }
@@ -5209,6 +5509,7 @@ function readSavedLyricLayout() {
       edge: raw.edge === true,
       visualTintMode: raw.visualTintMode === 'custom' ? 'custom' : 'auto',
       visualTintColor: normalizeHexColor(raw.visualTintColor || '#9db8cf'),
+      appTheme: window.MineradioThemes ? window.MineradioThemes.normalize(raw.appTheme || window.MineradioThemes.readStored()) : 'default',
       uiAccentColor: normalizeHexColor(raw.uiAccentColor || '#00f5d4', '#00f5d4'),
       homeAccentColor: normalizeHexColor(raw.homeAccentColor || '#00f5d4'),
       homeIconColor: normalizeHexColor(raw.homeIconColor || fxDefaults.homeIconColor || '#f4d28a', '#f4d28a'),
@@ -5254,11 +5555,11 @@ function readSavedLyricLayout() {
     return {};
   }
 }
-function saveLyricLayout() {
+function flushLyricLayoutSave() {
   try {
     var presetForSave = startupVisualPreviewActive && !playing && currentIdx < 0
       ? playbackVisualPreset
-      : clampRange(Number(fx.preset) || 0, 0, presetMeta.length - 1);
+      : migrateVisualPresetIndex(fx.preset);
     localStorage.setItem(LYRIC_LAYOUT_STORE_KEY, JSON.stringify({
       visualPresetSchema: VISUAL_PRESET_SCHEMA,
       desktopLyricsSchema: 'desktop-lyrics-v3',
@@ -5299,6 +5600,7 @@ function saveLyricLayout() {
       edge: !!fx.edge,
       visualTintMode: fx.visualTintMode === 'custom' ? 'custom' : 'auto',
       visualTintColor: normalizeHexColor(fx.visualTintColor || '#9db8cf'),
+      appTheme: window.MineradioThemes ? window.MineradioThemes.normalize(fx.appTheme) : 'default',
       uiAccentColor: normalizeHexColor(fx.uiAccentColor || '#00f5d4', '#00f5d4'),
       homeAccentColor: normalizeHexColor(fx.homeAccentColor || '#00f5d4'),
       homeIconColor: normalizeHexColor(fx.homeIconColor || '#f4d28a', '#f4d28a'),
@@ -5342,6 +5644,22 @@ function saveLyricLayout() {
     }));
   } catch (e) {}
 }
+var saveLyricLayout = (function(){
+  var flush = flushLyricLayoutSave;
+  if (window.MineradioRuntime && typeof window.MineradioRuntime.debounce === 'function') {
+    var debounced = window.MineradioRuntime.debounce(flush, 320);
+    return function saveLyricLayout(opts) {
+      opts = opts || {};
+      if (opts.immediate) {
+        debounced.cancel();
+        flush();
+        return;
+      }
+      debounced();
+    };
+  }
+  return function saveLyricLayout() { flush(); };
+})();
 function normalizeHexColor(value, fallback) {
   var hex = String(value || '').trim();
   if (/^#[0-9a-f]{3}$/i.test(hex)) {
@@ -6089,23 +6407,43 @@ function lyricThreeColor(css, fallback, minLum) {
 
 var STAGE_LYRIC_MAX_LINES = 1;
 
+function getStageLyricMaxLines() {
+  if (typeof fx === 'undefined' || !fx) return 1;
+  var mode = String(fx.lyricDisplayMode || 'cinema');
+  if (mode === 'single') return 1;
+  if (mode === 'dual') return 2;
+  if (mode === 'triple') return 3;
+  if (mode === 'custom') return Math.max(1, Math.min(10, Math.round(Number(fx.lyricCustomLineCount) || 5)));
+  return 4; // cinema
+}
+
 function makeLyricMask(text) {
   var canvas = document.createElement('canvas');
-  var W = 2048, H = 384;
+  var maxLines = Math.max(1, Math.min(10, getStageLyricMaxLines()));
+  STAGE_LYRIC_MAX_LINES = maxLines;
+  var W = 2048, H = Math.min(1024, 300 + maxLines * 110);
   canvas.width = W; canvas.height = H;
   var ctx = canvas.getContext('2d');
   var maxWidth = W - 190;
-  var maxLines = STAGE_LYRIC_MAX_LINES;
-  var fontSize = 128;
-  text = String(text || '').replace(/\s+/g, ' ').trim();
-  var lines = [text];
+  var fontSize = maxLines >= 4 ? 96 : (maxLines >= 3 ? 108 : 128);
+  var raw = String(text || '');
+  var forcedLines = raw.indexOf('\n') >= 0
+    ? raw.split(/\n/).map(function(s){ return String(s || '').replace(/\s+/g, ' ').trim(); }).filter(Boolean)
+    : null;
+  var textOne = forcedLines ? '' : raw.replace(/\s+/g, ' ').trim();
+  var lines = forcedLines && forcedLines.length ? forcedLines.slice(0, maxLines) : [textOne];
   var widest = 1;
-  for (; fontSize >= 42; fontSize -= 4) {
+  for (; fontSize >= 36; fontSize -= 4) {
     ctx.font = lyricFontCss(fontSize);
-    lines = maxLines > 1 && lyricMeasureText(ctx, text, fontSize) > maxWidth ? wrapLyricText(ctx, text, maxWidth, maxLines, fontSize) : [text];
+    if (!forcedLines) {
+      lines = maxLines > 1 && lyricMeasureText(ctx, textOne, fontSize) > maxWidth
+        ? wrapLyricText(ctx, textOne, maxWidth, maxLines, fontSize)
+        : [textOne];
+    }
     widest = 1;
     for (var li = 0; li < lines.length; li++) widest = Math.max(widest, lyricMeasureText(ctx, lines[li], fontSize));
-    if (widest <= maxWidth) break;
+    var blockProbe = fontSize + (lines.length - 1) * fontSize * (lines.length > 1 ? 1.08 : 1.0) * lyricLineHeightFactor();
+    if (widest <= maxWidth && blockProbe <= H - 48) break;
   }
   ctx.font = lyricFontCss(fontSize);
   if (!lines.length) lines = [''];
@@ -6114,7 +6452,7 @@ function makeLyricMask(text) {
   var width = Math.min(maxWidth, widest);
   var fitScaleX = maxLines <= 1 && widest > maxWidth ? Math.max(0.68, maxWidth / widest) : 1;
   if (fitScaleX < 1) width = Math.min(maxWidth, widest * fitScaleX);
-  var lineHeight = fontSize * (lines.length > 1 ? 1.02 : 1.0) * lyricLineHeightFactor();
+  var lineHeight = fontSize * (lines.length > 1 ? 1.08 : 1.0) * lyricLineHeightFactor();
   var blockH = fontSize + (lines.length - 1) * lineHeight;
   var x = W / 2, y0 = H / 2 - blockH / 2 + fontSize * 0.82;
   ctx.clearRect(0, 0, W, H);
@@ -6122,6 +6460,11 @@ function makeLyricMask(text) {
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = '#fff';
   for (var di = 0; di < lines.length; di++) {
+    var alpha = 1;
+    if (lines.length > 1 && di !== Math.floor((lines.length - 1) / 2) && typeof fx !== 'undefined' && fx) {
+      alpha = clampRange(Number(fx.lyricContextOpacity), 0.25, 1);
+    }
+    ctx.globalAlpha = alpha;
     if (fitScaleX < 1) {
       ctx.save();
       ctx.translate(x, 0);
@@ -6132,6 +6475,7 @@ function makeLyricMask(text) {
       lyricFillText(ctx, lines[di], x, y0 + di * lineHeight, fontSize);
     }
   }
+  ctx.globalAlpha = 1;
   applyStonePrintTexture(ctx, W, H, fontSize);
   var tex = new THREE.CanvasTexture(canvas);
   tex.minFilter = THREE.LinearFilter;
@@ -6430,7 +6774,9 @@ function makeLyricShaderMaterial(mask, pal) {
 }
 
 function buildLyricMesh(text) {
-  text = String(text || '').replace(/\s+/g, ' ').trim();
+  text = String(text || '');
+  if (text.indexOf('\n') < 0) text = text.replace(/\s+/g, ' ').trim();
+  else text = text.split(/\n/).map(function(s){ return String(s || '').replace(/\s+/g, ' ').trim(); }).filter(Boolean).join('\n');
   var mask = makeLyricMask(text);
   var pal = stageLyrics.palette;
   var worldW = 6.10;
@@ -6602,6 +6948,11 @@ function clearStageLyrics() {
 
 function updateStageLyrics3D(dt) {
   if (!stageLyrics.group) return;
+  if (emptyHomeActive) {
+    stageLyrics.group.visible = false;
+    return;
+  }
+  stageLyrics.group.visible = true;
   if (!fx.particleLyrics && !stageLyrics.current && (!stageLyrics.outgoing || !stageLyrics.outgoing.length)) return;
   if (!isFinite(stageLyrics.highBloom)) stageLyrics.highBloom = 0;
   if (!isFinite(stageLyrics.beatGlow)) stageLyrics.beatGlow = 0;
@@ -6842,10 +7193,68 @@ function updateStageLyrics3D(dt) {
         mesh.rotation.z = Math.sin(t * 0.30 + seed) * 0.010;
       } else {
         mesh.userData.skullMouthMeshLocked = false;
-        mesh.scale.setScalar(0.96 + a * 0.055 + breathe + bass * 0.038 + beatPulse * 0.014);
-        mesh.position.y += ((0.18 + Math.sin(t * 0.55 + seed) * 0.055 + Math.sin(t * 1.35 + seed) * 0.014) - mesh.position.y) * 0.075;
-        mesh.position.z += ((1.48 + Math.cos(t * 0.48 + seed) * 0.080) - mesh.position.z) * 0.080;
-        mesh.rotation.z = Math.sin(t * 0.34 + seed) * 0.018;
+        var motion = String((fx && fx.lyricMotionStyle) || 'float');
+        var soft = clampRange(Number(fx && fx.lyricMotionSoftness) || 0.72, 0.15, 1.2);
+        var edgeFade = clampRange(Number(fx && fx.lyricEdgeFade) || 0.55, 0, 1);
+        var motionAmp = 0.55 + soft * 0.85;
+        var targetY = 0.18;
+        var targetZ = 1.48;
+        var targetScale = 0.96 + a * 0.055 + bass * 0.038 + beatPulse * 0.014;
+        var targetRotZ = 0;
+        var targetRotX = 0;
+        var glitchKick = 0;
+        if (motion === 'smooth') {
+          targetY = 0.14 + Math.sin(t * 0.38 + seed) * 0.018 * motionAmp;
+          targetZ = 1.42 + Math.cos(t * 0.28 + seed) * 0.028 * motionAmp;
+          targetScale += Math.sin(t * 0.55 + seed) * 0.012 * soft;
+          targetRotZ = Math.sin(t * 0.22 + seed) * 0.008;
+        } else if (motion === 'glass') {
+          targetY = 0.16 + Math.sin(t * 0.62 + seed) * 0.024 * motionAmp;
+          targetZ = 1.50 + Math.sin(t * 1.1 + seed) * 0.04 * motionAmp;
+          targetScale += 0.02 + Math.sin(t * 1.4 + seed) * 0.02;
+          targetRotZ = Math.sin(t * 0.5 + seed) * 0.014;
+          targetRotX = Math.sin(t * 0.34 + seed) * 0.02;
+        } else if (motion === 'shine') {
+          targetY = 0.17 + Math.sin(t * 0.9 + seed) * 0.03 * motionAmp;
+          targetZ = 1.46 + Math.cos(t * 0.7 + seed) * 0.05 * motionAmp;
+          targetScale += beatPulse * 0.03 + Math.sin(t * 2.1 + seed) * 0.016;
+          targetRotZ = Math.sin(t * 0.8 + seed) * 0.02;
+        } else if (motion === 'glitch') {
+          var gInt = clampRange(Number(fx.lyricGlitchIntensity) || 1, 0, 1.5);
+          var gRate = clampRange(Number(fx.lyricGlitchRate) || 1, 0.45, 2.2);
+          var gJitter = clampRange(Number(fx.lyricGlitchJitter) || 1, 0, 1.8);
+          var gSlice = clampRange(Number(fx.lyricGlitchSlice) || 1, 0, 1.4);
+          var bindBeat = fx.lyricGlitchCameraBind !== false;
+          glitchKick = (bindBeat ? Math.max(beatPulse, stageLyrics.beatGlow * 0.8) : 0.35) * gInt;
+          var flicker = (Math.sin(t * (8.5 * gRate) + seed) > (0.72 - gInt * 0.18)) ? 1 : 0;
+          targetY = 0.16 + (Math.random() - 0.5) * 0.08 * gJitter * glitchKick * flicker;
+          targetZ = 1.46 + (Math.random() - 0.5) * 0.12 * gSlice * glitchKick * flicker;
+          targetScale += (Math.random() - 0.5) * 0.06 * gInt * flicker;
+          targetRotZ = (Math.random() - 0.5) * 0.08 * gJitter * flicker;
+          mesh.position.x += ((Math.random() - 0.5) * 0.1 * gSlice * glitchKick * flicker - mesh.position.x) * 0.45;
+          if (data.textMat && data.textMat.uniforms && data.textMat.uniforms.uOpacity) {
+            var chroma = clampRange(Number(fx.lyricGlitchChroma) || 1, 0, 1.6);
+            if (flicker && chroma > 0.2) data.textMat.uniforms.uOpacity.value = Math.max(0.35, opacity * (1 - chroma * 0.18 * Math.random()));
+          }
+        } else {
+          // float (default)
+          var breathe = Math.sin(t * 0.92 + seed) * 0.050 + Math.sin(t * 0.41 + seed * 0.7) * 0.028;
+          breathe *= motionAmp;
+          targetY = 0.18 + Math.sin(t * 0.55 + seed) * 0.055 + Math.sin(t * 1.35 + seed) * 0.014;
+          targetZ = 1.48 + Math.cos(t * 0.48 + seed) * 0.080;
+          targetScale = 0.96 + a * 0.055 + breathe + bass * 0.038 + beatPulse * 0.014;
+          targetRotZ = Math.sin(t * 0.34 + seed) * 0.018;
+        }
+        if (edgeFade > 0.01 && data.textMat && data.textMat.uniforms && data.textMat.uniforms.uOpacity) {
+          var fadeMul = 1 - edgeFade * 0.18 * (1 - soft);
+          data.textMat.uniforms.uOpacity.value = Math.min(data.textMat.uniforms.uOpacity.value, opacity * fadeMul + opacity * (1 - fadeMul));
+        }
+        var ease = motion === 'glitch' ? 0.42 : (0.05 + soft * 0.08);
+        mesh.position.y += (targetY - mesh.position.y) * ease;
+        mesh.position.z += (targetZ - mesh.position.z) * ease;
+        mesh.scale.setScalar(targetScale);
+        mesh.rotation.z = targetRotZ;
+        mesh.rotation.x = targetRotX;
       }
       if (data.sparks && data.sparkMat) data.sparks.visible = fx.lyricGlowParticles || getLyricSparkOpacity(data) > 0.015;
       if (data.sparks && data.basePositions) {
@@ -6915,6 +7324,59 @@ function getLyricLineProgress(line, nextLine, now) {
   return prog * prog * (3 - 2 * prog);
 }
 
+function composeDiyLyricStageText(idx, introText) {
+  if (introText) return String(introText || '');
+  if (!Array.isArray(lyricsLines) || !lyricsLines.length) return '';
+  idx = Math.max(0, Math.min(lyricsLines.length - 1, idx | 0));
+  var mode = (fx && fx.lyricDisplayMode) || 'cinema';
+  var count = getStageLyricMaxLines();
+  var start = idx;
+  if (mode === 'dual') {
+    start = idx;
+    count = 2;
+  } else if (mode === 'triple' || mode === 'cinema' || mode === 'custom') {
+    start = Math.max(0, idx - Math.floor((count - 1) / 2));
+  } else {
+    start = idx;
+    count = 1;
+  }
+  var end = Math.min(lyricsLines.length - 1, start + count - 1);
+  if (end - start + 1 < count) start = Math.max(0, end - count + 1);
+  var rows = [];
+  var transMode = (fx && fx.lyricTranslationMode) || 'multi';
+  var spreadPad = '';
+  var spread = clampRange(Number(fx && fx.lyricContextSpread) || 1, 0.6, 2.4);
+  if (spread > 1.35) spreadPad = ' ';
+  for (var i = start; i <= end; i++) {
+    var line = lyricsLines[i];
+    if (!line) continue;
+    var main = String(line.text || '').trim();
+    if (!main) continue;
+    if (i === idx) {
+      rows.push(main);
+      if (transMode !== 'off' && line.trans) {
+        if (transMode === 'current' || transMode === 'dual' || transMode === 'multi') rows.push(String(line.trans).trim());
+      }
+    } else {
+      rows.push(main);
+      if (transMode === 'multi' && line.trans) rows.push(String(line.trans).trim());
+      else if (transMode === 'dual' && Math.abs(i - idx) === 1 && line.trans) rows.push(String(line.trans).trim());
+    }
+  }
+  if (!rows.length) {
+    var cur = lyricsLines[idx];
+    return cur ? String(cur.text || '') : '';
+  }
+  if (mode === 'single') {
+    var only = String((lyricsLines[idx] && lyricsLines[idx].text) || rows[0] || '');
+    if (transMode !== 'off' && lyricsLines[idx] && lyricsLines[idx].trans) {
+      return only + '\n' + String(lyricsLines[idx].trans);
+    }
+    return only;
+  }
+  return rows.join('\n' + spreadPad);
+}
+
 function tickLyricsParticles() {
   if (!fx.particleLyrics) {
     if (stageLyrics.current || stageLyrics.currentText || (stageLyrics.outgoing && stageLyrics.outgoing.length)) clearStageLyrics();
@@ -6954,9 +7416,10 @@ function tickLyricsParticles() {
     }
     return;
   }
-  if (newIdx !== stageLyrics.currentIdx) {
+  var composed = composeDiyLyricStageText(newIdx);
+  if (newIdx !== stageLyrics.currentIdx || stageLyrics.currentText !== composed) {
     stageLyrics.currentIdx = newIdx;
-    showStageLine(lyricsLines[newIdx].text || '');
+    showStageLine(composed);
   }
   if (stageLyrics.current) {
     var curLine = lyricsLines[newIdx] || { t:t };
@@ -13053,7 +13516,9 @@ var PLAYBACK_QUALITY_PROFILES = {
 };
 function playbackQualityProfile(provider) {
   provider = provider || playbackQualityProvider();
-  return PLAYBACK_QUALITY_PROFILES[provider] || PLAYBACK_QUALITY_PROFILES.netease;
+  var profiles = PLAYBACK_QUALITY_PROFILES;
+  if (!profiles) return [];
+  return profiles[provider] || profiles.netease || [];
 }
 function normalizePlaybackQualityForProvider(value, provider) {
   value = normalizePlaybackQuality(value);
@@ -13950,21 +14415,22 @@ function finalizeListenSession(completed) {
   if (emptyHomeActive) renderHomeDiscover();
 }
 function mostPlayedSong() {
-  var list = Object.keys(listenStatsState.songs || {}).map(function(key){ return listenStatsState.songs[key]; });
+  var list = Object.keys((listenStatsState && listenStatsState.songs) || {}).map(function(key){ return listenStatsState.songs[key]; });
   list.sort(function(a, b){ return (b.plays - a.plays) || (b.listenMs - a.listenMs) || (b.lastPlayedAt - a.lastPlayedAt); });
   return list[0] || null;
 }
 function topListenArtist() {
-  var list = Object.keys(listenStatsState.artists || {}).map(function(key){ return listenStatsState.artists[key]; });
+  var list = Object.keys((listenStatsState && listenStatsState.artists) || {}).map(function(key){ return listenStatsState.artists[key]; });
   list.sort(function(a, b){ return (b.plays - a.plays) || (b.listenMs - a.listenMs) || (b.lastPlayedAt - a.lastPlayedAt); });
   return list[0] || null;
 }
 function homeListenSummary() {
-  var recent = enrichListenRecord((listenStatsState.history || [])[0] || null);
+  var stats = listenStatsState || { history: [], songs: {}, artists: {} };
+  var recent = enrichListenRecord((stats.history || [])[0] || null);
   var topSongRaw = mostPlayedSong();
   var topSong = topSongRaw ? enrichListenRecord(topSongRaw) : null;
   var topArtist = topListenArtist();
-  var totalPlays = Object.keys(listenStatsState.songs || {}).reduce(function(sum, key){ return sum + ((listenStatsState.songs[key] && listenStatsState.songs[key].plays) || 0); }, 0);
+  var totalPlays = Object.keys(stats.songs || {}).reduce(function(sum, key){ return sum + ((stats.songs[key] && stats.songs[key].plays) || 0); }, 0);
   return { recent: recent, topSong: topSong, topArtist: topArtist, totalPlays: totalPlays };
 }
 function fallbackHomeTiles() {
@@ -14640,10 +15106,10 @@ async function loadHomeDiscover(force) {
   try {
     var data = await apiJson('/api/discover/home?t=' + Date.now());
     if (token !== homeDiscoverToken) return;
-    homeDiscoverState.loggedIn = !!(data && data.loggedIn);
+    homeDiscoverState.loggedIn = hasAnyPlatformLogin() && !!(data && data.loggedIn);
     homeDiscoverState.mode = data && data.mode || (homeDiscoverState.loggedIn ? 'member' : 'starter');
     homeDiscoverState.songs = (data && data.dailySongs || []).map(cloneSong);
-    if (homeDiscoverState.songs.length) homeDiscoverState.loggedIn = true;
+    if (homeDiscoverState.songs.length && hasAnyPlatformLogin()) homeDiscoverState.loggedIn = true;
     homeDiscoverState.playlists = homeDiscoverState.loggedIn ? (data && data.playlists || []) : [];
     homeDiscoverState.podcasts = homeDiscoverState.loggedIn ? (data && data.podcasts || []) : [];
     homeDiscoverState.updatedAt = Number(data && data.updatedAt) || Date.now();
@@ -14790,7 +15256,11 @@ if (emptyHomeStartEl) {
     e.stopPropagation();
     startWeatherRadio();
   }, true);
+  emptyHomeStartEl.addEventListener('scroll', syncEmptyHomeScrollHint, { passive: true });
 }
+window.addEventListener('resize', function(){
+  if (emptyHomeActive) scheduleUiWarmTask(syncEmptyHomeScrollHint, 80);
+});
 function locateWeatherRadio() {
   var previousWeatherCity = homeWeatherRadioState.city || '上海';
   homeWeatherToken++;
@@ -14956,11 +15426,20 @@ function applyStartupStarfieldPreset() {
     syncFxUniforms();
   }
 }
+function syncEmptyHomeScrollHint() {
+  var el = document.getElementById('empty-home');
+  if (!el || !emptyHomeActive) return;
+  var canScroll = el.scrollHeight > el.clientHeight + 4;
+  var atEnd = !canScroll || el.scrollTop + el.clientHeight >= el.scrollHeight - 4;
+  el.classList.toggle('can-scroll', canScroll);
+  el.classList.toggle('scroll-end', atEnd);
+}
 function updateEmptyHomeVisibility(opts) {
   opts = opts || {};
   var show = shouldShowEmptyHome();
   emptyHomeActive = show;
   document.body.classList.toggle('empty-home-active', show);
+  if (stageLyrics && stageLyrics.group) stageLyrics.group.visible = !show;
   if (!show) {
     setHomeControlsLocked(false);
     stopHomeFeaturedReviewsAuto();
@@ -14986,7 +15465,14 @@ function updateEmptyHomeVisibility(opts) {
       renderHomeDiscover();
       scheduleVisualApply(function(){ loadHomeDiscover(!!opts.forceLoad); }, 220, 1200);
     }
+    scheduleUiWarmTask(syncEmptyHomeScrollHint, 120);
   }
+  if (!show) {
+    var homeEl = document.getElementById('empty-home');
+    if (homeEl) homeEl.classList.remove('can-scroll', 'scroll-end');
+  }
+  updateRenderPowerClasses();
+  applyRendererPowerMode();
   return show;
 }
 function runHomeSearch(query, mode) {
@@ -15008,7 +15494,7 @@ function runHomeSearch(query, mode) {
   else renderSearchHistory();
 }
 function skipLoginAndFocusSearch() {
-  closeLoginModal();
+  closeLoginModal({ skipAccountReturn: true });
   setTimeout(function(){ runHomeSearch(''); }, 180);
 }
 function openHomeLocalImport() {
@@ -15020,7 +15506,7 @@ function openHomeLocalImport() {
   if (input) input.click();
 }
 function openHomeProductGuide() {
-  closeLoginModal();
+  closeLoginModal({ skipAccountReturn: true });
   setTimeout(function(){ startVisualGuide({ manual: true, source: 'home' }); }, 160);
 }
 async function waitForHomeDiscoverIdle(timeout) {
@@ -19446,6 +19932,7 @@ async function fetchLyric(songOrId, token) {
     var timingSource = hasNativeKaraoke ? 'yrc-word' : (nativeLines.length ? 'yrc-line' : (lrcLines.length ? 'lrc-line' : 'fallback'));
     var lines = withLyricFallback(nativeLines.length ? nativeLines : lrcLines);
     if (lines.length && lines[0].fallback) timingSource = 'fallback';
+    mergeLyricTranslations(lines, r.tlyric || r.tLyric || r.transLyric || '');
     setOriginalLyricsState(lines, hasNativeKaraoke, timingSource);
     applyPreferredLyricsForCurrent(true);
   } catch (e) {
@@ -19504,6 +19991,21 @@ function parseLyricText(text) {
     times.forEach(function(t){ lines.push({ t: t, text: txt, source:'lrc' }); });
   });
   return finalizeLyricLineDurations(lines);
+}
+function mergeLyricTranslations(lines, tlyricText) {
+  if (!Array.isArray(lines) || !lines.length || !tlyricText) return lines;
+  var transLines = parseLyricText(String(tlyricText || ''));
+  if (!transLines.length) return lines;
+  lines.forEach(function(line){
+    if (!line || line.trans) return;
+    var best = null, bestDiff = 1e9;
+    for (var i = 0; i < transLines.length; i++) {
+      var diff = Math.abs((transLines[i].t || 0) - (line.t || 0));
+      if (diff < bestDiff) { bestDiff = diff; best = transLines[i]; }
+    }
+    if (best && bestDiff <= 1.25 && best.text && best.text !== line.text) line.trans = best.text;
+  });
+  return lines;
 }
 function parseYrcText(text) {
   var lines = [];
@@ -19708,6 +20210,40 @@ function setPlaylistPanelPinned(on, silent) {
 }
 function togglePlaylistPanelPinned() {
   setPlaylistPanelPinned(!playlistPanelPinned);
+}
+function applyFxPanelPinState() {
+  var panel = document.getElementById('fx-panel');
+  var btn = document.getElementById('fx-panel-pin-btn');
+  if (panel) {
+    panel.classList.toggle('pinned', !!fxPanelPinned);
+    if (fxPanelPinned && diyPlayerMode) {
+      panel.classList.add('peek');
+      panel.classList.remove('closing');
+      document.body.classList.add('fx-console-open');
+      updateFxConsoleStatus();
+      var fab = document.getElementById('fx-fab');
+      if (fab) fab.classList.add('active');
+    }
+  }
+  if (btn) {
+    btn.classList.toggle('active', !!fxPanelPinned);
+    btn.setAttribute('aria-pressed', fxPanelPinned ? 'true' : 'false');
+    btn.title = fxPanelPinned ? '取消固定控制台' : '固定控制台';
+    btn.setAttribute('aria-label', btn.title);
+  }
+}
+function setFxPanelPinned(on, silent) {
+  fxPanelPinned = !!on;
+  saveBooleanPreference(FX_PANEL_PIN_STORE_KEY, fxPanelPinned);
+  applyFxPanelPinState();
+  if (!silent) showToast(fxPanelPinned ? 'DIY 控制台已固定' : 'DIY 控制台已恢复自动隐藏');
+}
+function toggleFxPanelPinned() {
+  if (!diyPlayerMode) {
+    showToast('请先开启 DIY 玩家模式');
+    return;
+  }
+  setFxPanelPinned(!fxPanelPinned);
 }
 function upcomingQueueIndex() {
   if (!playQueue.length || currentIdx < 0) return -1;
@@ -20770,6 +21306,7 @@ var presetMeta = [
   { name: '唱片', desc: '唱片 · 圆形封面' },
   { name: '星河', desc: '壁纸粒子 · 音乐律动' },
   { name: '安魂', desc: '骷髅·YUI7W', descHtml: '骷髅·<span class="pc-yui7w">YUI7W</span>' },
+  { name: '音域地形', nameHtml: '音域地形 <span class="pc-name-en">Sonic-Topography</span>', desc: '作者 Ajin', descHtml: '作者 <span class="pc-author-ajin">Ajin</span>' },
 ];
 var presetIcons = [
   '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 14c3-2 5-2 8 0s5 2 8 0M3 10c3-2 5-2 8 0s5 2 8 0M3 18c3-2 5-2 8 0s5 2 8 0"/></svg>',
@@ -20779,8 +21316,9 @@ var presetIcons = [
   '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.4"/><path d="M16.5 5.2c2.1.9 3.4 2.4 4 4.5"/><path d="M18.8 3.2l1.5 4.8"/></svg>',
   '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 15c2.2-4.4 4.4-4.4 6.6 0s4.4 4.4 6.6 0S20.6 10.6 23 15"/><path d="M3 9c2.2 2.2 4.4 2.2 6.6 0s4.4-2.2 6.6 0S20.6 11.2 23 9"/><circle cx="12" cy="12" r="1.7" fill="currentColor"/></svg>',
   '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3.2h4v6.2h4.2v3.8H14v7.6h-4v-7.6H5.8V9.4H10z"/></svg>',
+  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18c2-3 4-3 6 0s4 3 6 0 4-3 6 0"/><path d="M3 12c2-2.5 4-2.5 6 0s4 2.5 6 0 4-2.5 6 0"/><path d="M3 6c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/><circle cx="18" cy="5" r="1.2" fill="currentColor"/></svg>',
 ];
-var presetDisplayOrder = [0, 6, 5, 4, 2, 1, 3];
+var presetDisplayOrder = [0, 6, 7, 5, 4, 2, 1, 3];
 var lyricColorPresets = [
   { name:'雾蓝', color:'#a9b8c8' },
   { name:'银蓝', color:'#9db8cf' },
@@ -20823,7 +21361,7 @@ function archiveMode(raw, key, pattern, fallback) {
 }
 function normalizeFxArchiveSnapshot(raw) {
   if (!raw || typeof raw !== 'object') return null;
-  var savedPreset = clampRange(Number(raw.preset) || 0, 0, presetMeta.length - 1);
+  var savedPreset = migrateVisualPresetIndex(raw.preset);
   if (savedPreset === 3 && raw.visualPresetSchema !== VISUAL_PRESET_SCHEMA) savedPreset = 5;
   return {
     visualPresetSchema: VISUAL_PRESET_SCHEMA,
@@ -20859,6 +21397,7 @@ function normalizeFxArchiveSnapshot(raw) {
     lyricWeight: archiveNumber(raw, 'lyricWeight', fxDefaults.lyricWeight, 500, 900),
     visualTintMode: raw.visualTintMode === 'custom' ? 'custom' : 'auto',
     visualTintColor: normalizeHexColor(raw.visualTintColor || fxDefaults.visualTintColor),
+    appTheme: normalizeAppThemeId(raw.appTheme || fxDefaults.appTheme),
     uiAccentColor: normalizeHexColor(raw.uiAccentColor || fxDefaults.uiAccentColor, fxDefaults.uiAccentColor),
     homeAccentColor: normalizeHexColor(raw.homeAccentColor || fxDefaults.homeAccentColor, fxDefaults.homeAccentColor),
     homeIconColor: normalizeHexColor(raw.homeIconColor || fxDefaults.homeIconColor, fxDefaults.homeIconColor),
@@ -20993,7 +21532,9 @@ function applyFxArchiveSnapshot(snapshot) {
   if (shelfManager && shelfManager.rebuild) shelfManager.rebuild(true);
   if (shelfManager && shelfManager.refreshTheme) shelfManager.refreshTheme();
   setCamMode(fx.cam);
+  applyAppThemeStructure(fx.appTheme);
   updateFxInputs();
+  renderAppThemeGrid();
   applySavedLyricPaletteState();
   refreshCurrentLyricStyle();
   applyDesktopLyricsState(true);
@@ -21620,6 +22161,79 @@ function applyUiAccentColor() {
   root.style.setProperty('--glass-border', 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',.30)');
   root.style.setProperty('--glass-shadow-focus', '0 24px 72px rgba(0,0,0,.34),0 0 0 1px rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',.13),0 0 42px rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',.075),inset 0 1px 0 rgba(255,255,255,.20)');
 }
+function normalizeAppThemeId(id) {
+  if (window.MineradioThemes && typeof window.MineradioThemes.normalize === 'function') {
+    return window.MineradioThemes.normalize(id);
+  }
+  return 'default';
+}
+function getAppThemeMeta(id) {
+  if (window.MineradioThemes && typeof window.MineradioThemes.get === 'function') {
+    return window.MineradioThemes.get(id);
+  }
+  return { id: 'default', name: '霓虹薄荷' };
+}
+function applyAppThemeStructure(id) {
+  if (window.MineradioThemes && typeof window.MineradioThemes.applyStructure === 'function') {
+    return window.MineradioThemes.applyStructure(id);
+  }
+}
+function renderAppThemeGrid() {
+  var grid = document.getElementById('app-theme-grid');
+  if (!grid || !window.MineradioThemes || typeof window.MineradioThemes.list !== 'function') return;
+  var active = normalizeAppThemeId(fx && fx.appTheme);
+  grid.innerHTML = window.MineradioThemes.list().map(function(theme){
+    var swatches = (theme.swatch || []).map(function(color){
+      return '<span class="app-theme-swatch" style="background:' + escHtml(color) + '"></span>';
+    }).join('');
+    return '<button type="button" class="app-theme-card' + (theme.id === active ? ' active' : '') + '" data-app-theme="' + escHtml(theme.id) + '" role="option" aria-selected="' + (theme.id === active ? 'true' : 'false') + '" title="' + escHtml(theme.name) + '">' +
+      '<span class="app-theme-check" aria-hidden="true"></span>' +
+      '<span class="app-theme-swatches">' + swatches + '</span>' +
+      '<span class="app-theme-copy"><span class="app-theme-name">' + escHtml(theme.name) + '</span><span class="app-theme-desc">' + escHtml(theme.desc || '') + '</span></span>' +
+    '</button>';
+  }).join('');
+}
+function setAppTheme(id, opts) {
+  opts = opts || {};
+  var themeId = normalizeAppThemeId(id);
+  var theme = getAppThemeMeta(themeId);
+  fx.appTheme = themeId;
+  applyAppThemeStructure(themeId);
+  if (opts.syncFx !== false && window.MineradioThemes && typeof window.MineradioThemes.getFxDefaults === 'function') {
+    var defs = window.MineradioThemes.getFxDefaults(themeId);
+    if (defs.uiAccentColor) fx.uiAccentColor = normalizeHexColor(defs.uiAccentColor, '#00f5d4');
+    if (defs.homeAccentColor) fx.homeAccentColor = normalizeHexColor(defs.homeAccentColor, '#00f5d4');
+    if (defs.homeIconColor) fx.homeIconColor = normalizeHexColor(defs.homeIconColor, '#f4d28a');
+    if (defs.visualIconColor) fx.visualIconColor = normalizeHexColor(defs.visualIconColor, '#7fd8ff');
+    if (defs.visualTintColor) fx.visualTintColor = normalizeHexColor(defs.visualTintColor, '#9db8cf');
+    if (defs.shelfAccentColor) fx.shelfAccentColor = normalizeHexColor(defs.shelfAccentColor, fx.uiAccentColor);
+    if (fx.visualTintMode !== 'custom') fx.visualTintMode = 'auto';
+    updateUiAccentControls();
+    updateHomeAccentControls();
+    updateIconAccentControls();
+    updateVisualTintControls();
+    if (shelfManager && shelfManager.refreshTheme) shelfManager.refreshTheme();
+  }
+  renderAppThemeGrid();
+  if (!opts.skipSave) saveLyricLayout(opts.immediate ? { immediate: true } : undefined);
+  if (!opts.silent) showToast('主题: ' + (theme.name || themeId));
+}
+function initAppThemeFromState() {
+  if (!fx) return;
+  fx.appTheme = normalizeAppThemeId(fx.appTheme || (window.MineradioThemes ? window.MineradioThemes.readStored() : 'default'));
+  applyAppThemeStructure(fx.appTheme);
+  renderAppThemeGrid();
+}
+function bindAppThemeGrid() {
+  var grid = document.getElementById('app-theme-grid');
+  if (!grid || grid._themeBound) return;
+  grid._themeBound = true;
+  grid.addEventListener('click', function(e){
+    var btn = e.target && e.target.closest ? e.target.closest('[data-app-theme]') : null;
+    if (!btn) return;
+    setAppTheme(btn.getAttribute('data-app-theme'));
+  });
+}
 function updateUiAccentControls() {
   applyUiAccentColor();
   var color = normalizeHexColor(fx.uiAccentColor || '#00f5d4', '#00f5d4');
@@ -21877,9 +22491,9 @@ function setLyricHighlightCustom(color, silent) {
 
 function buildPresetGrid() {
   var grid = document.getElementById('preset-grid');
-  if (!grid) return;
+  if (!grid || !Array.isArray(presetMeta) || !presetMeta.length) return;
   var seen = {};
-  var order = presetDisplayOrder.filter(function(id){
+  var order = (presetDisplayOrder || []).filter(function(id){
     var ok = id >= 0 && id < presetMeta.length && !seen[id];
     seen[id] = true;
     return ok;
@@ -21889,10 +22503,11 @@ function buildPresetGrid() {
   });
   grid.innerHTML = order.map(function(i){
     var p = presetMeta[i];
+    var name = p.nameHtml || p.name;
     var desc = p.descHtml || p.desc;
     return '<div class="preset-card" data-preset="' + i + '" onclick="setPreset(' + i + ')">' +
       '<div class="pc-icon">' + presetIcons[i] + '</div>' +
-      '<div class="pc-name">' + p.name + '</div>' +
+      '<div class="pc-name">' + name + '</div>' +
       '<div class="pc-desc">' + desc + '</div>' +
     '</div>';
   }).join('');
@@ -21942,6 +22557,7 @@ function tickPresetTransition() {
 }
 function setPreset(p, opts) {
   opts = opts || {};
+  p = migrateVisualPresetIndex(p);
   p = Math.max(0, Math.min(presetMeta.length - 1, Number(p) || 0));
   var prev = fx.preset;
   var changed = prev !== p;
@@ -21961,6 +22577,7 @@ function setPreset(p, opts) {
     else if (p === 4) { orbit.userRadius = 6.5; orbit.userPhi = 0.04; orbit.userTheta = 0.0; orbit.baselineRadius = 6.5; orbit.baselinePhi = 0.04; }
     else if (p === 5) { orbit.userRadius = 9.4; orbit.userPhi = 0.34; orbit.userTheta = -0.52; orbit.baselineRadius = 9.4; orbit.baselinePhi = 0.34; }
     else if (p === 6) { orbit.userRadius = 7.4; orbit.userPhi = 0.10; orbit.userTheta = 0.18; orbit.baselineRadius = 7.4; orbit.baselinePhi = 0.10; }
+    else if (p === 7) { orbit.userRadius = 8.6; orbit.userPhi = 0.22; orbit.userTheta = 0.0; orbit.baselineRadius = 8.6; orbit.baselinePhi = 0.22; }
     else              { orbit.userRadius = 6.6; orbit.userPhi = 0.08; orbit.userTheta = 0.0; orbit.baselineRadius = 6.6; orbit.baselinePhi = 0.08; }
     orbit.baselineTheta = p === 5 ? -0.52 : (p === 6 ? 0.18 : 0.0);
   }
@@ -21973,6 +22590,7 @@ function setPreset(p, opts) {
   if (!opts.noSave) {
     saveLyricLayout();
   }
+  updateFxConsoleStatus();
 }
 
 function syncFxUniforms() {
@@ -22041,7 +22659,11 @@ function setRange(id, value) {
     ? coverParticleCountLabel(value)
     : (id === 'fx-lyricweight' || id === 'fx-glassaberration' || id === 'fx-lyrictiltx' || id === 'fx-lyrictilty' || id === 'fx-shelfangle' ? String(Math.round(Number(value) || 0)) : Number(value).toFixed(id === 'fx-lyricspacing' ? 3 : 2));
 }
+function hasDesktopFxChrome() {
+  return !!(document.getElementById('t-desktopLyrics') || document.getElementById('t-wallpaperMode'));
+}
 function updateDevelopmentFxControls() {
+  if (!hasDesktopFxChrome()) return;
   [
     ['desktopLyrics', 't-desktopLyrics', '全屏幕置顶歌词'],
     ['desktopLyricsClickThrough', 't-desktopLyricsClickThrough', '锁定后防误触；鼠标移到桌面歌词上按中键可锁定/解锁'],
@@ -22077,6 +22699,7 @@ function updateDevelopmentFxControls() {
   });
 }
 function updateDesktopLyricsFpsControls() {
+  if (!document.getElementById('desktop-lyrics-fps-seg')) return;
   var fps = normalizeDesktopLyricsFps(fx.desktopLyricsFps);
   document.querySelectorAll('#desktop-lyrics-fps-seg [data-desktop-lyrics-fps]').forEach(function(btn){
     btn.classList.toggle('active', normalizeDesktopLyricsFps(btn.getAttribute('data-desktop-lyrics-fps')) === fps);
@@ -22158,6 +22781,7 @@ function updateFxInputs() {
   setRange('fx-scatter', fx.scatter);
   setRange('fx-bgfade', fx.bgFade);
   updateLyricGlowControls();
+  if (typeof window.syncLyricDiyControls === 'function') window.syncLyricDiyControls();
   // 同步开关
   document.getElementById('t-float').classList.toggle('on', fx.floatLayer);
   var floatToggle = document.getElementById('t-float');
@@ -22249,18 +22873,66 @@ function ensureFxSliderResetButton(id, key) {
   });
   el.parentElement.appendChild(btn);
 }
-var fxPanelTab = 'presets';
-function setFxPanelTab(tab) {
+var FX_PANEL_TAB_STORE_KEY = 'mineradio-fx-panel-tab-v1';
+var fxPanelTab = (function(){
+  try {
+    var saved = localStorage.getItem(FX_PANEL_TAB_STORE_KEY);
+    if (/^(presets|appearance|lyrics|motion|advanced)$/.test(saved || '')) return saved;
+  } catch (_) {}
+  return 'presets';
+})();
+var FX_TAB_META = [
+  { id: 'presets', label: '预设', hint: '视觉预设与用户存档', icon: '◇' },
+  { id: 'appearance', label: '外观', hint: '颜色、背景与玻璃', icon: '◐' },
+  { id: 'lyrics', label: '歌词', hint: '行数、翻译与字体', icon: '〰' },
+  { id: 'motion', label: '动态', hint: '律动、音域与镜头', icon: '⌁' },
+  { id: 'advanced', label: '高级', hint: '性能与粒子细节', icon: '⚙' }
+];
+function fxTabMeta(id) {
+  for (var i = 0; i < FX_TAB_META.length; i++) if (FX_TAB_META[i].id === id) return FX_TAB_META[i];
+  return FX_TAB_META[0];
+}
+function updateFxConsoleStatus() {
+  var status = document.getElementById('fx-console-status');
+  if (!status) return;
+  var meta = fxTabMeta(fxPanelTab);
+  var presetName = '';
+  try {
+    if (typeof presetMeta !== 'undefined' && presetMeta && fx && presetMeta[fx.preset]) {
+      presetName = String(presetMeta[fx.preset].name || '').replace(/<[^>]+>/g, '');
+    }
+  } catch (_) {}
+  status.textContent = meta.label + (presetName ? (' · ' + presetName) : (' · ' + meta.hint));
+}
+function setFxPanelTab(tab, opts) {
+  opts = opts || {};
   var allowed = { presets:1, appearance:1, lyrics:1, motion:1, advanced:1 };
-  fxPanelTab = allowed[tab] ? tab : 'presets';
+  var next = allowed[tab] ? tab : 'presets';
+  var changed = next !== fxPanelTab;
+  fxPanelTab = next;
+  try { localStorage.setItem(FX_PANEL_TAB_STORE_KEY, fxPanelTab); } catch (_) {}
   var panel = document.getElementById('fx-panel');
   if (panel) panel.setAttribute('data-active-tab', fxPanelTab);
   document.querySelectorAll('#fx-panel-tabs [data-fx-tab]').forEach(function(btn){
-    btn.classList.toggle('active', btn.getAttribute('data-fx-tab') === fxPanelTab);
+    var on = btn.getAttribute('data-fx-tab') === fxPanelTab;
+    btn.classList.toggle('active', on);
+    btn.setAttribute('aria-selected', on ? 'true' : 'false');
   });
   document.querySelectorAll('#fx-panel .fx-tab-page').forEach(function(page){
-    page.classList.toggle('active', page.getAttribute('data-fx-page') === fxPanelTab);
+    var on = page.getAttribute('data-fx-page') === fxPanelTab;
+    page.classList.toggle('active', on);
+    if (on && changed && !opts.silent) {
+      page.classList.remove('fx-page-enter');
+      void page.offsetWidth;
+      page.classList.add('fx-page-enter');
+    }
   });
+  var title = document.getElementById('fx-page-title');
+  var hint = document.getElementById('fx-page-hint');
+  var meta = fxTabMeta(fxPanelTab);
+  if (title) title.textContent = meta.label;
+  if (hint) hint.textContent = meta.hint;
+  updateFxConsoleStatus();
   repositionFxFloatingPanels();
 }
 function fxPanelInputId(node) {
@@ -22272,54 +22944,74 @@ function fxPanelTargetForNode(node, current) {
   var id = node.id || '';
   var inputId = fxPanelInputId(node);
   if (id === 'preset-grid' || id === 'user-archive-grid') return 'presets';
-  if (id === 'fx-lyric-fold') return 'lyrics';
+  if (id === 'fx-lyric-fold' || id === 'fx-lyricbgadapt-row') return 'lyrics';
   if (id === 'fx-overlay-fold' || id === 'fx-stage-fold') return 'motion';
   if (id === 'fx-advanced' || node.classList.contains('fx-actions')) return 'advanced';
-  if (node.classList.contains('lyric-color-row') || node.classList.contains('cover-color-pop') || node.classList.contains('color-lab-pop') || node.classList.contains('cover-color-loupe')) return 'appearance';
+  if (/^fx-sonic/.test(id) || /^sonic-/.test(id) || /sonic/i.test(id)) return 'motion';
+  if (node.classList.contains('lyric-color-row') || node.classList.contains('cover-color-pop') || node.classList.contains('color-lab-pop') || node.classList.contains('cover-color-loupe') || node.classList.contains('app-theme-grid')) return 'appearance';
   if (inputId === 'fx-bgopacity' || inputId === 'fx-glassaberration') return 'appearance';
-  if (inputId === 'fx-lyricglow') return 'lyrics';
+  if (inputId === 'fx-lyricglow' || inputId === 'fx-lyricbgadapt') return 'lyrics';
   if (/^fx-(intensity|depth|coverres|cineshake)$/.test(inputId)) return 'motion';
+  if (/^fx-sonic/.test(inputId)) return 'motion';
   return current || 'presets';
 }
 function organizeFxPanel() {
   var panel = document.getElementById('fx-panel');
   if (!panel) return;
   if (panel._fxPanelOrganized) {
-    setFxPanelTab(fxPanelTab);
+    setFxPanelTab(fxPanelTab, { silent: true });
     return;
   }
+  panel.classList.add('fx-console');
   var head = panel.querySelector('.fx-head');
-  var tabMeta = [
-    ['presets', '\u9884\u8bbe'],
-    ['appearance', '\u5916\u89c2'],
-    ['lyrics', '\u6b4c\u8bcd'],
-    ['motion', '\u52a8\u6001'],
-    ['advanced', '\u9ad8\u7ea7']
-  ];
-  var tabs = document.createElement('div');
+  var shell = document.createElement('div');
+  shell.className = 'fx-console-shell';
+  shell.id = 'fx-console-shell';
+
+  var tabs = document.createElement('nav');
   tabs.className = 'fx-panel-tabs';
   tabs.id = 'fx-panel-tabs';
-  tabMeta.forEach(function(meta){
+  tabs.setAttribute('role', 'tablist');
+  tabs.setAttribute('aria-label', '控制台分页');
+  FX_TAB_META.forEach(function(meta){
     var btn = document.createElement('button');
     btn.type = 'button';
-    btn.setAttribute('data-fx-tab', meta[0]);
-    btn.textContent = meta[1];
+    btn.setAttribute('role', 'tab');
+    btn.setAttribute('data-fx-tab', meta.id);
+    btn.innerHTML = '<span class="fx-tab-icon" aria-hidden="true">' + meta.icon + '</span><span class="fx-tab-label">' + meta.label + '</span>';
+    btn.title = meta.hint;
     tabs.appendChild(btn);
   });
-  if (head && head.nextSibling) panel.insertBefore(tabs, head.nextSibling);
-  else panel.insertBefore(tabs, panel.firstChild);
+
+  var main = document.createElement('div');
+  main.className = 'fx-console-main';
+  var pageHead = document.createElement('div');
+  pageHead.className = 'fx-page-head';
+  pageHead.innerHTML = '<div><div class="fx-page-title" id="fx-page-title">预设</div><div class="fx-page-hint" id="fx-page-hint">视觉预设与用户存档</div></div>';
+  var pagesWrap = document.createElement('div');
+  pagesWrap.className = 'fx-console-pages';
+  pagesWrap.id = 'fx-console-pages';
+  main.appendChild(pageHead);
+  main.appendChild(pagesWrap);
+
+  shell.appendChild(tabs);
+  shell.appendChild(main);
+  if (head && head.nextSibling) panel.insertBefore(shell, head.nextSibling);
+  else panel.appendChild(shell);
+
   var pages = {};
-  var insertAfter = tabs;
-  tabMeta.forEach(function(meta){
+  FX_TAB_META.forEach(function(meta){
     var page = document.createElement('div');
     page.className = 'fx-tab-page';
-    page.setAttribute('data-fx-page', meta[0]);
-    insertAfter.parentNode.insertBefore(page, insertAfter.nextSibling);
-    insertAfter = page;
-    pages[meta[0]] = page;
+    page.setAttribute('data-fx-page', meta.id);
+    page.setAttribute('role', 'tabpanel');
+    pagesWrap.appendChild(page);
+    pages[meta.id] = page;
   });
+
+  var actions = panel.querySelector('.fx-actions');
   var original = Array.prototype.slice.call(panel.children).filter(function(child){
-    return child !== head && child !== tabs && !child.classList.contains('fx-tab-page');
+    return child !== head && child !== shell && child !== actions && !child.classList.contains('fx-tab-page') && child.id !== 'fx-console-shell';
   });
   var current = 'presets';
   original.forEach(function(node, idx){
@@ -22333,6 +23025,8 @@ function organizeFxPanel() {
     }
     (pages[target] || pages.presets).appendChild(node);
   });
+  if (actions) panel.appendChild(actions);
+
   ['fx-lyric-fold','fx-overlay-fold','fx-stage-fold','fx-advanced'].forEach(function(id){
     var fold = document.getElementById(id);
     if (fold) fold.classList.add('open');
@@ -22343,7 +23037,7 @@ function organizeFxPanel() {
     setFxPanelTab(btn.getAttribute('data-fx-tab'));
   });
   panel._fxPanelOrganized = true;
-  setFxPanelTab(fxPanelTab);
+  setFxPanelTab(fxPanelTab, { silent: true });
 }
 
 function fxControlBlock(id) {
@@ -22398,10 +23092,6 @@ function ensureLyricPrimaryControls() {
     body.insertBefore(label, grid);
   }
   [
-    't-desktopLyrics',
-    't-desktopLyricsClickThrough',
-    't-desktopLyricsCinema',
-    't-desktopLyricsHighlight',
     't-lyricCameraLock',
     't-lyricGlow',
     't-lyricGlowBeat',
@@ -22424,14 +23114,16 @@ function applyBackgroundMediaHint() {
 }
 function relabelFxPanelControls() {
   var title = document.querySelector('#fx-panel .fx-title');
-  if (title) title.textContent = '视觉控制台';
+  if (title) title.textContent = 'DIY 控制台';
   ensureLyricPrimaryControls();
   applyBackgroundMediaHint();
+  updateFxConsoleStatus();
   var overlayGrid = document.getElementById('t-cinema');
   overlayGrid = overlayGrid && overlayGrid.closest('.fx-toggle-grid');
   setFxSectionBeforeNode(overlayGrid, '镜头与叠加');
   setFxSectionBefore('preset-grid', '预设与存档');
   setFxSectionBefore('user-archive-grid', '用户存档');
+  setFxSectionBefore('app-theme-grid', '界面主题');
   setFxSectionBefore('ui-accent-picker', '界面与背景');
   setFxSectionBefore('fx-intensity', '画面基础');
   setFxSectionBefore('fx-lyricglow', '歌词溢光强度');
@@ -22441,8 +23133,6 @@ function relabelFxPanelControls() {
   setFxSectionBefore('lyric-source-seg', '歌词来源');
   setFxSectionBefore('lyric-font-grid', '字体与字距');
   setFxSectionBefore('fx-lyricscale', '位置与角度');
-  setFxSectionBefore('fx-desktoplyricssize', '桌面歌词');
-  setFxSectionBefore('desktop-lyrics-fps-seg', '桌面歌词帧率');
   setFxSectionBefore('shelf-seg', '3D 歌单架');
   setFxSectionBefore('shelf-camera-seg', '歌单架镜头');
   setFxSectionBefore('shelf-presence-seg', '歌单架显示');
@@ -22466,10 +23156,6 @@ function relabelFxPanelControls() {
   setFxSliderLabel('fx-lyricz', '前后景深');
   setFxSliderLabel('fx-lyrictiltx', '上下旋转');
   setFxSliderLabel('fx-lyrictilty', '左右旋转');
-  setFxSliderLabel('fx-desktoplyricssize', '桌面歌词大小');
-  setFxSliderLabel('fx-desktoplyricsopacity', '桌面歌词透明度');
-  setFxSliderLabel('fx-desktoplyricsy', '桌面歌词高度');
-  setFxSliderLabel('fx-wallpaperopacity', '壁纸透明度');
   setFxSliderLabel('fx-shelfsize', '歌单架大小');
   setFxSliderLabel('fx-shelfx', '左右位置');
   setFxSliderLabel('fx-shelfy', '上下位置');
@@ -22696,6 +23382,24 @@ function renderHotkeyScope(scope) {
     });
     html += '</div>';
   });
+  if (scope === 'local' && HOTKEY_FIXED_SHORTCUTS.length) {
+    var fixedGroups = {};
+    HOTKEY_FIXED_SHORTCUTS.forEach(function(item){
+      (fixedGroups[item.category] = fixedGroups[item.category] || []).push(item);
+    });
+    Object.keys(fixedGroups).forEach(function(category){
+      html += '<div class="hotkey-group hotkey-group-fixed"><div class="hotkey-group-title">' + escHtml(category) + ' · 固定</div>';
+      fixedGroups[category].forEach(function(item){
+        html += '<div class="hotkey-row hotkey-row-fixed">' +
+          '<div class="hotkey-name">' + escHtml(item.label) + '</div>' +
+          '<div class="hotkey-key hotkey-key-fixed">' + escHtml(item.keys) + '</div>' +
+          '<span class="hotkey-fixed-spacer"></span>' +
+          '<span class="hotkey-status ok">内置</span>' +
+        '</div>';
+      });
+      html += '</div>';
+    });
+  }
   wrap.innerHTML = html;
 }
 function renderHotkeySettings() {
@@ -22824,13 +23528,14 @@ function bindFxPanel() {
   liftFxFloatingPopups();
   organizeFxPanel();
   relabelFxPanelControls();
+  initAppThemeFromState();
+  bindAppThemeGrid();
   bindHotkeySettings();
   buildPresetGrid();
   renderUserFxArchives();
   buildLyricColorControls();
   var ids = [
     ['fx-intensity','intensity'],['fx-depth','depth'],['fx-coverres','coverResolution'],['fx-cineshake','cinemaShake'],['fx-lyricglow','lyricGlowStrength'],['fx-bgopacity','backgroundOpacity'],['fx-glassaberration','controlGlassChromaticOffset'],
-    ['fx-desktoplyricssize','desktopLyricsSize'],['fx-desktoplyricsopacity','desktopLyricsOpacity'],['fx-desktoplyricsy','desktopLyricsY'],['fx-wallpaperopacity','wallpaperOpacity'],
     ['fx-shelfsize','shelfSize'],['fx-shelfx','shelfOffsetX'],['fx-shelfy','shelfOffsetY'],['fx-shelfz','shelfOffsetZ'],['fx-shelfangle','shelfAngleY'],['fx-shelfopacity','shelfOpacity'],['fx-shelfbgalpha','shelfBgOpacity'],
     ['fx-lyricspacing','lyricLetterSpacing'],['fx-lyriclineheight','lyricLineHeight'],['fx-lyricweight','lyricWeight'],
     ['fx-lyricscale','lyricScale'],['fx-lyricx','lyricOffsetX'],['fx-lyricy','lyricOffsetY'],['fx-lyricz','lyricOffsetZ'],['fx-lyrictiltx','lyricTiltX'],['fx-lyrictilty','lyricTiltY'],
@@ -23019,15 +23724,17 @@ function bindFxPanel() {
   document.querySelectorAll('#cam-seg button').forEach(function(b){
     b.addEventListener('click', function(){ setCamMode(b.dataset.cam); });
   });
-  document.querySelectorAll('#desktop-lyrics-fps-seg [data-desktop-lyrics-fps]').forEach(function(btn){
-    btn.addEventListener('click', function(){
-      fx.desktopLyricsFps = normalizeDesktopLyricsFps(btn.getAttribute('data-desktop-lyrics-fps'));
-      updateDesktopLyricsFpsControls();
-      saveLyricLayout();
-      pushDesktopLyricsState(true);
-      showToast(fx.desktopLyricsFps ? ('桌面歌词帧数 ' + fx.desktopLyricsFps) : '桌面歌词帧数无上限');
+  if (document.getElementById('desktop-lyrics-fps-seg')) {
+    document.querySelectorAll('#desktop-lyrics-fps-seg [data-desktop-lyrics-fps]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        fx.desktopLyricsFps = normalizeDesktopLyricsFps(btn.getAttribute('data-desktop-lyrics-fps'));
+        updateDesktopLyricsFpsControls();
+        saveLyricLayout();
+        pushDesktopLyricsState(true);
+        showToast(fx.desktopLyricsFps ? ('桌面歌词帧数 ' + fx.desktopLyricsFps) : '桌面歌词帧数无上限');
+      });
     });
-  });
+  }
   document.querySelectorAll('#performance-background-seg [data-performance-background]').forEach(function(btn){
     btn.addEventListener('click', function(){
       setPerformanceBackgroundMode(btn.getAttribute('data-performance-background'));
@@ -23107,18 +23814,33 @@ function toggleFxPanel(force) {
     showToast('开启 DIY 玩家模式后可打开视觉控制台');
     return;
   }
-  var currentlyOpen = el.classList.contains('show') || el.classList.contains('peek');
+  var currentlyOpen = el.classList.contains('show') || el.classList.contains('peek') || el.classList.contains('pinned');
   if (peekTimers && peekTimers.fx) { clearTimeout(peekTimers.fx); peekTimers.fx = null; }
-  fxPanelPinned = false;
-  if (force === false) {
+  if (force === false || (force == null && currentlyOpen && !fxPanelPinned)) {
+    if (fxPanelPinned && force === false) {
+      fxPanelPinned = false;
+      saveBooleanPreference(FX_PANEL_PIN_STORE_KEY, false);
+      applyFxPanelPinState();
+    }
     el.classList.remove('show', 'peek');
     el.classList.toggle('closing', currentlyOpen);
     setTimeout(function(){ el.classList.remove('closing'); }, 280);
     var fab = document.getElementById('fx-fab');
     if (fab) fab.classList.remove('active');
+    document.body.classList.remove('fx-console-open');
+    return;
+  }
+  if (force == null && currentlyOpen && fxPanelPinned) {
+    setFxPanelPinned(false);
+    el.classList.remove('show', 'peek');
+    document.body.classList.remove('fx-console-open');
+    var fabOff = document.getElementById('fx-fab');
+    if (fabOff) fabOff.classList.remove('active');
     return;
   }
   el.classList.remove('show', 'closing');
+  document.body.classList.add('fx-console-open');
+  updateFxConsoleStatus();
   setPeek(el, true, 'fx');
 }
 function resetFx() {
@@ -23242,7 +23964,7 @@ function closeImmersiveInterference() {
   closeMiniQueue();
   toggleFxPanel(false);
   closeUploadTip(false);
-  closeLoginModal();
+  closeLoginModal({ skipAccountReturn: true });
   closeUserModal();
   closeCollectModal();
   closeCoverCropModal();
@@ -23920,6 +24642,8 @@ function platformMeta(provider) {
   return { key: 'netease', short: 'NE', label: '网易云音乐', app: '网易云音乐 App', dot: 'netease' };
 }
 function platformStatus(provider) {
+  provider = normalizeAuthProvider(provider);
+  if (isAuthProviderRevoked(provider)) return authLoggedOutStatus(provider);
   if (provider === 'kg') return kgLoginStatus;
   return provider === 'qq' ? qqLoginStatus : loginStatus;
 }
@@ -23961,6 +24685,8 @@ function providerVipBadge(provider, status, idAttr) {
   return '<span' + id + ' class="' + cls + '">' + label + '</span>';
 }
 function hasPlatformLogin(provider) {
+  provider = normalizeAuthProvider(provider);
+  if (isAuthProviderRevoked(provider)) return false;
   var st = platformStatus(provider);
   return !!(st && st.loggedIn);
 }
@@ -24023,17 +24749,32 @@ function renderTopAccountPill(provider) {
 }
 async function refreshLoginStatus(force) {
   try {
+    if (isAuthProviderRevoked('netease')) {
+      await enforceAuthRevocationOnServer('netease');
+      loginStatusChecked = true;
+      loginStatusCheckFailed = false;
+      loginStatus = authLoggedOutStatus('netease');
+      userPlaylists = qqPlaylists.slice();
+      myPodcastCollections = [];
+      myPodcastItems = {};
+      likedSongMap = {};
+      updateLikeButtons();
+      renderUserBtn();
+      return loginStatus;
+    }
     var info = await apiJson('/api/login/status?t=' + Date.now());
     if (info && info.loggedIn && info.pendingProfile) {
       var retry = await apiJson('/api/login/status?t=' + Date.now() + '&retry=1');
       if (retry && retry.loggedIn && !retry.pendingProfile) info = retry;
     }
+    info = applyAuthRevocationToLoginInfo('netease', info);
+    if (isAuthProviderRevoked('netease')) await enforceAuthRevocationOnServer('netease');
     loginStatusChecked = true;
     loginStatusCheckFailed = false;
-    loginStatus = info || { loggedIn: false };
+    loginStatus = applyProviderLoginStatus('netease', info);
     if (loginStatus.loggedIn && !hasPlatformLogin(activeAccountProvider)) activeAccountProvider = 'netease';
     renderUserBtn();
-    if (info && info.loggedIn) {
+    if (loginStatus.loggedIn) {
       homeDiscoverState.loaded = false;
       homeDiscoverState.loggedIn = true;
       refreshUserPlaylists(true);
@@ -24046,7 +24787,7 @@ async function refreshLoginStatus(force) {
       likedSongMap = {};
       updateLikeButtons();
     }
-    return info;
+    return loginStatus;
   } catch (e) {
     console.warn(e);
     loginStatusChecked = true;
@@ -24056,6 +24797,7 @@ async function refreshLoginStatus(force) {
   }
 }
 function normalizeQQLoginStatus(info) {
+  if (isAuthProviderRevoked('qq')) return authLoggedOutStatus('qq');
   var fallback = { provider: 'qq', loggedIn: false, preview: false, nickname: 'QQ 音乐', userId: '', avatar: '', vipType: 0, stale: false, playbackKeyReady: false };
   info = info || {};
   // sansenjian session payload: { isOk, session:{ uin, cookieObject } }
@@ -24106,9 +24848,21 @@ function kgAccountVipText(status) {
 }
 async function refreshKGLoginStatus() {
   try {
+    if (isAuthProviderRevoked('kg')) {
+      await enforceAuthRevocationOnServer('kg');
+      var prevLoggedKg = !!kgLoginStatus.loggedIn;
+      kgLoginStatus = authLoggedOutStatus('kg');
+      if (prevLoggedKg) userPlaylists = userPlaylists.filter(function(pl){ return pl.provider !== 'kg'; });
+      if (!hasPlatformLogin(activeAccountProvider)) activeAccountProvider = firstLoggedProvider();
+      renderUserBtn();
+      updateLoginProviderUi();
+      return kgLoginStatus;
+    }
     var info = await apiJson('/api/kg/login/status?t=' + Date.now());
+    info = applyAuthRevocationToLoginInfo('kg', info);
+    if (isAuthProviderRevoked('kg')) await enforceAuthRevocationOnServer('kg');
     var prevLogged = !!kgLoginStatus.loggedIn;
-    kgLoginStatus = Object.assign({ provider: 'kg', loggedIn: false, nickname: '酷狗音乐', userId: '', avatar: '', vipType: 0, isVip: false, vipLabel: '无VIP' }, info || {});
+    kgLoginStatus = applyProviderLoginStatus('kg', info);
     kgLoginStatus.isVip = !!(kgLoginStatus.isVip || kgLoginStatus.is_vip || Number(kgLoginStatus.vipType || kgLoginStatus.vip_type || 0) > 0);
     if (kgLoginStatus.loggedIn) {
       // Always sync via KuGouMusicApi /user/vip/detail after login.
@@ -24159,9 +24913,24 @@ async function refreshKGLoginStatus() {
 }
 async function refreshQQLoginStatus() {
   try {
+    if (isAuthProviderRevoked('qq')) {
+      await enforceAuthRevocationOnServer('qq');
+      var prevRevokedQq = !!qqLoginStatus.loggedIn;
+      qqLoginStatus = authLoggedOutStatus('qq');
+      if (prevRevokedQq || qqLoginWasLoggedIn) qqPlaylists = [];
+      userPlaylists = userPlaylists.filter(function(pl){ return pl.provider !== 'qq'; });
+      qqLoginWasLoggedIn = false;
+      if (!hasPlatformLogin(activeAccountProvider)) activeAccountProvider = firstLoggedProvider();
+      renderUserBtn();
+      return qqLoginStatus;
+    }
     var info = await apiJson('/api/qq/login/status?t=' + Date.now());
+    info = applyAuthRevocationToLoginInfo('qq', info);
+    if (isAuthProviderRevoked('qq')) await enforceAuthRevocationOnServer('qq');
+    info = normalizeQQLoginStatus(info);
+    if (isAuthProviderRevoked('qq')) info = authLoggedOutStatus('qq');
     var prevLogged = !!qqLoginStatus.loggedIn;
-    qqLoginStatus = normalizeQQLoginStatus(info);
+    qqLoginStatus = info;
     if (!qqLoginStatus.loggedIn) {
       if (prevLogged || qqLoginWasLoggedIn) showToast(qqLoginStatus.stale ? 'QQ 音乐登录已失效' : 'QQ 音乐已掉登录');
       qqPlaylists = [];
@@ -24196,21 +24965,20 @@ function renderUserBtn() {
   var btn = document.getElementById('user-btn');
   if (!btn) return;
   btn.classList.remove('multi-account');
+  if (!hasPlatformLogin(activeAccountProvider)) activeAccountProvider = firstLoggedProvider();
   if (dualAccountMode && hasAnyPlatformLogin()) {
-    activeAccountProvider = firstLoggedProvider();
     btn.classList.add('logged-in', 'multi-account');
     btn.classList.remove('logged-out');
-    btn.title = '账号信息 · 双平台登录状态';
+    btn.title = '账号信息 · 多平台登录状态';
     btn.innerHTML = ['netease', 'qq', 'kg'].map(function(provider){
       return hasPlatformLogin(provider) ? renderTopAccountPill(provider) : '';
     }).join('');
   } else if (hasAnyPlatformLogin()) {
-    activeAccountProvider = firstLoggedProvider();
     var st = platformStatus(activeAccountProvider);
     var meta = platformMeta(activeAccountProvider);
     btn.classList.add('logged-in');
     btn.classList.remove('logged-out');
-    btn.title = dualAccountMode ? '账号信息 · 已启用双平台展示' : ((st.nickname || meta.label) + ' · 账号信息');
+    btn.title = (st.nickname || meta.label) + ' · 账号信息';
     btn.innerHTML = '<img id="user-avatar" ' + providerAvatarImgAttrs(activeAccountProvider, st) + '>' +
                     '<span>' + escHtml(st.nickname || meta.label) + '</span>' +
                     providerVipBadge(activeAccountProvider, st, 'user-vip-tag');
@@ -24383,7 +25151,7 @@ function resolveBridgeExtensionDownloadUrl() {
   return versioned;
 }
 function bridgeExtensionInstallGuideUrl() {
-  return 'https://github.com/XxHuberrr/Mineradio/tree/main/web/extension';
+  return 'https://tcnqaj820g6y.feishu.cn/docx/C7Xjd3uvFokseqxBFqZc34eSnyd';
 }
 function compareBridgeExtensionVersion(a, b) {
   a = String(a || '0').replace(/^v/i, '').split('.').map(function(n){ return Number(n) || 0; });
@@ -24502,9 +25270,16 @@ function downloadMineradioBridgeExtension() {
 function openBridgeExtensionInstallGuide() {
   try { window.open(bridgeExtensionInstallGuideUrl(), '_blank', 'noopener,noreferrer'); } catch (_) {}
 }
+var loginSessionContext = { returnToAccount: false, source: '' };
+
 async function showLoginModal(opts) {
+  if (typeof opts === 'string') opts = { provider: opts };
   opts = opts || {};
   if (opts.provider) loginProvider = (opts.provider === 'qq' || opts.provider === 'kg') ? opts.provider : 'netease';
+  beginExplicitProviderLogin(loginProvider);
+  loginSessionContext.returnToAccount = !!opts.returnToAccount;
+  loginSessionContext.source = String(opts.source || '');
+  closeUserModal({ silent: true });
   var modal = document.getElementById('login-modal');
   openGsapModal(modal);
   updateLoginExtensionPanel();
@@ -24512,10 +25287,36 @@ async function showLoginModal(opts) {
   refreshLoginExtensionPanel();
   await refreshLoginPanel();
 }
-function closeLoginModal() {
+function closeLoginModal(opts) {
+  opts = opts || {};
   stopQrPoll();
   stopLoginExtensionProbe();
+  if (opts.afterLogin && opts.clearRevoked !== false) {
+    clearAuthProviderRevoked(opts.provider || activeAccountProvider);
+    persistAccountPreferences();
+  }
+  var shouldOpenAccount = !opts.skipAccountReturn && hasAnyPlatformLogin() && (opts.afterLogin || loginSessionContext.returnToAccount);
+  loginSessionContext.returnToAccount = false;
+  loginSessionContext.source = '';
   closeGsapModal(document.getElementById('login-modal'));
+  if (shouldOpenAccount) {
+    updateUserModalUi();
+    openGsapModal(document.getElementById('user-modal'));
+  }
+}
+function finishLoginFlow(opts) {
+  opts = opts || {};
+  if (opts.provider) activeAccountProvider = normalizeAuthProvider(opts.provider);
+  clearAuthProviderRevoked(activeAccountProvider);
+  persistAccountPreferences();
+  renderUserBtn();
+  updateLoginProviderUi();
+  var toastMsg = opts.toast || '';
+  var delay = opts.delay != null ? opts.delay : 420;
+  setTimeout(function () {
+    closeLoginModal({ afterLogin: true, provider: activeAccountProvider });
+    if (toastMsg) showToast(toastMsg);
+  }, delay);
 }
 var DONATE_QR_CONFIG = {
   qr: 'icons/donate-qr.png'
@@ -24528,6 +25329,8 @@ function markDonateQrFailed() {
   var shell = document.getElementById('donate-qr-shell');
   if (shell) shell.classList.remove('has-image');
 }
+window.markDonateQrLoaded = markDonateQrLoaded;
+window.markDonateQrFailed = markDonateQrFailed;
 function applyDonateQrSources() {
   var img = document.getElementById('donate-qr-img');
   if (img && DONATE_QR_CONFIG.qr) {
@@ -24543,6 +25346,9 @@ function closeDonateModal() {
 }
 function setLoginProvider(provider, silent) {
   loginProvider = (provider === 'qq' || provider === 'kg') ? provider : 'netease';
+  if (!silent && document.getElementById('login-modal').classList.contains('show')) {
+    beginExplicitProviderLogin(loginProvider);
+  }
   updateLoginProviderUi();
   if (!silent && document.getElementById('login-modal').classList.contains('show')) refreshLoginPanel();
 }
@@ -24591,6 +25397,8 @@ function updateLoginProviderUi() {
   var isQQ = loginProvider === 'qq';
   var isKG = loginProvider === 'kg';
   var isNE = !isQQ && !isKG;
+  var loginModal = document.querySelector('.login-stage-modal');
+  if (loginModal) loginModal.setAttribute('data-login-provider', loginProvider);
   var title = document.getElementById('login-modal-title');
   var desc = document.getElementById('login-modal-desc');
   var shell = document.getElementById('qr-shell');
@@ -24613,9 +25421,18 @@ function updateLoginProviderUi() {
   var preferQr = !loggedIn && !isQQ;
   var qrReady = preferQr && hasQr && !loginQrError;
   var qrLoading = preferQr && (loginQrBusy || (!hasQr && !loginQrError));
-  if (neteaseBtn) neteaseBtn.classList.toggle('active', isNE);
-  if (qqBtn) qqBtn.classList.toggle('active', isQQ);
-  if (kgBtn) kgBtn.classList.toggle('active', isKG);
+  if (neteaseBtn) {
+    neteaseBtn.classList.toggle('active', isNE);
+    neteaseBtn.setAttribute('aria-selected', isNE ? 'true' : 'false');
+  }
+  if (qqBtn) {
+    qqBtn.classList.toggle('active', isQQ);
+    qqBtn.setAttribute('aria-selected', isQQ ? 'true' : 'false');
+  }
+  if (kgBtn) {
+    kgBtn.classList.toggle('active', isKG);
+    kgBtn.setAttribute('aria-selected', isKG ? 'true' : 'false');
+  }
   if (title) title.textContent = '登录' + meta.label;
   if (desc) {
     if (isKG) {
@@ -24756,6 +25573,7 @@ async function refreshLoginPanel() {
   }
 }
 async function startNeteaseQrLogin() {
+  beginExplicitProviderLogin('netease');
   var qrImg = document.getElementById('qr-img');
   stopQrPoll();
   qrKey = null;
@@ -24788,6 +25606,7 @@ async function startNeteaseQrLogin() {
   }
 }
 async function startQQQrLogin() {
+  beginExplicitProviderLogin('qq');
   var qrImg = document.getElementById('qr-img');
   stopQrPoll();
   qqQrSig = null;
@@ -24833,6 +25652,7 @@ async function checkQQQr() {
     }
     // Doc success: { isOk:true, session:{cookie,uin,...} }
     if (r && (r.isOk === true || (r.loggedIn && r.session)) && (r.loggedIn || (r.session && r.session.cookie))) {
+      clearAuthProviderRevoked('qq');
       setLoginQrHint('登录成功！', 'scan');
       stopQrPoll();
       qqLoginStatus = normalizeQQLoginStatus(r);
@@ -24840,7 +25660,7 @@ async function checkQQQr() {
       renderUserBtn();
       setTimeout(async function(){
         try { await refreshQQLoginStatus(); } catch (_) {}
-        closeLoginModal();
+        closeLoginModal({ afterLogin: true, provider: 'qq' });
         showToast('欢迎 ' + (qqLoginStatus.nickname || 'QQ 音乐'));
       }, 800);
       return;
@@ -24867,7 +25687,7 @@ async function checkQQQr() {
       renderUserBtn();
       setTimeout(async function(){
         try { await refreshQQLoginStatus(); } catch (_) {}
-        closeLoginModal();
+        closeLoginModal({ afterLogin: true });
         showToast('欢迎 ' + (qqLoginStatus.nickname || 'QQ 音乐'));
       }, 800);
       return;
@@ -24881,6 +25701,7 @@ async function checkQQQr() {
   }
 }
 async function startKGQrLogin() {
+  beginExplicitProviderLogin('kg');
   var qrImg = document.getElementById('qr-img');
   stopQrPoll();
   kgQrKey = null;
@@ -24931,6 +25752,7 @@ async function checkKGQr() {
       return;
     }
     if (status === 4 && r && r.loggedIn) {
+      clearAuthProviderRevoked('kg');
       setLoginQrHint('登录成功！', 'scan');
       stopQrPoll();
       kgLoginStatus = r;
@@ -24938,7 +25760,7 @@ async function checkKGQr() {
       renderUserBtn();
       refreshUserPlaylists(true);
       setTimeout(function() {
-        closeLoginModal();
+        closeLoginModal({ afterLogin: true, provider: 'kg' });
         var vipToast = kgAccountVipText(r);
         showToast('酷狗已登录: ' + (r.nickname || r.userId || '') + (vipToast ? (' · ' + vipToast) : ''));
       }, 420);
@@ -24956,6 +25778,8 @@ async function refreshProviderLoginStatus() {
   var statusEl = document.getElementById('qr-status');
   if (statusEl) { statusEl.textContent = '正在同步登录状态…'; statusEl.className = 'preview'; }
   var useBrowserCookie = mineradioUsesWebMediaBridge();
+  var provider = normalizeAuthProvider(loginProvider);
+  beginExplicitProviderLogin(provider);
   try {
     if (loginProvider === 'kg') {
       if (useBrowserCookie) {
@@ -24965,6 +25789,7 @@ async function refreshProviderLoginStatus() {
       }
       var kgSynced = await refreshKGLoginStatus();
       if (kgSynced && kgSynced.loggedIn) {
+        clearAuthProviderRevoked('kg');
         activeAccountProvider = 'kg';
         renderUserBtn();
         refreshUserPlaylists(true);
@@ -24975,7 +25800,7 @@ async function refreshProviderLoginStatus() {
           statusEl.className = 'scan';
         }
         setTimeout(function(){
-          closeLoginModal();
+          closeLoginModal({ afterLogin: true, provider: 'kg' });
           showToast('酷狗已登录: ' + (kgSynced.nickname || kgSynced.userId || '') + (kgVipToast ? (' · ' + kgVipToast) : ''));
         }, 420);
         return;
@@ -24987,7 +25812,8 @@ async function refreshProviderLoginStatus() {
     if (loginProvider === 'qq') {
       if (useBrowserCookie) {
         var qqInfo = await apiJson('/api/qq/login/cookie?t=' + Date.now());
-        if (qqInfo && qqInfo.loggedIn) {
+        if (qqInfo && qqInfo.loggedIn && !isAuthProviderRevoked('qq')) {
+          clearAuthProviderRevoked('qq');
           qqLoginStatus = normalizeQQLoginStatus(qqInfo);
           activeAccountProvider = 'qq';
           qqManualCookieOpen = false;
@@ -24995,19 +25821,20 @@ async function refreshProviderLoginStatus() {
           refreshUserPlaylists(true);
           setLoginQrHint('QQ 音乐会话已保存', 'scan');
           updateLoginProviderUi();
-          setTimeout(function(){ closeLoginModal(); showToast('QQ 音乐已登录: ' + (qqLoginStatus.nickname || qqLoginStatus.userId || '')); }, 420);
+          setTimeout(function(){ closeLoginModal({ afterLogin: true, provider: 'qq' }); showToast('QQ 音乐已登录: ' + (qqLoginStatus.nickname || qqLoginStatus.userId || '')); }, 420);
           return;
         }
         setLoginQrHint((qqInfo && qqInfo.message) || '尚未检测到 QQ 登录 Cookie', 'fail');
       }
       var qqSynced = await refreshQQLoginStatus();
       if (qqSynced && qqSynced.loggedIn) {
+        clearAuthProviderRevoked('qq');
         activeAccountProvider = 'qq';
         renderUserBtn();
         refreshUserPlaylists(true);
         setLoginQrHint('QQ 音乐会话已保存', 'scan');
         updateLoginProviderUi();
-        setTimeout(function(){ closeLoginModal(); showToast('QQ 音乐已登录: ' + (qqSynced.nickname || qqSynced.userId || '')); }, 420);
+        setTimeout(function(){ closeLoginModal({ afterLogin: true, provider: 'qq' }); showToast('QQ 音乐已登录: ' + (qqSynced.nickname || qqSynced.userId || '')); }, 420);
         return;
       }
       setLoginQrHint((qqSynced && qqSynced.message) || '尚未检测到 QQ 音乐登录。请点「官网登录」在 y.qq.com 扫码后再刷新', 'fail');
@@ -25016,7 +25843,8 @@ async function refreshProviderLoginStatus() {
     }
     if (useBrowserCookie) {
       var neInfo = await apiJson('/api/login/cookie?t=' + Date.now());
-      if (neInfo && neInfo.loggedIn) {
+      if (neInfo && neInfo.loggedIn && !isAuthProviderRevoked('netease')) {
+        clearAuthProviderRevoked('netease');
         loginStatus = neInfo;
         activeAccountProvider = 'netease';
         renderUserBtn();
@@ -25024,19 +25852,20 @@ async function refreshProviderLoginStatus() {
         loadHomeDiscover(true);
         updateLoginProviderUi();
         if (statusEl) { statusEl.textContent = '网易云会话已保存'; statusEl.className = 'scan'; }
-        setTimeout(function(){ closeLoginModal(); showToast('网易云已登录: ' + (neInfo.nickname || neInfo.userId || '')); }, 420);
+        setTimeout(function(){ closeLoginModal({ afterLogin: true, provider: 'netease' }); showToast('网易云已登录: ' + (neInfo.nickname || neInfo.userId || '')); }, 420);
         return;
       }
     }
     var neSynced = await refreshLoginStatus(true);
     if (neSynced && neSynced.loggedIn) {
+      clearAuthProviderRevoked('netease');
       activeAccountProvider = 'netease';
       renderUserBtn();
       refreshUserPlaylists(true);
       loadHomeDiscover(true);
       updateLoginProviderUi();
       if (statusEl) { statusEl.textContent = '网易云会话已保存'; statusEl.className = 'scan'; }
-      setTimeout(function(){ closeLoginModal(); showToast('网易云已登录: ' + (neSynced.nickname || neSynced.userId || '')); }, 420);
+      setTimeout(function(){ closeLoginModal({ afterLogin: true, provider: 'netease' }); showToast('网易云已登录: ' + (neSynced.nickname || neSynced.userId || '')); }, 420);
       return;
     }
     if (statusEl) { statusEl.textContent = '尚未检测到网易云登录，请先在官网完成登录'; statusEl.className = 'fail'; }
@@ -25090,7 +25919,7 @@ async function submitKGCookieLogin() {
     renderUserBtn();
     refreshUserPlaylists(true);
     if (statusEl) { statusEl.textContent = '酷狗会话已保存'; statusEl.className = 'scan'; }
-    setTimeout(function(){ closeLoginModal(); showToast('酷狗已登录: ' + (info.nickname || info.userId || '')); }, 420);
+    setTimeout(function(){ closeLoginModal({ afterLogin: true }); showToast('酷狗已登录: ' + (info.nickname || info.userId || '')); }, 420);
   } catch (e) {
     if (statusEl) { statusEl.textContent = e && e.message ? e.message : '酷狗 Cookie 保存失败'; statusEl.className = 'fail'; }
   }
@@ -25122,7 +25951,7 @@ async function openNeteaseWebLogin() {
       loadHomeDiscover(true);
       if (statusEl) { statusEl.textContent = '网易云会话已保存'; statusEl.className = 'scan'; }
       setTimeout(function(){
-        closeLoginModal();
+        closeLoginModal({ afterLogin: true });
         showToast('网易云已登录: ' + (info.nickname || info.userId || ''));
       }, 420);
     } catch (e) {
@@ -25164,7 +25993,7 @@ async function openQQWebLogin() {
       var qqPlaybackReady = !!qqLoginStatus.playbackKeyReady && !result.partial;
       if (statusEl) { statusEl.textContent = qqPlaybackReady ? 'QQ 音乐会话已保存' : 'QQ 账号已同步，播放授权不完整，部分歌曲会自动换源'; statusEl.className = 'scan'; }
       setTimeout(function(){
-        closeLoginModal();
+        closeLoginModal({ afterLogin: true });
         showToast((qqPlaybackReady ? 'QQ 音乐已登录: ' : 'QQ 账号已同步: ') + (qqLoginStatus.nickname || qqLoginStatus.userId || ''));
       }, 420);
     } catch (e) {
@@ -25215,7 +26044,7 @@ async function submitQQCookieLogin() {
     var manualQQPlaybackReady = !!qqLoginStatus.playbackKeyReady;
     if (statusEl) { statusEl.textContent = manualQQPlaybackReady ? 'QQ 音乐会话已保存' : 'QQ 账号已同步，播放授权不完整，部分歌曲会自动换源'; statusEl.className = 'scan'; }
     setTimeout(function(){
-      closeLoginModal();
+      closeLoginModal({ afterLogin: true });
       showToast((manualQQPlaybackReady ? 'QQ 音乐已登录: ' : 'QQ 账号已同步: ') + (qqLoginStatus.nickname || qqLoginStatus.userId || ''));
     }, 420);
   } catch (e) {
@@ -25237,6 +26066,7 @@ async function checkQr() {
     else if (code === 801) { setLoginQrHint('请在网易云 App 中扫码', ''); }
     else if (code === 802) { setLoginQrHint('已扫码, 请在手机确认…', 'scan'); }
     else if (code === 803 && (r.loggedIn || r.hasCookie)) {
+      clearAuthProviderRevoked('netease');
       setLoginQrHint(r.pendingProfile ? '登录成功，正在同步账号资料…' : '登录成功！', 'scan');
       stopQrPoll();
       loginStatus = r.loggedIn ? r : Object.assign({}, r, { loggedIn: true, pendingProfile: true, nickname: r.nickname || '网易云用户' });
@@ -25244,12 +26074,12 @@ async function checkQr() {
       renderUserBtn();
       setTimeout(async function(){
         var fresh = await refreshLoginStatus(true);
-        if (!fresh || !fresh.loggedIn) {
+        if ((!fresh || !fresh.loggedIn) && !isAuthProviderRevoked('netease')) {
           loginStatus = Object.assign({}, loginStatus, { loggedIn: true, pendingProfile: true });
           renderUserBtn();
           fresh = loginStatus;
         }
-        closeLoginModal();
+        closeLoginModal({ afterLogin: true, provider: 'netease' });
         showToast('欢迎 ' + (fresh && fresh.nickname ? fresh.nickname : '网易云用户'));
       }, r.pendingProfile ? 1200 : 500);
     } else if (code === 803) {
@@ -25263,13 +26093,20 @@ async function checkQr() {
   }
 }
 function updateUserModalUi() {
-  activeAccountProvider = firstLoggedProvider();
+  if (!hasPlatformLogin(activeAccountProvider)) activeAccountProvider = firstLoggedProvider();
   var st = platformStatus(activeAccountProvider);
   var meta = platformMeta(activeAccountProvider);
+  var accountModal = document.querySelector('.account-stage-modal');
+  if (accountModal) accountModal.setAttribute('data-account-provider', activeAccountProvider);
   var chip = document.getElementById('account-provider-chip');
   var avatar = document.getElementById('user-modal-avatar');
   var name = document.getElementById('user-modal-name');
   var vipEl = document.getElementById('user-modal-vip');
+  var uidChip = document.getElementById('account-uid-chip');
+  var vipChip = document.getElementById('account-vip-chip');
+  var summaryCount = document.getElementById('account-summary-count');
+  var summaryMode = document.getElementById('account-summary-mode');
+  var vipPill = document.getElementById('account-vip-pill');
   var hint = document.getElementById('account-hint');
   var logoutBtn = document.getElementById('account-logout-btn');
   var addNetease = document.getElementById('account-add-netease');
@@ -25281,36 +26118,86 @@ function updateUserModalUi() {
   }
   if (avatar) applyAccountAvatar(avatar, activeAccountProvider, st);
   if (name) name.textContent = (st && st.nickname) || meta.label;
-  if (vipEl) {
-    if (activeAccountProvider === 'kg') {
-      var kgVipLabel = kgAccountVipText(st) || '酷狗账号';
-      vipEl.textContent = 'UID: ' + ((st && st.userId) || '-') + '  ·  ' + kgVipLabel;
-      vipEl.style.color = hasProviderVip('kg', st) ? 'rgba(0,196,255,0.92)' : 'rgba(0,196,255,0.72)';
-    } else if (activeAccountProvider === 'netease') {
-      var neVipLevel = providerVipLevel('netease', st);
-      var vipLabel = neVipLevel === 'svip' ? '网易云 SVIP' : (neVipLevel === 'vip' ? '网易云 VIP' : '普通用户');
-      vipEl.textContent = 'UID: ' + ((st && st.userId) || '-') + '  ·  ' + vipLabel;
-      vipEl.style.color = hasProviderVip('netease', st) ? 'rgba(244,210,138,0.86)' : 'rgba(255,255,255,0.5)';
+  var uidText = 'UID ' + ((st && st.userId) || '—');
+  var vipLabel = '普通用户';
+  var vipChipClass = 'account-meta-chip';
+  if (activeAccountProvider === 'kg') {
+    vipLabel = kgAccountVipText(st) || '酷狗账号';
+    if (hasProviderVip('kg', st)) vipChipClass += ' vip kg';
+  } else if (activeAccountProvider === 'netease') {
+    var neVipLevel = providerVipLevel('netease', st);
+    vipLabel = neVipLevel === 'svip' ? '网易云 SVIP' : (neVipLevel === 'vip' ? '网易云 VIP' : '普通用户');
+    if (hasProviderVip('netease', st)) vipChipClass += ' vip';
+  } else {
+    vipLabel = hasProviderVip('qq', st) ? 'QQ VIP 会员' : 'QQ 音乐会话';
+    if (hasProviderVip('qq', st)) vipChipClass += ' vip qq';
+  }
+  if (uidChip) uidChip.textContent = uidText;
+  if (vipChip) {
+    vipChip.textContent = vipLabel;
+    vipChip.className = vipChipClass;
+  }
+  if (vipEl) vipEl.textContent = uidText + '  ·  ' + vipLabel;
+  var loggedCount = loggedPlatformCount();
+  if (summaryCount) summaryCount.textContent = '已登录 ' + loggedCount + ' / 3 个平台';
+  if (summaryMode) {
+    summaryMode.textContent = dualAccountMode
+      ? '多平台并排展示'
+      : (loggedCount >= 2 ? '可启用多平台展示' : '单账号视图');
+  }
+  if (vipPill) {
+    var level = providerVipLevel(activeAccountProvider, st);
+    if (hasProviderVip(activeAccountProvider, st)) {
+      vipPill.hidden = false;
+      vipPill.className = 'account-vip-pill' + (activeAccountProvider === 'qq' ? ' qq' : (activeAccountProvider === 'kg' ? ' kg' : ''));
+      vipPill.textContent = activeAccountProvider === 'qq' ? 'QQ VIP' : (activeAccountProvider === 'kg'
+        ? ((st && st.vipLabel && st.vipLabel !== '非VIP') ? st.vipLabel : '酷狗 VIP')
+        : (level === 'svip' ? 'SVIP' : 'VIP'));
     } else {
-      var qqVipLabel = hasProviderVip('qq', st) ? 'QQ VIP 会员' : 'QQ 音乐会话';
-      vipEl.textContent = 'UID: ' + ((st && st.userId) || '-') + '  ·  ' + qqVipLabel;
-      vipEl.style.color = hasProviderVip('qq', st) ? 'rgba(0,245,212,0.82)' : 'rgba(0,245,212,0.58)';
+      vipPill.hidden = true;
+      vipPill.textContent = '';
     }
   }
+  ['netease', 'qq', 'kg'].forEach(function (key) {
+    var logged = hasPlatformLogin(key);
+    var statusEl = document.querySelector('[data-account-status="' + key + '"]');
+    var stateEl = document.querySelector('[data-account-state="' + key + '"]');
+    var stKey = platformStatus(key);
+    if (statusEl) statusEl.textContent = logged ? ((stKey && stKey.nickname) || '已登录') : '点击登录';
+    if (stateEl) stateEl.classList.toggle('on', logged);
+  });
+  var dualState = document.querySelector('.account-platform-state.dual');
+  if (dualState) dualState.classList.toggle('on', !!dualAccountMode);
   ['netease','qq','kg','both'].forEach(function(key){
     var btn = document.getElementById('user-provider-' + key);
-    if (btn) btn.classList.toggle('active', key === 'both' ? dualAccountMode : (!dualAccountMode && activeAccountProvider === key));
+    if (!btn) return;
+    var active = key === 'both' ? dualAccountMode : (!dualAccountMode && activeAccountProvider === key);
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-selected', active ? 'true' : 'false');
   });
-  if (addNetease) addNetease.style.display = hasPlatformLogin('netease') ? 'none' : '';
-  if (addQQ) addQQ.textContent = hasPlatformLogin('qq') ? '查看 QQ 音乐' : '补登 QQ 音乐';
-  if (addKG) addKG.style.display = hasPlatformLogin('kg') ? 'none' : '';
+  if (addNetease) {
+    addNetease.classList.toggle('is-hidden', hasPlatformLogin('netease'));
+    addNetease.style.display = hasPlatformLogin('netease') ? 'none' : '';
+  }
+  if (addQQ) {
+    addQQ.classList.toggle('is-hidden', hasPlatformLogin('qq'));
+    addQQ.style.display = hasPlatformLogin('qq') ? 'none' : '';
+    addQQ.textContent = '补登 QQ 音乐';
+  }
+  if (addKG) {
+    addKG.classList.toggle('is-hidden', hasPlatformLogin('kg'));
+    addKG.style.display = hasPlatformLogin('kg') ? 'none' : '';
+  }
   if (logoutBtn) logoutBtn.textContent = activeAccountProvider === 'qq' ? '退出 QQ 音乐' : (activeAccountProvider === 'kg' ? '退出酷狗音乐' : '退出网易云');
-  if (hint) hint.textContent = dualAccountMode
-    ? '右上角已切换为双平台并排展示。'
-    : '可切换右上角展示的平台；“我两个都要”会并排放两个登录状态。';
+  if (hint) {
+    var loggedCount = ['netease', 'qq', 'kg'].filter(hasPlatformLogin).length;
+    if (dualAccountMode) hint.textContent = '右上角已并排展示已登录平台。再点平台卡片可切回单账号视图。';
+    else if (loggedCount >= 2) hint.textContent = '已登录 ' + loggedCount + ' 个平台。点「多平台展示」可在右上角并排显示。';
+    else hint.textContent = '切换平台可查看对应账号；未登录的平台会进入登录流程，完成后回到账号中心。';
+  }
 }
 function showUserModal() {
-  if (!hasAnyPlatformLogin()) return showLoginModal();
+  if (!hasAnyPlatformLogin()) return showLoginModal({ source: 'account-empty' });
   var refresh = Promise.resolve();
   if (hasPlatformLogin('kg')) refresh = refreshKGLoginStatus();
   else if (hasPlatformLogin('qq')) refresh = refreshQQLoginStatus();
@@ -25321,7 +26208,20 @@ function showUserModal() {
     openGsapModal(document.getElementById('user-modal'));
   });
 }
-function closeUserModal() { closeGsapModal(document.getElementById('user-modal')); }
+function closeUserModal(opts) {
+  opts = opts || {};
+  closeGsapModal(document.getElementById('user-modal'));
+}
+function openAccountThemePicker() {
+  closeUserModal({ silent: true });
+  if (typeof setFxPanelTab === 'function') setFxPanelTab('appearance');
+  if (typeof toggleFxPanel === 'function') toggleFxPanel(true);
+  else if (typeof setPeek === 'function') {
+    var panel = document.getElementById('fx-panel');
+    if (panel) setPeek(panel, true, 'fx');
+  }
+  showToast('已打开外观主题');
+}
 function setActiveAccountProvider(provider) {
   provider = provider === 'qq' ? 'qq' : (provider === 'kg' ? 'kg' : 'netease');
   if (!hasPlatformLogin(provider)) {
@@ -25330,90 +26230,47 @@ function setActiveAccountProvider(provider) {
   }
   activeAccountProvider = provider;
   dualAccountMode = false;
+  persistAccountPreferences();
   renderUserBtn();
   updateUserModalUi();
 }
+function loggedPlatformCount() {
+  return ['netease', 'qq', 'kg'].filter(hasPlatformLogin).length;
+}
 function enableDualAccountView() {
-  if (!hasPlatformLogin('netease') && !hasPlatformLogin('qq')) {
-    openProviderLogin('netease');
-    return;
-  }
-  if (!hasPlatformLogin('netease')) {
-    openProviderLogin('netease');
-    return;
-  }
-  if (!hasPlatformLogin('qq')) {
-    openProviderLogin('qq');
+  if (loggedPlatformCount() < 2) {
+    var missing = !hasPlatformLogin('netease') ? 'netease' : (!hasPlatformLogin('qq') ? 'qq' : 'kg');
+    showToast('再登录一个平台后可启用多平台展示');
+    openProviderLogin(missing);
     return;
   }
   dualAccountMode = true;
+  persistAccountPreferences();
   renderUserBtn();
   updateUserModalUi();
-  showToast('已启用双平台账号展示');
+  showToast('已启用多平台账号展示');
 }
 function requestDualLoginMode() {
   enableDualAccountView();
 }
 function openProviderLogin(provider) {
   provider = provider === 'qq' ? 'qq' : (provider === 'kg' ? 'kg' : 'netease');
-  closeUserModal();
-  loginProvider = provider;
-  showLoginModal({ provider: provider });
+  showLoginModal({ provider: provider, returnToAccount: hasAnyPlatformLogin(), source: 'account-add' });
 }
 async function logoutActiveAccount() {
   if (activeAccountProvider === 'kg') {
-    try { await apiJson('/api/kg/logout'); } catch (e) {}
-    kgLoginStatus = { provider: 'kg', loggedIn: false, nickname: '酷狗音乐', userId: '', avatar: '', vipType: 0, isVip: false };
-    userPlaylists = userPlaylists.filter(function(pl){ return pl.provider !== 'kg'; });
-    dualAccountMode = false;
-    activeAccountProvider = firstLoggedProvider();
-    renderUserBtn();
-    if (hasAnyPlatformLogin()) updateUserModalUi();
-    else closeUserModal();
-    showToast('已退出酷狗音乐');
+    await finalizeProviderLogout('kg', { toast: '已退出酷狗音乐' });
     return;
   }
   if (activeAccountProvider === 'qq') {
-    try { await apiJson('/api/qq/logout'); } catch (e) {}
-    try {
-      if (window.desktopWindow && typeof window.desktopWindow.clearQQMusicLogin === 'function') {
-        await window.desktopWindow.clearQQMusicLogin();
-      }
-    } catch (e) {}
-    qqLoginStatus = { provider: 'qq', loggedIn: false, preview: false, nickname: 'QQ 音乐', userId: '', avatar: '', vipType: 0 };
-    qqPlaylists = [];
-    userPlaylists = userPlaylists.filter(function(pl){ return pl.provider !== 'qq'; });
-    dualAccountMode = false;
-    activeAccountProvider = firstLoggedProvider();
-    renderUserBtn();
-    if (hasAnyPlatformLogin()) updateUserModalUi();
-    else closeUserModal();
-    showToast('已退出 QQ 音乐');
+    await finalizeProviderLogout('qq', { toast: '已退出 QQ 音乐' });
     return;
   }
-  doLogout();
+  await finalizeProviderLogout('netease', { toast: '已退出网易云' });
 }
 async function doLogout() {
-  await apiJson('/api/logout');
-  try {
-    if (window.desktopWindow && typeof window.desktopWindow.clearNeteaseMusicLogin === 'function') {
-      await window.desktopWindow.clearNeteaseMusicLogin();
-    }
-  } catch (e) {}
-  loginStatus = { loggedIn: false };
-  if (!hasPlatformLogin('netease') || !hasPlatformLogin('qq')) dualAccountMode = false;
-  activeAccountProvider = firstLoggedProvider();
-  userPlaylists = qqPlaylists.slice();
-  myPodcastCollections = [];
-  myPodcastItems = {};
-  likedSongMap = {};
-  closeCollectModal();
-  updateLikeButtons();
-  safeRenderQueuePanel('logout', { scrollCurrent: miniQueueOpen });
-  renderUserBtn();
-  safeShelfRebuild('logout');
-  closeUserModal();
-  showToast('已退出登录');
+  await finalizeProviderLogout('netease', { silent: true });
+  showToast('已退出网易云');
 }
 var startupLoginGuideShown = false;
 var loginGuideAnimating = false;
@@ -26974,7 +27831,21 @@ document.addEventListener('keydown', function(e){
     }
     if (miniQueueOpen) { closeMiniQueue(); return; }
     if (shelfManager && shelfManager.hasOpenContent()) { safeShelfCloseContent('escape-key'); return; }
-    closeLoginModal(); closeUserModal(); toggleFxPanel(false); togglePlaylistPanel(false);
+    var fxPanel = document.getElementById('fx-panel');
+    if (fxPanel && (fxPanel.classList.contains('peek') || fxPanel.classList.contains('show') || fxPanel.classList.contains('pinned'))) {
+      e.preventDefault();
+      toggleFxPanel(false);
+      return;
+    }
+    closeLoginModal({ skipAccountReturn: true }); closeUserModal(); togglePlaylistPanel(false);
+  }
+  else if (/^Digit[1-5]$/.test(e.code) && diyPlayerMode) {
+    var fxOpen = document.getElementById('fx-panel');
+    if (fxOpen && (fxOpen.classList.contains('peek') || fxOpen.classList.contains('show') || fxOpen.classList.contains('pinned'))) {
+      e.preventDefault();
+      var tabIds = ['presets', 'appearance', 'lyrics', 'motion', 'advanced'];
+      setFxPanelTab(tabIds[Number(e.code.replace('Digit', '')) - 1]);
+    }
   }
   else if (e.code === 'KeyL') { if (!immersiveMode) toggleLyricsPanel(); }
   else if (e.code === 'KeyP') {
@@ -27000,6 +27871,7 @@ function setPeek(el, on, key) {
   if (on && !diyPlayerMode && key === 'fx') return;
   if (!on && key === 'search' && emptyHomeActive && !immersiveMode) return;
   if (!on && key === 'pl' && playlistPanelPinned) return;
+  if (!on && key === 'fx' && fxPanelPinned) return;
   if (on && key === 'fx') document.body.classList.remove('fullscreen-diy-peek');
   if (on) {
     var wasPeek = el.classList.contains('peek');
@@ -27021,6 +27893,8 @@ function setPeek(el, on, key) {
       }, 180);
     }
     if (key === 'fx') {
+      document.body.classList.add('fx-console-open');
+      updateFxConsoleStatus();
       var fabOn = document.getElementById('fx-fab');
       if (fabOn) fabOn.classList.add('active');
     }
@@ -27031,6 +27905,9 @@ function setPeek(el, on, key) {
       if (key === 'fx') {
         var fabOff = document.getElementById('fx-fab');
         if (fabOff && !el.classList.contains('show')) fabOff.classList.remove('active');
+        if (!el.classList.contains('show') && !fxPanelPinned) {
+          document.body.classList.remove('fx-console-open');
+        }
       }
       peekTimers[key] = null;
     }, PEEK_HIDE_DELAY);
@@ -28274,6 +29151,7 @@ applyWallpaperModeState(false);
 setShelfMode(fx.shelf);
 applyStartupStarfieldPreset();
 applyPlaylistPanelPinState(false);
+applyFxPanelPinState();
 function runDeferredVisualLayers() {
   if (fx.floatLayer) createFloatLayer();
   if (fx.particleLyrics) createLyricsParticles();
@@ -28286,6 +29164,8 @@ if (mineradioUsesWebMediaBridge()) {
 } else runDeferredVisualLayers();
 scheduleBridgeInstallNoticeChecks();
 scheduleWebStartupTask(function(){
+  bootstrapRevokedAuthState();
+  renderUserBtn();
   var startupLoginStatusPromise = Promise.all([refreshLoginStatus(), refreshQQLoginStatus(), refreshKGLoginStatus()]);
   if (!mineradioUsesWebMediaBridge()) startQQLoginStatusAutoRefresh();
   else setTimeout(startQQLoginStatusAutoRefresh, 6000);
@@ -28353,6 +29233,9 @@ function isMainSceneCoveredBySplash() {
 function getAdaptiveRenderFps() {
   if (mineradioUsesWebMediaBridge() && (beatMapBusy || beatAnalysisTimer)) return 48;
   if (isDeepBackgroundMode()) return 1;
+  var homeTier = homeVisualRenderTier();
+  if (homeTier === 2) return 24;
+  if (homeTier === 1) return 36;
   if (RENDER_VISIBLE_VSYNC) return 0;
   var tier = (typeof getRenderLoadTier === 'function') ? getRenderLoadTier() : 0;
   if (typeof isRenderInteractionActive === 'function' && isRenderInteractionActive()) {
@@ -28389,6 +29272,64 @@ function sampleRenderPerf(now, dt) {
   }
   maybeTrimRuntimeCaches(now);
 }
+function tickHomeIdleVisualFrame(dt) {
+  pointerParallax.x += (pointerTarget.x - pointerParallax.x) * 0.028;
+  pointerParallax.y += (pointerTarget.y - pointerParallax.y) * 0.028;
+  smoothBass *= 0.92; smoothMid *= 0.92; smoothTreb *= 0.92; smoothEnergy *= 0.92; beatPulse *= 0.84;
+  var t = uniforms.uTime.value;
+  var ambient = 0.14 + Math.sin(t * 0.9) * 0.04;
+  smoothBass = Math.max(smoothBass, ambient * 0.55);
+  smoothMid = Math.max(smoothMid, ambient * 0.42);
+  smoothTreb = Math.max(smoothTreb, ambient * 0.28);
+  smoothEnergy = Math.max(smoothEnergy, ambient);
+  var intensity = fx && isFinite(fx.intensity) ? fx.intensity : 1;
+  var bass = Math.min(0.52, smoothBass * 0.85) * intensity;
+  var mid = Math.min(0.38, smoothMid * 0.9) * intensity;
+  var treble = Math.min(0.32, smoothTreb * 0.95) * intensity;
+  var audioEnergy = Math.max(smoothEnergy, ambient * 0.35);
+  var vinylSpeedMul = isFinite(fx.speed) ? Math.max(0.05, fx.speed) : 1;
+  uniforms.uVinylSpin.value = (uniforms.uVinylSpin.value + dt * 0.32 * vinylSpeedMul) % (Math.PI * 2);
+  updateParticlePointerFrame();
+  uniforms.uBass.value = bass;
+  uniforms.uMid.value = mid;
+  uniforms.uTreble.value = treble;
+  uniforms.uBeat.value = beatPulse;
+  uniforms.uEnergy.value = audioEnergy;
+  uniforms.uMouseXY.value.set(mouseWorld.x, mouseWorld.y);
+  uniforms.uMouseActive.value = mouseActive ? 1 : 0;
+  var skullBackdropDim = fx && fx.preset === SKULL_PRESET_INDEX ? 0.58 : 1;
+  uniforms.uParticleDim.value += (skullBackdropDim - uniforms.uParticleDim.value) * 0.06;
+  uniforms.uBurstAmt.value *= 0.90;
+  tickPresetTransition();
+  updateFloatLayer(dt);
+  updateHomeAudioVisual(dt);
+  updateCamera();
+  var skullPresetActive = fx && fx.preset === SKULL_PRESET_INDEX;
+  var sonicPresetActive = fx && fx.preset === 7;
+  particles.visible = !skullPresetActive && !sonicPresetActive;
+  if (bloomParticles) bloomParticles.visible = !skullPresetActive && !sonicPresetActive && fx.bloom && fx.bloomStrength > 0.01;
+  if (floatGroup) floatGroup.visible = !skullPresetActive && !sonicPresetActive;
+  if (backCoverGroup) backCoverGroup.visible = !skullPresetActive && !sonicPresetActive;
+  try {
+    if (window.MineradioSonicTopography && typeof MineradioSonicTopography.update === 'function') {
+      MineradioSonicTopography.update(dt, {
+        scene: scene,
+        fx: fx,
+        time: t,
+        orbit: orbit,
+        audio: { playing: false, beat: beatPulse, bass: bass, beatOnsetFlag: false }
+      });
+    }
+  } catch (sonicErr) { /* keep main loop alive */ }
+  var idleRot = Math.sin(t * 0.18) * 0.08 + pointerParallax.x * 0.25;
+  particles.rotation.y += (idleRot - particles.rotation.y) * 0.035;
+  particles.rotation.x += (pointerParallax.y * 0.12 - particles.rotation.x) * 0.035;
+  if (bloomParticles) bloomParticles.rotation.copy(particles.rotation);
+  if (floatGroup) floatGroup.rotation.copy(particles.rotation);
+  if (backCoverGroup) backCoverGroup.rotation.copy(particles.rotation);
+  if (skullPresetActive) updateSkullParticleLayer(dt);
+  renderer.render(scene, camera);
+}
 function animate() {
   requestAnimationFrame(animate);
   var now = performance.now();
@@ -28402,6 +29343,10 @@ function animate() {
       splashWarmRenderLast = now;
       renderer.render(scene, camera);
     }
+    return;
+  }
+  if (isHomeVisualIdleMode()) {
+    tickHomeIdleVisualFrame(dt);
     return;
   }
   pointerParallax.x += (pointerTarget.x - pointerParallax.x) * 0.040;
@@ -28614,10 +29559,28 @@ function animate() {
   // v7.2 旋转 = 头部+眼球追踪 + 鼠标/手势拖动 + 惯性
   tickGestureRotation(dt);
   var skullPresetActive = fx && fx.preset === SKULL_PRESET_INDEX;
-  particles.visible = !skullPresetActive;
-  if (bloomParticles) bloomParticles.visible = !skullPresetActive && fx.bloom && fx.bloomStrength > 0.01;
-  if (floatGroup) floatGroup.visible = !skullPresetActive;
-  if (backCoverGroup) backCoverGroup.visible = !skullPresetActive;
+  var sonicPresetActive = fx && fx.preset === 7;
+  particles.visible = !skullPresetActive && !sonicPresetActive;
+  if (bloomParticles) bloomParticles.visible = !skullPresetActive && !sonicPresetActive && fx.bloom && fx.bloomStrength > 0.01;
+  if (floatGroup) floatGroup.visible = !skullPresetActive && !sonicPresetActive;
+  if (backCoverGroup) backCoverGroup.visible = !skullPresetActive && !sonicPresetActive;
+  try {
+    if (window.MineradioSonicTopography && typeof MineradioSonicTopography.update === 'function') {
+      MineradioSonicTopography.update(dt, {
+        scene: scene,
+        fx: fx,
+        time: uniforms && uniforms.uTime ? uniforms.uTime.value : 0,
+        orbit: orbit,
+        audio: {
+          frequencyData: frequencyData,
+          playing: playing,
+          beat: typeof beatPulse !== 'undefined' ? beatPulse : 0,
+          bass: typeof bass !== 'undefined' ? bass : 0,
+          beatOnsetFlag: beatOnsetFlag
+        }
+      });
+    }
+  } catch (sonicErr) { /* keep main loop alive */ }
   var targetRotY = orbit.centerLocked ? 0 : (headParallax.active ? headParallax.x * 0.5 : 0) + gestureRotation.y;
   var targetRotX = orbit.centerLocked ? 0 : (headParallax.active ? -headParallax.y * 0.35 : 0) + gestureRotation.x;
   particles.rotation.y += (targetRotY - particles.rotation.y) * 0.055;

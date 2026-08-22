@@ -1,0 +1,118 @@
+/* App theme shell + picker */
+
+html,
+body {
+  background: var(--fc-bg, #000);
+  color: var(--fc-ink, #fff);
+  transition: background-color .42s ease, color .42s ease;
+}
+
+.app-theme-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.app-theme-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+  min-height: 74px;
+  padding: 10px 11px 9px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, .08);
+  background: linear-gradient(145deg, rgba(255, 255, 255, .045), rgba(255, 255, 255, .018));
+  color: rgba(255, 255, 255, .82);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  transition: border-color .2s ease, background .2s ease, transform .2s ease, box-shadow .2s ease;
+}
+
+.app-theme-card:hover {
+  border-color: rgba(var(--fc-accent-rgb), .28);
+  background: rgba(var(--fc-accent-rgb), .05);
+  transform: translateY(-1px);
+}
+
+.app-theme-card.active {
+  border-color: rgba(var(--fc-accent-rgb), .42);
+  background: rgba(var(--fc-accent-rgb), .09);
+  box-shadow: 0 0 0 1px rgba(var(--fc-accent-rgb), .12), 0 12px 28px rgba(0, 0, 0, .22);
+  color: #fff;
+}
+
+.app-theme-swatches {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.app-theme-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, .18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12);
+}
+
+.app-theme-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.app-theme-name {
+  font-size: 12px;
+  font-weight: 760;
+  letter-spacing: .02em;
+}
+
+.app-theme-desc {
+  font-size: 10px;
+  color: rgba(255, 255, 255, .48);
+  letter-spacing: .04em;
+}
+
+.app-theme-card.active .app-theme-desc {
+  color: rgba(255, 255, 255, .62);
+}
+
+.app-theme-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, .16);
+  background: rgba(0, 0, 0, .18);
+  opacity: 0;
+  transform: scale(.82);
+  transition: opacity .18s ease, transform .18s ease, background .18s ease, border-color .18s ease;
+}
+
+.app-theme-check::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: inherit;
+  background: var(--fc-accent);
+  box-shadow: 0 0 10px rgba(var(--fc-accent-rgb), .42);
+}
+
+.app-theme-card.active .app-theme-check {
+  opacity: 1;
+  transform: scale(1);
+  border-color: rgba(var(--fc-accent-rgb), .42);
+}
+
+@media (max-width: 520px) {
+  .app-theme-grid {
+    grid-template-columns: 1fr;
+  }
+}
