@@ -338,16 +338,7 @@
     if (typeof setPreset !== 'function' || setPreset._diyPatched) return;
     var base = setPreset;
     setPreset = function (p, opts) {
-      var prev = typeof fx !== 'undefined' && fx ? fx.preset : 0;
       var result = base.apply(this, arguments);
-      var next = typeof fx !== 'undefined' && fx ? fx.preset : p;
-      try {
-        if (window.MineradioSonicTopography && typeof MineradioSonicTopography.onPresetChange === 'function') {
-          MineradioSonicTopography.onPresetChange(prev, next, { scene: typeof scene !== 'undefined' ? scene : null, fx: fx });
-        }
-      } catch (err) {
-        console.warn('[WebDiySonicPreset]', err);
-      }
       syncSonicSectionVisibility();
       if (typeof buildPresetGrid === 'function') buildPresetGrid();
       return result;

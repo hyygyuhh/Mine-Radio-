@@ -941,6 +941,7 @@ var fxDefaults = {
   visualTintColor: '#9db8cf',
   appTheme: 'default',
   uiAccentColor: '#ffffff',
+  homeAccentMode: 'auto',
   homeAccentColor: '#ffffff',
   homeIconColor: '#ffffff',
   visualIconColor: '#ffffff',
@@ -1077,6 +1078,7 @@ var PACKAGED_DEFAULT_FX_SNAPSHOT = Object.freeze({
   visualTintColor: '#9db8cf',
   appTheme: 'default',
   uiAccentColor: '#ffffff',
+  homeAccentMode: 'auto',
   homeAccentColor: '#ffffff',
   homeIconColor: '#ffffff',
   visualIconColor: '#ffffff',
@@ -5511,6 +5513,7 @@ function readSavedLyricLayout() {
       visualTintColor: normalizeHexColor(raw.visualTintColor || '#9db8cf'),
       appTheme: window.MineradioThemes ? window.MineradioThemes.normalize(raw.appTheme || window.MineradioThemes.readStored()) : 'default',
       uiAccentColor: normalizeHexColor(raw.uiAccentColor || '#00f5d4', '#00f5d4'),
+      homeAccentMode: raw.homeAccentMode === 'custom' ? 'custom' : 'auto',
       homeAccentColor: normalizeHexColor(raw.homeAccentColor || '#00f5d4'),
       homeIconColor: normalizeHexColor(raw.homeIconColor || fxDefaults.homeIconColor || '#f4d28a', '#f4d28a'),
       visualIconColor: normalizeHexColor(raw.visualIconColor || fxDefaults.visualIconColor || '#7fd8ff', '#7fd8ff'),
@@ -5602,6 +5605,7 @@ function flushLyricLayoutSave() {
       visualTintColor: normalizeHexColor(fx.visualTintColor || '#9db8cf'),
       appTheme: window.MineradioThemes ? window.MineradioThemes.normalize(fx.appTheme) : 'default',
       uiAccentColor: normalizeHexColor(fx.uiAccentColor || '#00f5d4', '#00f5d4'),
+      homeAccentMode: fx.homeAccentMode === 'custom' ? 'custom' : 'auto',
       homeAccentColor: normalizeHexColor(fx.homeAccentColor || '#00f5d4'),
       homeIconColor: normalizeHexColor(fx.homeIconColor || '#f4d28a', '#f4d28a'),
       visualIconColor: normalizeHexColor(fx.visualIconColor || '#7fd8ff', '#7fd8ff'),
@@ -17392,10 +17396,36 @@ function clearSearchResults() {
   $results.innerHTML = '';
   $results.classList.remove('show');
 }
+function isImePinyinDraftQuery(q) {
+  q = String(q || '').trim();
+  if (!q) return true;
+  // Chinese IME syllable drafts: mei'ren'y / wang'zi'jian
+  if (/^[a-z]+(?:'[a-z]*)+$/i.test(q)) return true;
+  if (/[a-z]'[a-z]/i.test(q) && !/[\u4e00-\u9fff]/.test(q)) return true;
+  return false;
+}
+function normalizeSearchHistoryItem(q) {
+  q = String(q || '').trim().replace(/\s+/g, ' ');
+  if (!q || isImePinyinDraftQuery(q)) return '';
+  return q.slice(0, 48);
+}
 function readSearchHistory() {
   try {
     var raw = JSON.parse(localStorage.getItem(SEARCH_HISTORY_STORE_KEY) || '[]');
-    return Array.isArray(raw) ? raw.map(function(v){ return String(v || '').trim(); }).filter(Boolean).slice(0, 10) : [];
+    if (!Array.isArray(raw)) return [];
+    var seen = {};
+    var cleaned = [];
+    raw.forEach(function(v){
+      var item = normalizeSearchHistoryItem(v);
+      if (!item) return;
+      var key = item.toLowerCase();
+      if (seen[key]) return;
+      seen[key] = true;
+      cleaned.push(item);
+    });
+    cleaned = cleaned.slice(0, 10);
+    if (cleaned.length !== raw.length) writeSearchHistory(cleaned);
+    return cleaned;
   } catch (e) {
     return [];
   }
@@ -17404,7 +17434,7 @@ function writeSearchHistory(items) {
   try { localStorage.setItem(SEARCH_HISTORY_STORE_KEY, JSON.stringify((items || []).slice(0, 10))); } catch (e) {}
 }
 function rememberSearchQuery(q) {
-  q = String(q || '').trim();
+  q = normalizeSearchHistoryItem(q);
   if (!q) return;
   var items = readSearchHistory().filter(function(item){ return item.toLowerCase() !== q.toLowerCase(); });
   items.unshift(q);
@@ -17471,7 +17501,7 @@ function submitSearch(opts) {
     $results.innerHTML = '<div class="search-empty">正在搜索 “' + escHtml(q) + '”…</div>';
     $results.classList.add('show');
   }
-  doSearch(q, { autoPlayFirst: !!opts.autoPlayFirst });
+  doSearch(q, { autoPlayFirst: !!opts.autoPlayFirst, remember: true });
 }
 function updateSearchModeTabs() {
   var songBtn = document.getElementById('search-mode-song');
@@ -17667,14 +17697,18 @@ function playPodcastProgram(i) {
   playSearchResult(i);
 }
 
-$input.addEventListener('input', function(){
+var searchImeComposing = false;
+function scheduleLiveSearchFromInput() {
   clearTimeout(searchTimer);
+  if (searchImeComposing) return;
   var q = $input.value.trim();
   if (!q) {
     if (searchMode === 'podcast') loadPodcastHot();
     else renderSearchHistory();
     return;
   }
+  // Don't live-search raw IME pinyin drafts; wait for composition to finish.
+  if (isImePinyinDraftQuery(q)) return;
   if (isMusicSearchMode(searchMode)) {
     if (!tryHydrateSearchFromCache(q, searchMode, { skipLikeSync: true })) {
       $results.innerHTML = '<div class="search-empty">正在搜索 “' + escHtml(q) + '”…</div>';
@@ -17682,6 +17716,18 @@ $input.addEventListener('input', function(){
     }
   }
   searchTimer = setTimeout(function(){ doSearch(q); }, SEARCH_INPUT_DEBOUNCE_MS);
+}
+$input.addEventListener('compositionstart', function(){
+  searchImeComposing = true;
+  clearTimeout(searchTimer);
+});
+$input.addEventListener('compositionend', function(){
+  searchImeComposing = false;
+  scheduleLiveSearchFromInput();
+});
+$input.addEventListener('input', function(e){
+  if ((e && e.isComposing) || searchImeComposing) return;
+  scheduleLiveSearchFromInput();
 });
 $input.addEventListener('focus', function(){
   var searchArea = document.getElementById('search-area');
@@ -18425,7 +18471,7 @@ async function doSearch(q, opts) {
       return;
     }
     searchLastResultQuery = searchResultKey(q, mode);
-    rememberSearchQuery(q);
+    if (opts.remember) rememberSearchQuery(q);
     if (!partialRendered) renderSongSearchResults(songs);
     else renderSongSearchResults(songs, { skipAnimate: true, softUpdate: songs.length === partialLen, skipLikeSync: songs.length === partialLen });
     scheduleUiWarmTask(function(){ prefetchSearchNextPage(q, mode); }, 480);
@@ -18865,6 +18911,9 @@ function moveQueueIndexToTop(idx) {
 }
 function playSearchResult(i) {
   var song = playlist[i]; if (!song) return;
+  var typedQuery = String(($input && $input.value) || '').trim();
+  if (typedQuery) rememberSearchQuery(typedQuery);
+  else if (searchPagingState && searchPagingState.query) rememberSearchQuery(searchPagingState.query);
   primeWebPlaybackUnlockIfNeeded({});
   showLoading({ light: !!firstPlayDone });
   var urlFetchPromise = fetchPlaybackSourceData(song).catch(function(err){
@@ -21399,6 +21448,7 @@ function normalizeFxArchiveSnapshot(raw) {
     visualTintColor: normalizeHexColor(raw.visualTintColor || fxDefaults.visualTintColor),
     appTheme: normalizeAppThemeId(raw.appTheme || fxDefaults.appTheme),
     uiAccentColor: normalizeHexColor(raw.uiAccentColor || fxDefaults.uiAccentColor, fxDefaults.uiAccentColor),
+    homeAccentMode: raw.homeAccentMode === 'custom' ? 'custom' : 'auto',
     homeAccentColor: normalizeHexColor(raw.homeAccentColor || fxDefaults.homeAccentColor, fxDefaults.homeAccentColor),
     homeIconColor: normalizeHexColor(raw.homeIconColor || fxDefaults.homeIconColor, fxDefaults.homeIconColor),
     visualIconColor: normalizeHexColor(raw.visualIconColor || fxDefaults.visualIconColor, fxDefaults.visualIconColor),
@@ -21921,16 +21971,24 @@ function updateHomeAccentControls() {
   var picker = document.getElementById('home-accent-picker');
   var value = document.getElementById('home-accent-value');
   if (picker) picker.value = color;
-  if (value) value.textContent = color.toUpperCase();
+  if (value) value.textContent = fx.homeAccentMode === 'custom' ? color.toUpperCase() : '背景取色';
 }
 function setHomeAccentColor(color, silent) {
+  fx.homeAccentMode = 'custom';
   fx.homeAccentColor = normalizeHexColor(color || '#00f5d4');
+  if (typeof homeDashboardResetHeroTheme === 'function') homeDashboardResetHeroTheme();
   updateHomeAccentControls();
   saveLyricLayout();
   if (!silent) showToast('Home 填充: ' + fx.homeAccentColor.toUpperCase());
 }
 function resetHomeAccentColor() {
-  setHomeAccentColor(fxDefaults.homeAccentColor || '#00f5d4');
+  fx.homeAccentMode = 'auto';
+  fx.homeAccentColor = normalizeHexColor(fxDefaults.homeAccentColor || '#00f5d4');
+  if (typeof homeDashboardResetHeroTheme === 'function') homeDashboardResetHeroTheme();
+  if (typeof homeDashboardRefreshHeroTheme === 'function') homeDashboardRefreshHeroTheme();
+  updateHomeAccentControls();
+  saveLyricLayout();
+  showToast('Home 填充: 背景取色');
 }
 function applyIconAccentColors() {
   var homeColor = normalizeHexColor(fx.homeIconColor || fxDefaults.homeIconColor || '#f4d28a', '#f4d28a');
@@ -22590,6 +22648,14 @@ function setPreset(p, opts) {
   if (!opts.noSave) {
     saveLyricLayout();
   }
+  try {
+    if (changed && window.MineradioSonicTopography && typeof MineradioSonicTopography.onPresetChange === 'function') {
+      MineradioSonicTopography.onPresetChange(prev, p, {
+        scene: typeof scene !== 'undefined' ? scene : null,
+        fx: fx
+      });
+    }
+  } catch (_) {}
   updateFxConsoleStatus();
 }
 
@@ -23027,6 +23093,13 @@ function organizeFxPanel() {
   });
   if (actions) panel.appendChild(actions);
 
+  // Sweep orphans left outside the shell (avoids empty flex void + content stuck at bottom)
+  Array.prototype.slice.call(panel.children).forEach(function(child){
+    if (child === head || child === shell || child === actions) return;
+    if (child.id === 'fx-console-shell') return;
+    (pages.presets || pagesWrap).appendChild(child);
+  });
+
   ['fx-lyric-fold','fx-overlay-fold','fx-stage-fold','fx-advanced'].forEach(function(id){
     var fold = document.getElementById(id);
     if (fold) fold.classList.add('open');
@@ -23114,7 +23187,7 @@ function applyBackgroundMediaHint() {
 }
 function relabelFxPanelControls() {
   var title = document.querySelector('#fx-panel .fx-title');
-  if (title) title.textContent = 'DIY 控制台';
+  if (title) title.textContent = '视觉控制台';
   ensureLyricPrimaryControls();
   applyBackgroundMediaHint();
   updateFxConsoleStatus();
@@ -23306,17 +23379,22 @@ function ensureHotkeySettingsButton() {
   var panel = document.getElementById('fx-panel');
   var head = panel && panel.querySelector('.fx-head');
   if (!head || document.getElementById('hotkey-settings-btn')) return;
-  if (head.firstElementChild) head.firstElementChild.classList.add('fx-head-main');
-  var actions = document.createElement('div');
-  actions.className = 'fx-head-actions';
+  var actions = head.querySelector('.fx-head-actions');
+  if (!actions) {
+    actions = document.createElement('div');
+    actions.className = 'fx-head-actions';
+    head.appendChild(actions);
+  }
   var btn = document.createElement('button');
   btn.id = 'hotkey-settings-btn';
   btn.type = 'button';
-  btn.className = 'fx-mini-btn ghost';
+  btn.className = 'fx-mini-btn ghost fx-hotkey-btn';
   btn.textContent = '热键';
+  btn.title = '热键设置';
   btn.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); openHotkeySettings(); });
-  actions.appendChild(btn);
-  head.appendChild(actions);
+  var pin = document.getElementById('fx-panel-pin-btn');
+  if (pin && pin.parentNode === actions) actions.insertBefore(btn, pin);
+  else actions.insertBefore(btn, actions.firstChild);
 }
 function ensureHotkeyModal() {
   var modal = document.getElementById('hotkey-modal');

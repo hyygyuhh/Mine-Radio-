@@ -227,18 +227,21 @@ var _hmt = _hmt || [];
   <div class="empty-home-shell">
     <div class="home-hero" aria-live="polite">
       <div class="daily-review-card">
-        <div id="daily-review-date" class="daily-review-date"></div>
-        <div id="daily-review-time" class="daily-review-time">--:--</div>
-        <div class="daily-review-quote">“让今天的声音，从你喜欢的地方开始。”</div>
-        <div class="daily-review-source">— Mineradio</div>
+        <div class="daily-review-content">
+          <div class="daily-review-brand">MINERADIO</div>
+          <div id="daily-review-date" class="daily-review-date"></div>
+          <div id="daily-review-time" class="daily-review-time">--:--</div>
+          <div class="daily-review-quote">“让今天的声音，从你喜欢的地方开始。”</div>
+          <div class="daily-review-source">今日乐评 · 随心换一首心情</div>
+        </div>
         <div class="daily-review-actions">
-          <button type="button" onclick="homeDashboardNextReview()">换一条</button>
-          <button id="home-dashboard-video-choose" type="button" onclick="openHomeDashboardVideoPicker()">选择 MP4</button>
-          <button id="home-dashboard-video-clear" type="button" onclick="clearHomeDashboardVideo()" hidden>移除视频</button>
-          <button type="button" onclick="openHomePlayerConsole()">展开播放器控制台</button>
+          <button type="button" class="daily-review-btn primary" onclick="homeDashboardNextReview()">换一条</button>
+          <button id="home-dashboard-video-choose" type="button" class="daily-review-btn" onclick="openHomeDashboardVideoPicker()">锁屏背景</button>
+          <button id="home-dashboard-video-clear" type="button" class="daily-review-btn ghost" onclick="clearHomeDashboardVideo()" hidden>移除</button>
+          <button type="button" class="daily-review-btn ghost" onclick="openHomePlayerConsole()">播放控制台</button>
         </div>
       </div>
-      <input id="home-dashboard-video-input" type="file" accept=".mp4,video/mp4" hidden aria-hidden="true">
+      <input id="home-dashboard-video-input" type="file" accept="image/*,video/mp4,video/webm,.jpg,.jpeg,.png,.webp,.gif,.mp4,.webm" hidden aria-hidden="true">
     </div>
 
     <div class="home-grid home-quick-grid" aria-label="常用音乐入口">
@@ -253,21 +256,21 @@ var _hmt = _hmt || [];
         onclick="openHomeDashboardLibrary()">
         <div class="home-card-label">LIBRARY</div>
         <div class="home-card-title">音乐库</div>
-        <div class="home-card-sub">歌单、本地音乐和已登录平台</div>
+        <div class="home-card-sub">歌单、本地与已登录平台</div>
         <div class="home-card-art"></div>
       </button>
       <button class="home-card home-card-quick" data-home-tone="mix" type="button"
         onclick="playHomeDaily()">
         <div class="home-card-label">DAILY MIX</div>
         <div class="home-card-title">每日推荐</div>
-        <div class="home-card-sub">使用当前 Mineradio 推荐数据</div>
+        <div class="home-card-sub">今日精选曲目</div>
         <div class="home-card-art"></div>
       </button>
       <button class="home-card home-card-quick" data-home-tone="playlist" type="button"
         onclick="playHomeRecent()">
         <div class="home-card-label">RECENT</div>
         <div class="home-card-title">最近播放</div>
-        <div class="home-card-sub">播放过的歌曲会出现在这里</div>
+        <div class="home-card-sub">回听刚播过的歌</div>
         <div class="home-card-art"></div>
       </button>
     </div>
@@ -298,11 +301,10 @@ var _hmt = _hmt || [];
         </button>
 
         <section class="home-discovery-strip" aria-label="为你挑选">
-          <div class="home-discovery-copy">
+          <header class="home-discovery-head">
             <span class="home-insight-kicker">FOR YOU · 为你挑选</span>
             <span class="home-discovery-title">换一首，也许正合心意</span>
-            <span class="home-discovery-sub">从每日推荐、歌单与本地音乐中挑选</span>
-          </div>
+          </header>
           <div id="home-discovery-list" class="home-discovery-list" aria-live="polite"></div>
         </section>
 
@@ -311,7 +313,7 @@ var _hmt = _hmt || [];
           <span class="home-ranking-entry-copy">
             <span class="home-insight-kicker">DISCOVER · 音乐发现</span>
             <span class="home-ranking-entry-title">平台热歌与个人偏好</span>
-            <span class="home-ranking-entry-sub">打开平台推荐中心；没有可信推荐接口时会明确留空</span>
+            <span class="home-ranking-entry-sub">热歌榜、偏好与发现入口</span>
           </span>
           <span class="home-ranking-entry-art" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
           <span class="home-next-arrow" aria-hidden="true">›</span>
@@ -322,7 +324,7 @@ var _hmt = _hmt || [];
           <span class="home-ranking-entry-copy">
             <span class="home-insight-kicker">PLATFORM PICKS · 平台推荐</span>
             <span class="home-ranking-entry-title">推荐电台 / 歌单</span>
-            <span class="home-ranking-entry-sub">读取每日歌曲、推荐歌单与推荐 Feed，不用关键词搜索</span>
+            <span class="home-ranking-entry-sub">每日歌曲与平台 Feed</span>
           </span>
           <span class="home-radio-entry-art" aria-hidden="true"><i></i><i></i></span>
           <span class="home-next-arrow" aria-hidden="true">›</span>
@@ -390,7 +392,7 @@ var _hmt = _hmt || [];
     <div class="fx-head-brand">
       <span class="fx-head-mark" aria-hidden="true"></span>
       <div class="fx-head-main">
-        <div class="fx-title">DIY 控制台</div>
+        <div class="fx-title">视觉控制台</div>
         <div class="fx-sub" id="fx-console-status">MINERADIO · 即时生效</div>
       </div>
     </div>

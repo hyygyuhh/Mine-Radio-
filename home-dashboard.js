@@ -9,6 +9,7 @@ var HOME_DASHBOARD_VIDEO_STORE = 'media';
 var HOME_DASHBOARD_VIDEO_BLOB_ID = 'home-hero-video';
 var HOME_DASHBOARD_VIDEO_META_KEY = 'mineradio-home-dashboard-video-meta-v1';
 var HOME_DASHBOARD_VIDEO_MAX_BYTES = 300 * 1024 * 1024;
+var HOME_DASHBOARD_IMAGE_MAX_BYTES = 40 * 1024 * 1024;
 var homeDashboardVideoDbPromise = null;
 var homeDashboardVideoObjectUrl = '';
 var homeDashboardVideoLoadToken = 0;
@@ -16,6 +17,9 @@ var homeDashboardVideoAttachBusy = false;
 var homeDashboardVideoDecodeFailed = false;
 var homeDashboardVideoPowerObserver = null;
 var homeDashboardVideoControlsBound = false;
+var homeDashboardHeroThemeCanvas = null;
+var homeDashboardHeroThemeRaf = 0;
+var homeDashboardHeroThemeLast = '';
 var homePlatformRecommendationControlsBound = false;
 var homePlatformRecommendationDailyRenderRaf = 0;
 var HOME_PLATFORM_DAILY_ROW_HEIGHT = 84;
@@ -195,18 +199,25 @@ async function homeDashboardDeleteVideoBlob() {
 function homeDashboardReadVideoMeta() {
   try {
     var meta = JSON.parse(localStorage.getItem(HOME_DASHBOARD_VIDEO_META_KEY) || 'null');
-    if (!meta || meta.version !== 1 || !/\.mp4$/i.test(String(meta.name || ''))) return null;
-    if (meta.type && String(meta.type).toLowerCase() !== 'video/mp4') return null;
+    if (!meta) return null;
+    var kind = homeDashboardMediaKind(meta);
+    if (!kind) return null;
+    if (!meta.kind) meta.kind = kind;
+    if (!meta.version) meta.version = kind === 'image' ? 2 : 1;
     return meta;
   } catch (_error) {
     return null;
   }
 }
 
-function homeDashboardIsMp4File(file) {
-  if (!file || !/\.mp4$/i.test(String(file.name || ''))) return false;
-  var type = String(file.type || '').toLowerCase();
-  return !type || type === 'video/mp4';
+function homeDashboardMediaKind(metaOrFile) {
+  var name = String((metaOrFile && metaOrFile.name) || '');
+  var type = String((metaOrFile && metaOrFile.type) || '').toLowerCase();
+  if (/^image\//.test(type) || /\.(jpe?g|png|webp|gif|bmp|avif)$/i.test(name)) return 'image';
+  if (/^video\//.test(type) || /\.(mp4|webm|mov|m4v)$/i.test(name)) return 'video';
+  if (metaOrFile && metaOrFile.kind === 'image') return 'image';
+  if (metaOrFile && metaOrFile.kind === 'video') return 'video';
+  return '';
 }
 
 function homeDashboardVideoShouldPlay() {
@@ -217,21 +228,292 @@ function homeDashboardVideoShouldPlay() {
     && document.body.classList.contains('empty-home-active');
 }
 
+function homeDashboardEnsureContentLayer(card) {
+  if (!card) return;
+  var content = card.querySelector('.daily-review-content');
+  if (!content) {
+    var wrap = document.createElement('div');
+    wrap.className = 'daily-review-content';
+    Array.prototype.slice.call(card.children).forEach(function (child) {
+      if (!child || !child.classList) return;
+      if (child.classList.contains('home-lock-media-stack')) return;
+      if (child.classList.contains('home-dashboard-video')) return;
+      if (child.classList.contains('daily-review-actions')) return;
+      wrap.appendChild(child);
+    });
+    var actionsNode = card.querySelector('.daily-review-actions');
+    if (actionsNode) card.insertBefore(wrap, actionsNode);
+    else card.appendChild(wrap);
+    content = wrap;
+  }
+  var nestedActions = content.querySelector('.daily-review-actions');
+  if (nestedActions) card.appendChild(nestedActions);
+}
+
+function homeDashboardEnsureActionsOnTop(card) {
+  if (!card) return;
+  var actions = card.querySelector('.daily-review-actions');
+  if (!actions) return;
+  var content = card.querySelector('.daily-review-content');
+  if (content && content.contains(actions)) card.appendChild(actions);
+  else if (actions.parentNode === card) card.appendChild(actions);
+}
+
+function homeDashboardRemoveLegacyDepthNodes(card) {
+  if (!card) return;
+  Array.prototype.slice.call(card.querySelectorAll('.home-lock-media-front, .home-lock-ui-dock')).forEach(function (node) {
+    if (node.parentNode) node.parentNode.removeChild(node);
+  });
+}
+
+function homeDashboardEnsureMediaShell(card) {
+  if (!card) return null;
+  homeDashboardEnsureContentLayer(card);
+  homeDashboardRemoveLegacyDepthNodes(card);
+  var stack = card.querySelector('.home-lock-media-stack');
+  if (!stack) {
+    stack = document.createElement('div');
+    stack.className = 'home-lock-media-stack';
+    stack.setAttribute('aria-hidden', 'true');
+    stack.innerHTML = '<div class="home-lock-media-back"></div><div class="home-lock-media-scrim"></div>';
+    card.insertBefore(stack, card.firstChild);
+  }
+  homeDashboardEnsureActionsOnTop(card);
+  return {
+    stack: stack,
+    back: stack.querySelector('.home-lock-media-back'),
+  };
+}
+
+function homeDashboardClearMediaNodes(card) {
+  if (!card) return;
+  card.classList.remove('has-lock-media', 'lock-media-image', 'lock-media-video');
+  homeDashboardResetHeroTheme();
+  var stack = card.querySelector('.home-lock-media-stack');
+  if (stack) {
+    var back = stack.querySelector('.home-lock-media-back');
+    if (back) back.innerHTML = '';
+  }
+  homeDashboardRemoveLegacyDepthNodes(card);
+  Array.prototype.slice.call(card.querySelectorAll('.home-dashboard-video')).forEach(function (node) {
+    try { node.pause(); } catch (_error) { }
+    if (node.parentNode) node.parentNode.removeChild(node);
+  });
+}
+
 function homeDashboardReleaseVideoSource(removeElement) {
   homeDashboardVideoLoadToken += 1;
-  var video = document.querySelector('#empty-home .home-dashboard-video');
-  if (video) {
-    try { video.pause(); } catch (_error) { }
-    try {
-      video.removeAttribute('src');
-      video.load();
-    } catch (_error) { }
+  var card = document.querySelector('#empty-home .daily-review-card');
+  var videos = document.querySelectorAll('#empty-home .home-lock-media-el, #empty-home .home-dashboard-video');
+  Array.prototype.forEach.call(videos, function (video) {
+    if (!video) return;
+    if (video.tagName === 'VIDEO') {
+      try { video.pause(); } catch (_error) { }
+      try {
+        video.removeAttribute('src');
+        video.load();
+      } catch (_error) { }
+    }
     if (removeElement !== false && video.parentNode) video.parentNode.removeChild(video);
-  }
+  });
+  if (removeElement !== false && card) homeDashboardClearMediaNodes(card);
   if (homeDashboardVideoObjectUrl) {
     try { URL.revokeObjectURL(homeDashboardVideoObjectUrl); } catch (_error) { }
     homeDashboardVideoObjectUrl = '';
   }
+}
+
+function homeDashboardClamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function homeDashboardThemeHelpersReady() {
+  return typeof rgbToHsl === 'function'
+    && typeof hslToRgb === 'function'
+    && typeof rgbToHexColor === 'function'
+    && typeof normalizeHexColor === 'function'
+    && typeof hexToRgb === 'function';
+}
+
+function homeDashboardHeroAccentAutoEnabled() {
+  return typeof fx !== 'undefined' && fx && fx.homeAccentMode !== 'custom';
+}
+
+function homeDashboardThemeSampleCanvas() {
+  if (!homeDashboardHeroThemeCanvas) {
+    homeDashboardHeroThemeCanvas = document.createElement('canvas');
+  }
+  return homeDashboardHeroThemeCanvas;
+}
+
+function homeDashboardDrawMediaSample(mediaEl, canvas) {
+  if (!mediaEl || !canvas) return false;
+  var w = mediaEl.videoWidth || mediaEl.naturalWidth || mediaEl.width || 0;
+  var h = mediaEl.videoHeight || mediaEl.naturalHeight || mediaEl.height || 0;
+  if (!w || !h) return false;
+  var maxSide = 128;
+  var scale = Math.min(1, maxSide / Math.max(w, h));
+  var cw = Math.max(12, Math.round(w * scale));
+  var ch = Math.max(12, Math.round(h * scale));
+  canvas.width = cw;
+  canvas.height = ch;
+  var ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return false;
+  ctx.clearRect(0, 0, cw, ch);
+  ctx.drawImage(mediaEl, 0, 0, cw, ch);
+  return true;
+}
+
+function homeDashboardExtractAccentFromImageData(data, width, height) {
+  var best = { score: -1, r: 0, g: 245, b: 212 };
+  var sumR = 0, sumG = 0, sumB = 0, count = 0;
+  for (var y = 0; y < height; y += 4) {
+    for (var x = 0; x < width; x += 4) {
+      var di = (y * width + x) * 4;
+      var r = data[di];
+      var g = data[di + 1];
+      var b = data[di + 2];
+      var a = data[di + 3] / 255;
+      if (a < 0.45) continue;
+      var lum = (r * 0.299 + g * 0.587 + b * 0.114) / 255;
+      var maxC = Math.max(r, g, b);
+      var minC = Math.min(r, g, b);
+      var chroma = (maxC - minC) / 255;
+      var edgePenalty = Math.abs(lum - 0.5);
+      var score = chroma * 1.65 + (0.5 - edgePenalty) * 0.42;
+      sumR += r;
+      sumG += g;
+      sumB += b;
+      count++;
+      if (lum > 0.08 && lum < 0.94 && score > best.score) {
+        best = { score: score, r: r, g: g, b: b };
+      }
+    }
+  }
+  if (!count || !homeDashboardThemeHelpersReady()) return '#00f5d4';
+  var avgL = (sumR / count * 0.299 + sumG / count * 0.587 + sumB / count * 0.114) / 255;
+  if (avgL < 0.14 || best.score < 0.05) {
+    var hslAvg = rgbToHsl(Math.round(sumR / count), Math.round(sumG / count), Math.round(sumB / count));
+    hslAvg.s = homeDashboardClamp(hslAvg.s + 0.18, 0.34, 0.72);
+    hslAvg.l = homeDashboardClamp(hslAvg.l + 0.22, 0.52, 0.68);
+    var soft = hslToRgb(hslAvg.h, hslAvg.s, hslAvg.l);
+    return normalizeHexColor(rgbToHexColor(soft.r, soft.g, soft.b), '#00f5d4');
+  }
+  var hsl = rgbToHsl(best.r, best.g, best.b);
+  hsl.s = homeDashboardClamp(Math.max(hsl.s, 0.44), 0.44, 0.84);
+  hsl.l = homeDashboardClamp(hsl.l, 0.50, 0.72);
+  if (hsl.l < 0.50) hsl.l = 0.54;
+  if (hsl.l > 0.72) hsl.l = 0.66;
+  var tuned = hslToRgb(hsl.h, hsl.s, hsl.l);
+  return normalizeHexColor(rgbToHexColor(tuned.r, tuned.g, tuned.b), '#00f5d4');
+}
+
+function homeDashboardExtractAccentFromMedia(mediaEl) {
+  if (!mediaEl || !homeDashboardThemeHelpersReady()) return '';
+  var canvas = homeDashboardThemeSampleCanvas();
+  if (!homeDashboardDrawMediaSample(mediaEl, canvas)) return '';
+  try {
+    var ctx = canvas.getContext('2d', { willReadFrequently: true });
+    var pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    return homeDashboardExtractAccentFromImageData(pixels.data, canvas.width, canvas.height);
+  } catch (error) {
+    console.warn('[HomeDashboardTheme]', error);
+    return '';
+  }
+}
+
+function homeDashboardResetHeroTheme() {
+  var shell = document.getElementById('empty-home');
+  if (!shell) return;
+  shell.classList.remove('has-hero-theme');
+  shell.style.removeProperty('--fc-accent');
+  shell.style.removeProperty('--fc-accent-hov');
+  shell.style.removeProperty('--fc-accent-rgb');
+  shell.style.removeProperty('--home-accent');
+  shell.style.removeProperty('--home-accent-rgb');
+  homeDashboardHeroThemeLast = '';
+}
+
+function homeDashboardApplyHeroThemeColor(color) {
+  if (!homeDashboardHeroAccentAutoEnabled()) return;
+  var hex = normalizeHexColor(color || '', '');
+  if (!/^#[0-9a-f]{6}$/i.test(hex)) return;
+  if (hex === homeDashboardHeroThemeLast) return;
+  var shell = document.getElementById('empty-home');
+  if (!shell) return;
+  var rgb = hexToRgb(hex);
+  shell.classList.add('has-hero-theme');
+  shell.style.setProperty('--fc-accent', hex);
+  shell.style.setProperty('--home-accent', hex);
+  shell.style.setProperty('--fc-accent-rgb', rgb.r + ',' + rgb.g + ',' + rgb.b);
+  shell.style.setProperty('--home-accent-rgb', rgb.r + ',' + rgb.g + ',' + rgb.b);
+  var hoverHsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+  hoverHsl.l = homeDashboardClamp(hoverHsl.l - 0.06, 0.34, 0.82);
+  var hoverRgb = hslToRgb(hoverHsl.h, hoverHsl.s, hoverHsl.l);
+  shell.style.setProperty('--fc-accent-hov', rgbToHexColor(hoverRgb.r, hoverRgb.g, hoverRgb.b));
+  homeDashboardHeroThemeLast = hex;
+  if (typeof fx !== 'undefined' && fx) {
+    fx.homeAccentColor = hex;
+    if (typeof updateHomeAccentControls === 'function') updateHomeAccentControls();
+  }
+}
+
+function homeDashboardUpdateHeroTheme(mediaEl) {
+  if (!mediaEl || !homeDashboardHeroAccentAutoEnabled()) return;
+  var card = document.querySelector('#empty-home .daily-review-card');
+  if (!card || !card.classList.contains('has-lock-media')) return;
+  var accent = homeDashboardExtractAccentFromMedia(mediaEl);
+  if (accent) homeDashboardApplyHeroThemeColor(accent);
+}
+
+function homeDashboardScheduleHeroThemeUpdate(mediaEl) {
+  if (!mediaEl || !homeDashboardHeroAccentAutoEnabled()) return;
+  if (homeDashboardHeroThemeRaf) cancelAnimationFrame(homeDashboardHeroThemeRaf);
+  homeDashboardHeroThemeRaf = requestAnimationFrame(function () {
+    homeDashboardHeroThemeRaf = 0;
+    homeDashboardUpdateHeroTheme(mediaEl);
+  });
+}
+
+function homeDashboardRefreshHeroTheme() {
+  if (!homeDashboardHeroAccentAutoEnabled()) return;
+  var mediaEl = document.querySelector('#empty-home .home-lock-media-back .home-lock-media-el');
+  if (mediaEl) homeDashboardScheduleHeroThemeUpdate(mediaEl);
+}
+
+function homeDashboardBindHeroThemeMedia(mediaEl, kind) {
+  if (!mediaEl) return;
+  var run = function () { homeDashboardScheduleHeroThemeUpdate(mediaEl); };
+  if (kind === 'image') {
+    if (mediaEl.complete) run();
+    else mediaEl.addEventListener('load', run, { once: true });
+    return;
+  }
+  if (mediaEl.readyState >= 2) run();
+  else mediaEl.addEventListener('loadeddata', run, { once: true });
+}
+
+function homeDashboardCreateMediaElement(kind, objectUrl) {
+  if (kind === 'image') {
+    var img = document.createElement('img');
+    img.className = 'home-lock-media-el';
+    img.alt = '';
+    img.draggable = false;
+    img.decoding = 'async';
+    img.src = objectUrl;
+    return img;
+  }
+  var video = document.createElement('video');
+  video.className = 'home-lock-media-el';
+  video.setAttribute('aria-hidden', 'true');
+  video.muted = true;
+  video.defaultMuted = true;
+  video.loop = true;
+  video.playsInline = true;
+  video.setAttribute('playsinline', '');
+  video.preload = 'auto';
+  video.src = objectUrl;
+  return video;
 }
 
 async function homeDashboardAttachVideo() {
@@ -242,9 +524,16 @@ async function homeDashboardAttachVideo() {
   }
   var card = document.querySelector('#empty-home .daily-review-card');
   if (!card) return;
-  var currentVideo = card.querySelector('.home-dashboard-video');
-  if (currentVideo && homeDashboardVideoObjectUrl) {
-    currentVideo.play().catch(function () { });
+  var shell = homeDashboardEnsureMediaShell(card);
+  if (!shell || !shell.back) return;
+
+  var existing = shell.back.querySelector('.home-lock-media-el');
+  if (existing && homeDashboardVideoObjectUrl) {
+    if (existing.tagName === 'VIDEO') existing.play().catch(function () { });
+    card.classList.add('has-lock-media');
+    card.classList.toggle('lock-media-image', meta.kind === 'image');
+    card.classList.toggle('lock-media-video', meta.kind === 'video');
+    homeDashboardBindHeroThemeMedia(existing, meta.kind === 'image' ? 'image' : 'video');
     return;
   }
   if (homeDashboardVideoAttachBusy) return;
@@ -254,6 +543,8 @@ async function homeDashboardAttachVideo() {
   var token = homeDashboardVideoLoadToken;
   var shouldRetry = false;
   try {
+    card = document.querySelector('#empty-home .daily-review-card');
+    shell = homeDashboardEnsureMediaShell(card);
     var record = await homeDashboardGetVideoBlob();
     if (token !== homeDashboardVideoLoadToken || !homeDashboardVideoShouldPlay()) {
       shouldRetry = homeDashboardVideoShouldPlay();
@@ -271,29 +562,26 @@ async function homeDashboardAttachVideo() {
       shouldRetry = homeDashboardVideoShouldPlay();
       return;
     }
-    var video = document.createElement('video');
-    video.className = 'home-dashboard-video';
-    video.setAttribute('aria-hidden', 'true');
-    video.muted = true;
-    video.defaultMuted = true;
-    video.loop = true;
-    video.playsInline = true;
-    video.setAttribute('playsinline', '');
-    video.preload = 'metadata';
-    video.src = objectUrl;
-    video.addEventListener('error', function () {
-      if (token !== homeDashboardVideoLoadToken || !video.getAttribute('src')) return;
+    var kind = meta.kind || homeDashboardMediaKind(meta) || 'video';
+    var mediaEl = homeDashboardCreateMediaElement(kind, objectUrl);
+    mediaEl.addEventListener('error', function () {
+      if (token !== homeDashboardVideoLoadToken) return;
       homeDashboardVideoDecodeFailed = true;
       homeDashboardReleaseVideoSource(true);
-      homeDashboardNotify('这个 MP4 无法解码，请换成 H.264 编码的 MP4');
+      homeDashboardNotify(kind === 'image' ? '这张图片无法显示，请换一张' : '这个视频无法解码，请换成常见编码格式');
     }, { once: true });
     homeDashboardVideoObjectUrl = objectUrl;
-    card.insertBefore(video, card.firstChild);
-    video.play().catch(function () { });
+    shell.back.innerHTML = '';
+    shell.back.appendChild(mediaEl);
+    card.classList.add('has-lock-media');
+    card.classList.toggle('lock-media-image', kind === 'image');
+    card.classList.toggle('lock-media-video', kind === 'video');
+    if (kind === 'video') mediaEl.play().catch(function () { });
+    homeDashboardBindHeroThemeMedia(mediaEl, kind);
   } catch (error) {
-    console.warn('[HomeDashboardVideo]', error);
+    console.warn('[HomeDashboardMedia]', error);
     homeDashboardReleaseVideoSource(true);
-    homeDashboardNotify('主页 MP4 读取失败，请重新选择');
+    homeDashboardNotify('锁屏背景读取失败，请重新选择');
   } finally {
     homeDashboardVideoAttachBusy = false;
     if (shouldRetry && !homeDashboardVideoDecodeFailed) {
@@ -303,11 +591,12 @@ async function homeDashboardAttachVideo() {
 }
 
 function homeDashboardRenderVideoActions() {
-  var hasVideo = !!homeDashboardReadVideoMeta();
+  var meta = homeDashboardReadVideoMeta();
+  var hasMedia = !!meta;
   var choose = document.getElementById('home-dashboard-video-choose');
   var clear = document.getElementById('home-dashboard-video-clear');
-  if (choose) choose.textContent = hasVideo ? '更换 MP4' : '选择 MP4';
-  if (clear) clear.hidden = !hasVideo;
+  if (choose) choose.textContent = hasMedia ? '更换背景' : '锁屏背景';
+  if (clear) clear.hidden = !hasMedia;
 }
 
 function homeDashboardUpdateVideoPower() {
@@ -315,9 +604,12 @@ function homeDashboardUpdateVideoPower() {
     homeDashboardReleaseVideoSource(true);
     return;
   }
-  var video = document.querySelector('#empty-home .home-dashboard-video');
-  if (video && homeDashboardVideoObjectUrl) video.play().catch(function () { });
-  else homeDashboardAttachVideo();
+  var backVideo = document.querySelector('#empty-home .home-lock-media-back .home-lock-media-el');
+  if (backVideo && homeDashboardVideoObjectUrl) {
+    if (backVideo.tagName === 'VIDEO') backVideo.play().catch(function () { });
+    return;
+  }
+  homeDashboardAttachVideo();
 }
 
 function openHomeDashboardVideoPicker() {
@@ -326,18 +618,21 @@ function openHomeDashboardVideoPicker() {
 }
 
 async function handleHomeDashboardVideoFile(file) {
-  if (!homeDashboardIsMp4File(file)) {
-    homeDashboardNotify('这里只能选择 .mp4 文件');
+  var kind = homeDashboardMediaKind(file);
+  if (!kind) {
+    homeDashboardNotify('请选择图片或视频（JPG / PNG / WEBP / MP4 / WEBM）');
     return;
   }
-  if (Number(file.size) > HOME_DASHBOARD_VIDEO_MAX_BYTES) {
-    homeDashboardNotify('MP4 不能超过 300 MB');
+  var maxBytes = kind === 'image' ? HOME_DASHBOARD_IMAGE_MAX_BYTES : HOME_DASHBOARD_VIDEO_MAX_BYTES;
+  if (Number(file.size) > maxBytes) {
+    homeDashboardNotify(kind === 'image' ? '图片不能超过 40 MB' : '视频不能超过 300 MB');
     return;
   }
   var meta = {
-    version: 1,
-    name: String(file.name || 'home.mp4'),
-    type: 'video/mp4',
+    version: 2,
+    kind: kind,
+    name: String(file.name || (kind === 'image' ? 'home.jpg' : 'home.mp4')),
+    type: String(file.type || (kind === 'image' ? 'image/jpeg' : 'video/mp4')),
     size: Number(file.size) || 0,
     savedAt: Date.now(),
   };
@@ -348,10 +643,10 @@ async function handleHomeDashboardVideoFile(file) {
     homeDashboardReleaseVideoSource(true);
     homeDashboardRenderVideoActions();
     homeDashboardUpdateVideoPower();
-    homeDashboardNotify('主页 MP4 已保存');
+    homeDashboardNotify(kind === 'image' ? '锁屏图片已保存' : '锁屏视频已保存');
   } catch (error) {
-    console.warn('[HomeDashboardVideoSave]', error);
-    homeDashboardNotify('主页 MP4 保存失败');
+    console.warn('[HomeDashboardMediaSave]', error);
+    homeDashboardNotify('锁屏背景保存失败');
   }
 }
 
@@ -359,13 +654,14 @@ async function clearHomeDashboardVideo() {
   localStorage.removeItem(HOME_DASHBOARD_VIDEO_META_KEY);
   homeDashboardVideoDecodeFailed = false;
   homeDashboardReleaseVideoSource(true);
+  homeDashboardResetHeroTheme();
   homeDashboardRenderVideoActions();
   try {
     await homeDashboardDeleteVideoBlob();
   } catch (error) {
-    console.warn('[HomeDashboardVideoDelete]', error);
+    console.warn('[HomeDashboardMediaDelete]', error);
   }
-  homeDashboardNotify('已恢复主页默认动画');
+  homeDashboardNotify('已恢复默认主页背景');
 }
 
 function bindHomeDashboardVideoControls() {
@@ -373,6 +669,7 @@ function bindHomeDashboardVideoControls() {
   homeDashboardVideoControlsBound = true;
   var input = document.getElementById('home-dashboard-video-input');
   if (input) {
+    input.setAttribute('accept', 'image/*,video/mp4,video/webm,.jpg,.jpeg,.png,.webp,.gif,.mp4,.webm');
     input.addEventListener('change', function () {
       var file = input.files && input.files[0];
       input.value = '';
@@ -386,8 +683,11 @@ function bindHomeDashboardVideoControls() {
     homeDashboardVideoPowerObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] });
   }
   window.addEventListener('pagehide', function () { homeDashboardReleaseVideoSource(true); });
+  window.addEventListener('visibilitychange', function () {
+    if (!document.hidden) homeDashboardUpdateVideoPower();
+  });
+  try { localStorage.removeItem('mineradio-home-lock-depth-v1'); } catch (_error) { }
 }
-
 function renderHomeDashboardHero() {
   var hero = document.querySelector('#empty-home .home-hero');
   if (!hero) return;
@@ -395,26 +695,44 @@ function renderHomeDashboardHero() {
   var fingerprint = homeDashboardDayNumber() + '|' + homeDashboardReviewOffset + '|' + review.text + '|' + review.source;
   if (!hero.querySelector('.daily-review-card')) {
     hero.innerHTML = '<div class="daily-review-card">' +
+      '<div class="daily-review-content">' +
+      '<div class="daily-review-brand">MINERADIO</div>' +
       '<div id="daily-review-date" class="daily-review-date"></div>' +
       '<div id="daily-review-time" class="daily-review-time">--:--</div>' +
       '<div class="daily-review-quote"></div>' +
       '<div class="daily-review-source"></div>' +
+      '</div>' +
       '<div class="daily-review-actions">' +
-      '<button type="button" onclick="homeDashboardNextReview()">换一条</button>' +
-      '<button id="home-dashboard-video-choose" type="button" onclick="openHomeDashboardVideoPicker()">选择 MP4</button>' +
-      '<button id="home-dashboard-video-clear" type="button" onclick="clearHomeDashboardVideo()" hidden>移除视频</button>' +
-      '<button type="button" onclick="openHomePlayerConsole()">展开播放器控制台</button>' +
+      '<button type="button" class="daily-review-btn primary" onclick="homeDashboardNextReview()">换一条</button>' +
+      '<button id="home-dashboard-video-choose" type="button" class="daily-review-btn" onclick="openHomeDashboardVideoPicker()">锁屏背景</button>' +
+      '<button id="home-dashboard-video-clear" type="button" class="daily-review-btn ghost" onclick="clearHomeDashboardVideo()" hidden>移除</button>' +
+      '<button type="button" class="daily-review-btn ghost" onclick="openHomePlayerConsole()">播放控制台</button>' +
       '</div></div>' +
-      '<input id="home-dashboard-video-input" type="file" accept=".mp4,video/mp4" hidden aria-hidden="true">';
+      '<input id="home-dashboard-video-input" type="file" accept="image/*,video/mp4,video/webm,.jpg,.jpeg,.png,.webp,.gif,.mp4,.webm" hidden aria-hidden="true">';
     homeDashboardVideoControlsBound = false;
     bindHomeDashboardVideoControls();
+  } else {
+    var existingCard = hero.querySelector('.daily-review-card');
+    homeDashboardEnsureContentLayer(existingCard);
+    homeDashboardEnsureActionsOnTop(existingCard);
+    homeDashboardRemoveLegacyDepthNodes(existingCard);
+    var oldDepthBtn = document.getElementById('home-dashboard-depth-btn');
+    if (oldDepthBtn && oldDepthBtn.parentNode) oldDepthBtn.parentNode.removeChild(oldDepthBtn);
+    if (!hero.querySelector('.daily-review-brand')) {
+      var content = hero.querySelector('.daily-review-content') || hero.querySelector('.daily-review-card');
+      var brand = document.createElement('div');
+      brand.className = 'daily-review-brand';
+      brand.textContent = 'MINERADIO';
+      if (content && content.firstChild) content.insertBefore(brand, content.firstChild);
+      else if (content) content.appendChild(brand);
+    }
   }
   if (fingerprint !== homeDashboardHeroFingerprint) {
     homeDashboardHeroFingerprint = fingerprint;
     var quote = hero.querySelector('.daily-review-quote');
     var source = hero.querySelector('.daily-review-source');
     if (quote) quote.textContent = '“' + review.text + '”';
-    if (source) source.textContent = '— ' + (review.source || '每日热评');
+    if (source) source.textContent = '今日乐评 · ' + (review.source || '随心换一首心情');
   }
   homeDashboardRenderVideoActions();
   homeDashboardUpdateVideoPower();

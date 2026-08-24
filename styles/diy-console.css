@@ -6,13 +6,14 @@ body.diy-mode #fx-panel.fx-console {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  width: min(640px, calc(100vw - 48px));
-  max-height: min(720px, calc(100vh - 112px));
+  width: min(560px, calc(100vw - 40px));
+  height: auto;
+  max-height: min(680px, calc(100vh - 108px));
   bottom: 88px;
   padding: 0;
   border-color: rgba(var(--fc-accent-rgb), .20);
   background:
-    linear-gradient(155deg, rgba(24, 28, 36, .94) 0%, rgba(8, 10, 14, .96) 52%, rgba(6, 7, 10, .98) 100%),
+    linear-gradient(155deg, rgba(24, 28, 36, .96) 0%, rgba(8, 10, 14, .97) 52%, rgba(6, 7, 10, .98) 100%),
     var(--glass-bg);
   box-shadow:
     0 28px 90px rgba(0, 0, 0, .55),
@@ -28,27 +29,27 @@ body.diy-mode #fx-panel.fx-console.pinned {
 
 /* ── Header ── */
 #fx-panel.fx-console .fx-head {
-  flex-shrink: 0;
+  flex: 0 0 auto;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   margin: 0;
-  padding: 14px 16px 12px;
+  padding: 12px 14px 10px;
   border-bottom: 1px solid rgba(255, 255, 255, .07);
 }
 
 .fx-head-brand {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 10px;
   min-width: 0;
   flex: 1;
 }
 
 .fx-head-mark {
   flex-shrink: 0;
-  width: 34px;
-  height: 34px;
-  border-radius: 11px;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
   background:
     radial-gradient(circle at 30% 28%, rgba(255, 255, 255, .22), transparent 48%),
     linear-gradient(135deg, rgba(var(--fc-accent-rgb), .92), rgba(var(--fc-accent-rgb), .42));
@@ -62,15 +63,15 @@ body.diy-mode #fx-panel.fx-console.pinned {
 }
 
 #fx-panel.fx-console .fx-title {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 780;
   letter-spacing: .06em;
   color: rgba(255, 255, 255, .94);
 }
 
 #fx-panel.fx-console .fx-sub {
-  margin-top: 3px;
-  font-size: 10.5px;
+  margin-top: 2px;
+  font-size: 10px;
   letter-spacing: .04em;
   color: rgba(255, 255, 255, .42);
   white-space: nowrap;
@@ -83,6 +84,16 @@ body.diy-mode #fx-panel.fx-console.pinned {
   align-items: center;
   gap: 6px;
   flex-shrink: 0;
+}
+
+#fx-panel.fx-console .fx-hotkey-btn {
+  min-width: 44px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
 }
 
 .fx-panel-pin {
@@ -153,7 +164,7 @@ body.diy-mode #fx-panel.fx-console.pinned {
 /* ── Shell: nav rail + main ── */
 .fx-console-shell {
   display: flex;
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
 }
@@ -164,11 +175,11 @@ body.diy-mode #fx-panel.fx-console .fx-panel-tabs {
   z-index: 2;
   display: flex;
   flex-direction: column;
-  flex-shrink: 0;
-  width: 76px;
+  flex: 0 0 72px;
+  width: 72px;
   margin: 0;
-  padding: 10px 8px;
-  gap: 4px;
+  padding: 8px 6px;
+  gap: 3px;
   border-radius: 0;
   border: 0;
   border-right: 1px solid rgba(255, 255, 255, .06);
@@ -177,6 +188,12 @@ body.diy-mode #fx-panel.fx-console .fx-panel-tabs {
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   grid-template-columns: none;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+body.diy-mode #fx-panel.fx-console .fx-panel-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 body.diy-mode #fx-panel.fx-console .fx-panel-tabs button {
@@ -184,15 +201,16 @@ body.diy-mode #fx-panel.fx-console .fx-panel-tabs button {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 3px;
   width: 100%;
   min-width: 0;
   height: auto;
-  min-height: 56px;
-  padding: 8px 4px;
-  border-radius: 12px;
+  min-height: 50px;
+  padding: 7px 3px;
+  border-radius: 11px;
   font-weight: 740;
   color: rgba(255, 255, 255, .48);
+  transition: color .18s, background .18s, box-shadow .18s;
 }
 
 body.diy-mode #fx-panel.fx-console .fx-panel-tabs button:hover {
@@ -209,52 +227,54 @@ body.diy-mode #fx-panel.fx-console .fx-panel-tabs button.active {
 }
 
 .fx-tab-icon {
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1;
   opacity: .92;
 }
 
 .fx-tab-label {
   font-size: 9.5px;
-  letter-spacing: .08em;
+  letter-spacing: .06em;
   line-height: 1.2;
 }
 
 /* ── Main content area ── */
 .fx-console-main {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  min-height: 0;
 }
 
 .fx-page-head {
-  flex-shrink: 0;
-  padding: 12px 14px 10px;
+  flex: 0 0 auto;
+  padding: 10px 14px 8px;
   border-bottom: 1px solid rgba(255, 255, 255, .05);
 }
 
 .fx-page-title {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 780;
   letter-spacing: .08em;
   color: rgba(255, 255, 255, .88);
 }
 
 .fx-page-hint {
-  margin-top: 3px;
-  font-size: 10.5px;
+  margin-top: 2px;
+  font-size: 10px;
   letter-spacing: .03em;
   color: rgba(255, 255, 255, .38);
 }
 
 .fx-console-pages {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
+  max-height: min(520px, calc(100vh - 220px));
+  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 10px 14px 14px;
+  padding: 8px 12px 12px;
   scrollbar-width: thin;
   scrollbar-color: rgba(var(--fc-accent-rgb), .24) transparent;
 }
@@ -269,21 +289,22 @@ body.diy-mode #fx-panel.fx-console .fx-panel-tabs button.active {
 }
 
 .fx-tab-page {
-  display: none;
+  display: none !important;
+  min-height: 0;
 }
 
 .fx-tab-page.active {
-  display: block;
+  display: block !important;
 }
 
 .fx-tab-page.fx-page-enter {
-  animation: fx-page-enter .32s cubic-bezier(.16, 1, .3, 1) both;
+  animation: fx-page-enter .28s cubic-bezier(.16, 1, .3, 1) both;
 }
 
 @keyframes fx-page-enter {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(5px);
   }
   to {
     opacity: 1;
@@ -293,9 +314,9 @@ body.diy-mode #fx-panel.fx-console .fx-panel-tabs button.active {
 
 /* ── Footer actions ── */
 #fx-panel.fx-console .fx-actions {
-  flex-shrink: 0;
+  flex: 0 0 auto;
   margin: 0;
-  padding: 10px 14px 14px;
+  padding: 9px 12px 12px;
   border-top: 1px solid rgba(255, 255, 255, .06);
   background: rgba(0, 0, 0, .14);
 }
@@ -319,10 +340,10 @@ body.diy-mode #fx-panel.fx-console .fx-panel-tabs button.active {
 
 /* ── In-panel controls polish ── */
 body.diy-mode #fx-panel.fx-console .fx-section-label {
-  margin-top: 14px;
-  margin-bottom: 8px;
+  margin-top: 12px;
+  margin-bottom: 7px;
   font-size: 10px;
-  letter-spacing: .16em;
+  letter-spacing: .14em;
   color: rgba(255, 255, 255, .36);
 }
 
@@ -343,12 +364,12 @@ body.diy-mode #fx-panel.fx-console .fx-seg button {
 }
 
 body.diy-mode #fx-panel.fx-console .fx-slider {
-  margin: 8px 0;
+  margin: 6px 0;
 }
 
 body.diy-mode #fx-panel.fx-console .fx-fold,
 body.diy-mode #fx-panel.fx-console .fx-advanced {
-  margin-top: 10px;
+  margin-top: 8px;
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, .07);
   background: rgba(255, 255, 255, .024);
@@ -374,9 +395,57 @@ body.diy-mode #fx-panel.fx-console .lyric-glitch-controls {
   background: rgba(255, 83, 103, .04);
 }
 
+/* Preset / archive cards — denser, less clipped */
 body.diy-mode #fx-panel.fx-console .preset-grid,
 body.diy-mode #fx-panel.fx-console .user-archive-grid {
   gap: 8px;
+  margin-bottom: 8px;
+}
+
+body.diy-mode #fx-panel.fx-console .preset-card {
+  min-height: 78px;
+  padding: 10px 11px 11px;
+  border-radius: 12px;
+  transition: border-color .2s, background .2s, box-shadow .2s, transform .2s;
+}
+
+body.diy-mode #fx-panel.fx-console .preset-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, .22);
+  background: rgba(255, 255, 255, .055);
+}
+
+body.diy-mode #fx-panel.fx-console .preset-card.active {
+  border-color: rgba(var(--fc-accent-rgb), .55);
+  background: rgba(var(--fc-accent-rgb), .09);
+  box-shadow:
+    0 0 0 1px rgba(var(--fc-accent-rgb), .2),
+    0 12px 28px rgba(var(--fc-accent-rgb), .08);
+}
+
+body.diy-mode #fx-panel.fx-console .preset-card .pc-name {
+  font-size: 12.5px;
+  line-height: 1.25;
+  padding-right: 26px;
+}
+
+body.diy-mode #fx-panel.fx-console .preset-card .pc-desc {
+  font-size: 10px;
+  margin-top: 3px;
+  line-height: 1.3;
+}
+
+body.diy-mode #fx-panel.fx-console .preset-card .pc-name .pc-name-en {
+  display: block;
+  margin-top: 2px;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  color: rgba(255, 255, 255, .38);
+}
+
+body.diy-mode #fx-panel.fx-console .user-archive-slot {
+  min-height: 78px;
 }
 
 /* ── Open state glow on FAB area ── */
@@ -399,11 +468,13 @@ body.fx-console-open #fx-fab {
   }
 
   body.diy-mode #fx-panel.fx-console .fx-panel-tabs {
+    flex: 0 0 auto;
     flex-direction: row;
     width: 100%;
     padding: 8px;
     gap: 4px;
     overflow-x: auto;
+    overflow-y: hidden;
     scrollbar-width: none;
     border-right: 0;
     border-bottom: 1px solid rgba(255, 255, 255, .06);
@@ -416,7 +487,7 @@ body.fx-console-open #fx-fab {
   body.diy-mode #fx-panel.fx-console .fx-panel-tabs button {
     flex: 0 0 auto;
     min-width: 58px;
-    min-height: 48px;
+    min-height: 46px;
     padding: 6px 8px;
   }
 
@@ -428,19 +499,31 @@ body.fx-console-open #fx-fab {
     display: none;
   }
 
+  .fx-console-pages {
+    max-height: min(58vh, calc(100vh - 210px));
+  }
+
   #fx-panel.fx-console .fx-head {
-    padding: 12px 14px 10px;
+    padding: 11px 12px 9px;
   }
 }
 
 @media (max-height: 700px) {
   body.diy-mode #fx-panel.fx-console {
-    max-height: calc(100vh - 96px);
+    max-height: calc(100vh - 88px);
+  }
+
+  .fx-console-pages {
+    max-height: min(420px, calc(100vh - 200px));
   }
 
   body.diy-mode #fx-panel.fx-console .fx-panel-tabs button {
-    min-height: 50px;
-    padding: 6px 4px;
+    min-height: 46px;
+    padding: 5px 3px;
+  }
+
+  body.diy-mode #fx-panel.fx-console .preset-card {
+    min-height: 70px;
   }
 }
 
