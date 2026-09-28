@@ -25105,6 +25105,29 @@ function dismissBridgeExtensionNotice() {
   bridgeExtensionNoticeDismissed = true;
   renderBridgeExtensionNotice(false, getBridgeInstalledVersion());
 }
+// 官网多端提示：扩展就绪且已登录任意平台后只弹一次
+var OFFICIAL_SITE_PROMPT_KEY = 'mineradio-official-site-prompted';
+function maybeShowOfficialSiteNotice() {
+  try {
+    if (localStorage.getItem(OFFICIAL_SITE_PROMPT_KEY) === '1') return;
+  } catch (_) {}
+  if (!isBridgeExtensionReady() || !hasAnyPlatformLogin()) return;
+  showOfficialSiteNotice();
+}
+function showOfficialSiteNotice() {
+  var notice = document.getElementById('official-site-notice');
+  if (!notice) return;
+  notice.classList.add('show');
+}
+function dismissOfficialSiteNotice() {
+  var notice = document.getElementById('official-site-notice');
+  if (notice) notice.classList.remove('show');
+  try { localStorage.setItem(OFFICIAL_SITE_PROMPT_KEY, '1'); } catch (_) {}
+}
+function openOfficialSiteFromNotice() {
+  dismissOfficialSiteNotice();
+  try { window.open('https://mineradio.cn', '_blank', 'noopener,noreferrer'); } catch (_) {}
+}
 function handleBridgeExtensionNoticePrimary() {
   var notice = document.getElementById('bridge-extension-notice');
   showLoginModal({ source: 'bridge-install-notice' });
@@ -25290,6 +25313,7 @@ function renderLoginExtensionStatus(pinging) {
     downloadBtn.style.display = ready && !outdated ? 'none' : '';
   }
   renderBridgeExtensionNotice(outdated, installedVersion);
+  if (ready && !outdated) maybeShowOfficialSiteNotice();
 }
 function startLoginExtensionProbe() {
   stopLoginExtensionProbe();
@@ -25441,6 +25465,9 @@ function closeLoginModal(opts) {
   if (shouldOpenAccount) {
     updateUserModalUi();
     openGsapModal(document.getElementById('user-modal'));
+  }
+  if (opts.afterLogin) {
+    setTimeout(maybeShowOfficialSiteNotice, 600);
   }
 }
 function finishLoginFlow(opts) {

@@ -1377,6 +1377,17 @@ var _hmt = _hmt || [];
     <button id="bridge-extension-notice-secondary" type="button" onclick="handleBridgeExtensionNoticeSecondary()">重新检测</button>
   </div>
 </div>
+<div id="official-site-notice" aria-live="polite">
+  <div class="source-fallback-head">
+    <div class="source-fallback-title">体验更多平台</div>
+    <button class="source-fallback-close" type="button" onclick="dismissOfficialSiteNotice()">×</button>
+  </div>
+  <div class="source-fallback-body">除了网页版，Mineradio 还提供 Windows、macOS、安卓等多端客户端，歌单与收藏跨端同步。访问官网 mineradio.cn 即可下载体验。</div>
+  <div class="bridge-extension-actions">
+    <button class="primary" type="button" onclick="openOfficialSiteFromNotice()">访问官网</button>
+    <button type="button" onclick="dismissOfficialSiteNotice()">知道了</button>
+  </div>
+</div>
 <div id="source-fallback-notice" aria-live="polite">
   <div class="source-fallback-head">
     <div id="source-fallback-title" class="source-fallback-title">自动换源</div>

@@ -1014,10 +1014,13 @@ body.login-guide-active #login-guide-canvas{opacity:1}
 .donate-qr-fallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:14px;font-size:10px;line-height:1.45;color:rgba(0,0,0,.42);text-align:center;background:repeating-linear-gradient(45deg,#f7f7f7,#f7f7f7 8px,#efefef 8px,#efefef 16px)}
 .donate-qr-shell.has-image .donate-qr-fallback{display:none}
 .donate-modal-note{margin-top:12px;font-size:10.5px;line-height:1.5;color:rgba(255,255,255,.36)}
-#bridge-extension-notice{position:fixed;z-index:201;top:72px;right:24px;width:min(330px,calc(100vw - 48px));padding:13px 14px;border-radius:14px;border:1px solid rgba(244,210,138,.24);background:rgba(12,13,18,.88);color:rgba(255,255,255,.88);box-shadow:0 20px 54px rgba(0,0,0,.40),inset 0 1px 0 rgba(255,255,255,.08);backdrop-filter:blur(26px) saturate(1.25);-webkit-backdrop-filter:blur(26px) saturate(1.25);opacity:0;pointer-events:none;transform:translateY(-8px);transition:opacity .26s,transform .26s}
-#bridge-extension-notice.show{opacity:1;pointer-events:auto;transform:translateY(0)}
-#bridge-extension-notice .bridge-extension-actions{display:flex;gap:8px;margin-top:10px}
-#bridge-extension-notice .bridge-extension-actions button{height:32px;padding:0 12px;border-radius:10px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.05);color:rgba(255,255,255,.82);font:inherit;font-size:11px;cursor:pointer}
+#bridge-extension-notice,#official-site-notice{position:fixed;z-index:201;top:72px;right:24px;width:min(330px,calc(100vw - 48px));padding:13px 14px;border-radius:14px;border:1px solid rgba(244,210,138,.24);background:rgba(12,13,18,.88);color:rgba(255,255,255,.88);box-shadow:0 20px 54px rgba(0,0,0,.40),inset 0 1px 0 rgba(255,255,255,.08);backdrop-filter:blur(26px) saturate(1.25);-webkit-backdrop-filter:blur(26px) saturate(1.25);opacity:0;pointer-events:none;transform:translateY(-8px);transition:opacity .26s,transform .26s}
+#bridge-extension-notice.show,#official-site-notice.show{opacity:1;pointer-events:auto;transform:translateY(0)}
+#official-site-notice{border-color:rgba(0,245,212,.28);box-shadow:0 20px 54px rgba(0,0,0,.40),0 0 28px rgba(0,245,212,.06),inset 0 1px 0 rgba(255,255,255,.08)}
+#official-site-notice .source-fallback-title{color:#9ef6e8}
+#official-site-notice .bridge-extension-actions button.primary{border-color:rgba(0,245,212,.34);background:rgba(0,245,212,.12);color:#b8fff2}
+#bridge-extension-notice .bridge-extension-actions,#official-site-notice .bridge-extension-actions{display:flex;gap:8px;margin-top:10px}
+#bridge-extension-notice .bridge-extension-actions button,#official-site-notice .bridge-extension-actions button{height:32px;padding:0 12px;border-radius:10px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.05);color:rgba(255,255,255,.82);font:inherit;font-size:11px;cursor:pointer}
 #bridge-extension-notice .bridge-extension-actions button.primary{border-color:rgba(244,210,138,.34);background:rgba(244,210,138,.12);color:#fff0c8}
 #bridge-extension-notice.missing{border-color:rgba(0,245,212,.28);background:rgba(8,16,20,.90);box-shadow:0 20px 54px rgba(0,0,0,.40),0 0 28px rgba(0,245,212,.08),inset 0 1px 0 rgba(255,255,255,.08)}
 #bridge-extension-notice.missing .source-fallback-title{color:#9ef6e8}
