@@ -25364,11 +25364,11 @@ function renderBridgeCloudDrives() {
     var codeHtml = code
       ? ('<span class="bridge-drive-code">提取码 <b>' + code.replace(/"/g, '&quot;') + '</b></span>' +
          '<button class="modal-btn bridge-drive-copy" type="button" onclick="copyBridgeDriveCode(\'' + safeKey + '\')">复制提取码</button>')
-      : '<span class="bridge-drive-code bridge-drive-no-code">无需提取码</span>';
+      : '';
     return '' +
       '<div class="bridge-drive-row">' +
         '<span class="bridge-drive-name">' + safeName + '</span>' +
-        '<a class="modal-btn primary bridge-drive-link" href="' + safeUrl + '" target="_blank" rel="noopener noreferrer">打开网盘</a>' +
+        '<a class="modal-btn primary bridge-drive-link" href="' + safeUrl + '" target="_blank" rel="noopener noreferrer">下载扩展</a>' +
         codeHtml +
       '</div>';
   }).join('');
