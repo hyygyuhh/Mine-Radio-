@@ -25112,7 +25112,8 @@ function handleBridgeExtensionNoticePrimary() {
 function handleBridgeExtensionNoticeSecondary() {
   var notice = document.getElementById('bridge-extension-notice');
   if (notice && notice.dataset.mode === 'missing') {
-    showLoginModal({ source: 'bridge-install-notice' });
+    // missing 模式下"下载扩展包"改为打开官网 mineradio.cn
+    try { window.open('https://mineradio.cn', '_blank', 'noopener,noreferrer'); } catch (_) {}
     return;
   }
   refreshBridgeExtensionWatch(true);
@@ -25144,7 +25145,7 @@ function renderBridgeExtensionNotice(outdated, installedVersion) {
     }
   }
   if (primary) primary.textContent = mode === 'missing' ? '前往登录页下载' : '下载新版';
-  if (secondary) secondary.textContent = mode === 'missing' ? '下载扩展包' : '重新检测';
+  if (secondary) secondary.textContent = mode === 'missing' ? '打开官网' : '重新检测';
   if (userBtn) {
     userBtn.classList.toggle('bridge-update-hint', mode === 'outdated');
     userBtn.classList.toggle('bridge-install-hint', mode === 'missing');
