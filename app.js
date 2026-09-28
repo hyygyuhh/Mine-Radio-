@@ -25073,6 +25073,11 @@ function renderUserBtn() {
   updatePlaybackQualityUi();
 }
 var MINERADIO_BRIDGE_EXTENSION_VERSION = '1.4.1';
+// Bridge 扩展下载源（夸克网盘 / 百度网盘）。请将下面的 url 与 code 替换为真实分享链接和提取码。
+var BRIDGE_CLOUD_DRIVES = [
+  { key: 'quark', name: '夸克网盘', url: 'https://pan.quark.cn/s/PLACEHOLDER', code: 'QUARK' },
+  { key: 'baidu', name: '百度网盘', url: 'https://pan.baidu.com/s/PLACEHOLDER', code: 'BAIDU' }
+];
 var loginExtensionProbeTimer = null;
 var bridgeExtensionWatchTimer = null;
 var bridgeExtensionNoticeDismissed = false;
@@ -25102,16 +25107,12 @@ function dismissBridgeExtensionNotice() {
 }
 function handleBridgeExtensionNoticePrimary() {
   var notice = document.getElementById('bridge-extension-notice');
-  if (notice && notice.dataset.mode === 'missing') {
-    showLoginModal({ source: 'bridge-install-notice' });
-    return;
-  }
-  downloadMineradioBridgeExtension();
+  showLoginModal({ source: 'bridge-install-notice' });
 }
 function handleBridgeExtensionNoticeSecondary() {
   var notice = document.getElementById('bridge-extension-notice');
   if (notice && notice.dataset.mode === 'missing') {
-    downloadMineradioBridgeExtension();
+    showLoginModal({ source: 'bridge-install-notice' });
     return;
   }
   refreshBridgeExtensionWatch(true);
@@ -25320,6 +25321,7 @@ function updateLoginExtensionPanel() {
     return;
   }
   renderLoginExtensionStatus(false);
+  renderBridgeCloudDrives();
   if (!window.__mineradioWebBridge || !window.__mineradioWebBridge.isReady || !window.__mineradioWebBridge.isReady()) startLoginExtensionProbe();
 }
 async function refreshLoginExtensionPanel() {
@@ -25331,6 +25333,12 @@ async function refreshLoginExtensionPanel() {
   else stopLoginExtensionProbe();
 }
 function downloadMineradioBridgeExtension() {
+  // 已改为网盘分发，打开首个网盘分享链接
+  if (BRIDGE_CLOUD_DRIVES && BRIDGE_CLOUD_DRIVES.length) {
+    try { window.open(BRIDGE_CLOUD_DRIVES[0].url, '_blank', 'noopener,noreferrer'); } catch (_) {}
+    showToast('已打开 ' + BRIDGE_CLOUD_DRIVES[0].name + ' 分享页，请使用提取码下载');
+    return;
+  }
   var url = resolveBridgeExtensionDownloadUrl();
   try {
     var a = document.createElement('a');
@@ -25343,6 +25351,51 @@ function downloadMineradioBridgeExtension() {
     showToast('已开始下载 Bridge 扩展，解压后在浏览器加载');
   } catch (_) {
     window.open(url, '_blank', 'noopener,noreferrer');
+  }
+}
+function renderBridgeCloudDrives() {
+  var container = document.getElementById('login-extension-drives');
+  if (!container) return;
+  var html = BRIDGE_CLOUD_DRIVES.map(function (drive) {
+    var safeUrl = String(drive.url || '').replace(/"/g, '&quot;');
+    var safeName = String(drive.name || '').replace(/"/g, '&quot;');
+    var safeCode = String(drive.code || '').replace(/"/g, '&quot;');
+    var safeKey = String(drive.key || '').replace(/[^a-zA-Z0-9_-]/g, '');
+    return '' +
+      '<div class="bridge-drive-row">' +
+        '<span class="bridge-drive-name">' + safeName + '</span>' +
+        '<a class="modal-btn primary bridge-drive-link" href="' + safeUrl + '" target="_blank" rel="noopener noreferrer">打开网盘</a>' +
+        '<span class="bridge-drive-code">提取码 <b>' + safeCode + '</b></span>' +
+        '<button class="modal-btn bridge-drive-copy" type="button" onclick="copyBridgeDriveCode(\'' + safeKey + '\')">复制提取码</button>' +
+      '</div>';
+  }).join('');
+  container.innerHTML = html;
+}
+function copyBridgeDriveCode(key) {
+  var drive = (BRIDGE_CLOUD_DRIVES || []).find(function (d) { return d.key === key; });
+  if (!drive) return;
+  var text = String(drive.code || '');
+  var done = function () { showToast('已复制 ' + drive.name + ' 提取码：' + text); };
+  var fail = function () {
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.top = '-9999px';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      done();
+    } catch (_) {
+      showToast('请手动复制提取码：' + text);
+    }
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(fail);
+  } else {
+    fail();
   }
 }
 function openBridgeExtensionInstallGuide() {

@@ -979,6 +979,14 @@ body.login-guide-active #login-guide-canvas{opacity:1}
 .login-extension-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
 .login-extension-actions .modal-btn{padding:7px 12px;font-size:11px}
 .login-extension-actions .modal-btn.primary{flex:1;min-width:136px}
+.login-extension-drives{display:flex;flex-direction:column;gap:6px;margin:4px 0 8px}
+.bridge-drive-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;padding:7px 9px;border-radius:10px;border:1px solid rgba(0,245,212,.12);background:rgba(0,0,0,.18)}
+.bridge-drive-name{font-size:11px;font-weight:600;color:rgba(255,255,255,.82);min-width:56px}
+.bridge-drive-link{text-decoration:none;padding:5px 10px;font-size:11px}
+.bridge-drive-code{font-size:10px;color:rgba(255,255,255,.46);margin-left:auto}
+.bridge-drive-code b{color:rgba(244,210,138,.92);font-weight:700;letter-spacing:.5px;margin-left:2px}
+.bridge-drive-copy{padding:5px 10px;font-size:11px}
+.login-extension-panel.ready .login-extension-drives{display:none}
 .login-extension-foot{margin-top:8px;font-size:10px;line-height:1.42;color:rgba(255,255,255,.30)}
 .login-extension-foot button{border:0;background:none;padding:0;color:rgba(244,210,138,.72);cursor:pointer;font:inherit;text-decoration:underline;text-underline-offset:2px}
 .login-extension-foot button:hover{color:rgba(244,210,138,.96)}
