@@ -981,15 +981,20 @@ body.login-guide-active #login-guide-canvas{opacity:1}
 .login-extension-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
 .login-extension-actions .modal-btn{padding:7px 12px;font-size:11px}
 .login-extension-actions .modal-btn.primary{flex:1;min-width:136px}
-.login-extension-drives{display:flex;flex-direction:column;gap:6px;margin:4px 0 8px}
-.bridge-drive-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;padding:7px 9px;border-radius:10px;border:1px solid rgba(0,245,212,.12);background:rgba(0,0,0,.18)}
-.bridge-drive-name{font-size:11px;font-weight:600;color:rgba(255,255,255,.82);min-width:56px}
-.bridge-drive-link{text-decoration:none;padding:5px 10px;font-size:11px}
-.bridge-drive-code{font-size:10px;color:rgba(255,255,255,.46);margin-left:auto}
-.bridge-drive-code b{color:rgba(244,210,138,.92);font-weight:700;letter-spacing:.5px;margin-left:2px}
-.bridge-drive-code.bridge-drive-no-code{color:rgba(255,255,255,.28)}
-.bridge-drive-copy{padding:5px 10px;font-size:11px}
-.login-extension-panel.ready .login-extension-drives{display:none}
+.login-extension-drives-label{font-size:10px;font-weight:700;letter-spacing:1.2px;color:rgba(0,245,212,.6);text-transform:uppercase;margin:2px 0 6px}
+.login-extension-drives{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 8px}
+.bridge-drive-card{flex:1;min-width:130px;display:flex;flex-direction:column;gap:8px;padding:10px 11px;border-radius:12px;border:1px solid rgba(0,245,212,.14);background:linear-gradient(160deg,rgba(0,245,212,.06),rgba(255,255,255,.02));transition:border-color .2s,transform .15s,background .2s}
+.bridge-drive-card:hover{border-color:rgba(0,245,212,.34);background:linear-gradient(160deg,rgba(0,245,212,.10),rgba(255,255,255,.04));transform:translateY(-1px)}
+.bridge-drive-card.bridge-drive-baidu:hover{border-color:rgba(41,50,225,.45);background:linear-gradient(160deg,rgba(41,50,225,.10),rgba(255,255,255,.04))}
+.bridge-drive-card-top{display:flex;align-items:center;gap:8px}
+.bridge-drive-icon{flex-shrink:0;width:22px;height:22px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#06241f;background:rgba(0,245,212,.85)}
+.bridge-drive-card.bridge-drive-baidu .bridge-drive-icon{color:#fff;background:rgba(41,50,225,.85)}
+.bridge-drive-name{font-size:12px;font-weight:700;color:rgba(255,255,255,.9);letter-spacing:.2px}
+.bridge-drive-link{display:block;width:100%;text-align:center;text-decoration:none;padding:7px 10px;font-size:11px;font-weight:700}
+.bridge-drive-code{display:flex;align-items:center;justify-content:center;gap:6px;font-size:10px;color:rgba(255,255,255,.46)}
+.bridge-drive-code b{color:rgba(244,210,138,.92);font-weight:700;letter-spacing:.5px}
+.bridge-drive-copy{display:block;width:100%;padding:6px 10px;font-size:11px}
+.login-extension-panel.ready .login-extension-drives,.login-extension-panel.ready .login-extension-drives-label{display:none}
 .login-extension-foot{margin-top:8px;font-size:10px;line-height:1.42;color:rgba(255,255,255,.30)}
 .login-extension-foot button{border:0;background:none;padding:0;color:rgba(244,210,138,.72);cursor:pointer;font:inherit;text-decoration:underline;text-underline-offset:2px}
 .login-extension-foot button:hover{color:rgba(244,210,138,.96)}

@@ -25361,14 +25361,18 @@ function renderBridgeCloudDrives() {
     var safeUrl = String(drive.url || '').replace(/"/g, '&quot;');
     var safeName = String(drive.name || '').replace(/"/g, '&quot;');
     var safeKey = String(drive.key || '').replace(/[^a-zA-Z0-9_-]/g, '');
+    var initial = safeName.charAt(0);
     var code = String(drive.code || '').trim();
     var codeHtml = code
       ? ('<span class="bridge-drive-code">提取码 <b>' + code.replace(/"/g, '&quot;') + '</b></span>' +
          '<button class="modal-btn bridge-drive-copy" type="button" onclick="copyBridgeDriveCode(\'' + safeKey + '\')">复制提取码</button>')
       : '';
     return '' +
-      '<div class="bridge-drive-row">' +
-        '<span class="bridge-drive-name">' + safeName + '</span>' +
+      '<div class="bridge-drive-card bridge-drive-' + safeKey + '">' +
+        '<div class="bridge-drive-card-top">' +
+          '<span class="bridge-drive-icon">' + initial + '</span>' +
+          '<span class="bridge-drive-name">' + safeName + '</span>' +
+        '</div>' +
         '<a class="modal-btn primary bridge-drive-link" href="' + safeUrl + '" target="_blank" rel="noopener noreferrer">下载扩展</a>' +
         codeHtml +
       '</div>';
