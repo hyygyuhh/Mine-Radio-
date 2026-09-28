@@ -25073,10 +25073,10 @@ function renderUserBtn() {
   updatePlaybackQualityUi();
 }
 var MINERADIO_BRIDGE_EXTENSION_VERSION = '1.4.1';
-// Bridge 扩展下载源（夸克网盘 / 百度网盘）。
+// Bridge 扩展下载源（夸克网盘 / 百度网盘）。链接已自带 pwd，无需提取码。
 var BRIDGE_CLOUD_DRIVES = [
   { key: 'quark', name: '夸克网盘', url: 'https://pan.quark.cn/s/c2816f3b700f', code: '' },
-  { key: 'baidu', name: '百度网盘', url: 'https://pan.baidu.com/s/1UQGXRS3kBvSBR3W-Duh4rQ', code: '1gur' }
+  { key: 'baidu', name: '百度网盘', url: 'https://pan.baidu.com/s/1UQGXRS3kBvSBR3W-Duh4rQ?pwd=1gur', code: '' }
 ];
 var loginExtensionProbeTimer = null;
 var bridgeExtensionWatchTimer = null;
