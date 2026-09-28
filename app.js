@@ -25073,10 +25073,10 @@ function renderUserBtn() {
   updatePlaybackQualityUi();
 }
 var MINERADIO_BRIDGE_EXTENSION_VERSION = '1.4.1';
-// Bridge 扩展下载源（夸克网盘 / 百度网盘）。请将下面的 url 与 code 替换为真实分享链接和提取码。
+// Bridge 扩展下载源（夸克网盘 / 百度网盘）。
 var BRIDGE_CLOUD_DRIVES = [
-  { key: 'quark', name: '夸克网盘', url: 'https://pan.quark.cn/s/PLACEHOLDER', code: 'QUARK' },
-  { key: 'baidu', name: '百度网盘', url: 'https://pan.baidu.com/s/PLACEHOLDER', code: 'BAIDU' }
+  { key: 'quark', name: '夸克网盘', url: 'https://pan.quark.cn/s/c2816f3b700f', code: '' },
+  { key: 'baidu', name: '百度网盘', url: 'https://pan.baidu.com/s/1UQGXRS3kBvSBR3W-Duh4rQ', code: '1gur' }
 ];
 var loginExtensionProbeTimer = null;
 var bridgeExtensionWatchTimer = null;
@@ -25359,14 +25359,17 @@ function renderBridgeCloudDrives() {
   var html = BRIDGE_CLOUD_DRIVES.map(function (drive) {
     var safeUrl = String(drive.url || '').replace(/"/g, '&quot;');
     var safeName = String(drive.name || '').replace(/"/g, '&quot;');
-    var safeCode = String(drive.code || '').replace(/"/g, '&quot;');
     var safeKey = String(drive.key || '').replace(/[^a-zA-Z0-9_-]/g, '');
+    var code = String(drive.code || '').trim();
+    var codeHtml = code
+      ? ('<span class="bridge-drive-code">提取码 <b>' + code.replace(/"/g, '&quot;') + '</b></span>' +
+         '<button class="modal-btn bridge-drive-copy" type="button" onclick="copyBridgeDriveCode(\'' + safeKey + '\')">复制提取码</button>')
+      : '<span class="bridge-drive-code bridge-drive-no-code">无需提取码</span>';
     return '' +
       '<div class="bridge-drive-row">' +
         '<span class="bridge-drive-name">' + safeName + '</span>' +
         '<a class="modal-btn primary bridge-drive-link" href="' + safeUrl + '" target="_blank" rel="noopener noreferrer">打开网盘</a>' +
-        '<span class="bridge-drive-code">提取码 <b>' + safeCode + '</b></span>' +
-        '<button class="modal-btn bridge-drive-copy" type="button" onclick="copyBridgeDriveCode(\'' + safeKey + '\')">复制提取码</button>' +
+        codeHtml +
       '</div>';
   }).join('');
   container.innerHTML = html;
