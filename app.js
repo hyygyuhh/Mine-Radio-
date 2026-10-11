@@ -7244,57 +7244,55 @@ function updateStageLyrics3D(dt) {
             if (flicker && chroma > 0.2) data.textMat.uniforms.uOpacity.value = Math.max(0.35, opacity * (1 - chroma * 0.18 * Math.random()));
           }
         } else if (motion === 'folia-flow') {
-          // 流光：横向大幅漂移 + 竖向流光扫过 + 呼吸缩放 + 3D倾斜
+          // 流光：横向大幅漂移 + 竖向流光扫过 + 呼吸缩放
           var flowPhase = t * 0.42 + seed;
-          targetY = 0.30 + Math.sin(flowPhase) * 0.20 * motionAmp;
-          targetZ = 1.15 + Math.cos(flowPhase * 0.8) * 0.38 * motionAmp;
-          targetScale += Math.sin(t * 1.1 + seed) * 0.16 * soft + bass * 0.06;
-          targetRotZ = Math.sin(flowPhase * 0.6) * 0.15;
-          targetRotX = Math.sin(flowPhase * 0.4 + 1.0) * 0.20 * motionAmp;
+          targetY = 0.30 + Math.sin(flowPhase) * 0.18 * motionAmp;
+          targetZ = 1.20 + Math.cos(flowPhase * 0.8) * 0.35 * motionAmp;
+          targetScale += Math.sin(t * 1.1 + seed) * 0.14 * soft + bass * 0.06;
+          targetRotZ = Math.sin(flowPhase * 0.6) * 0.08;
           // 横向流光位移
-          mesh.position.x += (Math.sin(t * 0.30 + seed * 1.3) * 0.50 * motionAmp - mesh.position.x) * 0.12;
+          mesh.position.x += (Math.sin(t * 0.30 + seed * 1.3) * 0.45 * motionAmp - mesh.position.x) * 0.12;
           // 流光扫过：通过 glow 强度脉冲模拟
           if (data.glowMat) {
             var sweep = 0.5 + 0.5 * Math.sin(t * 1.8 + seed);
-            data.glowMat.opacity += (Math.min(0.75, 0.22 + sweep * 0.38 + stageLyrics.beatGlow * 0.22) - data.glowMat.opacity) * 0.15;
+            data.glowMat.opacity += (Math.min(0.7, 0.20 + sweep * 0.35 + stageLyrics.beatGlow * 0.20) - data.glowMat.opacity) * 0.15;
           }
         } else if (motion === 'folia-cloud') {
-          // 云阶：多层级联波浪，竖向阶梯式大幅起伏 + 3D倾斜
+          // 云阶：多层级联波浪，竖向阶梯式大幅起伏
           var cloudPhase = t * 0.35 + seed * 2.1;
-          targetY = 0.35 + Math.sin(cloudPhase) * 0.24 * motionAmp + Math.sin(cloudPhase * 2.3) * 0.09;
-          targetZ = 1.20 + Math.cos(cloudPhase * 0.7) * 0.42 * motionAmp;
-          targetScale += Math.sin(t * 0.8 + seed * 1.7) * 0.18 * soft;
-          targetRotZ = Math.sin(cloudPhase * 0.5) * 0.12;
-          targetRotX = Math.sin(cloudPhase * 0.9 + 1.2) * 0.22 * motionAmp;
+          targetY = 0.35 + Math.sin(cloudPhase) * 0.22 * motionAmp + Math.sin(cloudPhase * 2.3) * 0.08;
+          targetZ = 1.25 + Math.cos(cloudPhase * 0.7) * 0.40 * motionAmp;
+          targetScale += Math.sin(t * 0.8 + seed * 1.7) * 0.16 * soft;
+          targetRotZ = Math.sin(cloudPhase * 0.5) * 0.06;
+          targetRotX = Math.sin(cloudPhase * 0.9 + 1.2) * 0.12 * motionAmp;
           // 阶梯式微偏移模拟云层错落
-          mesh.position.x += (Math.sin(t * 0.22 + seed) * 0.40 - mesh.position.x) * 0.10;
+          mesh.position.x += (Math.sin(t * 0.22 + seed) * 0.35 - mesh.position.x) * 0.10;
         } else if (motion === 'folia-whisper') {
-          // 倾诉：轻柔呼吸，靠近观众的私密感，缩放脉动 + 微倾斜
+          // 倾诉：轻柔呼吸，靠近观众的私密感，缩放脉动
           var whisperPhase = t * 0.62 + seed * 0.8;
-          targetY = 0.25 + Math.sin(whisperPhase) * 0.12 * motionAmp;
-          targetZ = 1.05 + Math.cos(whisperPhase * 0.9) * 0.20 * motionAmp;
-          targetScale = 1.08 + a * 0.06 + Math.sin(whisperPhase * 1.4) * 0.14 * soft + bass * 0.04 + beatPulse * 0.02;
-          targetRotZ = Math.sin(whisperPhase * 0.4) * 0.06;
-          targetRotX = Math.sin(whisperPhase * 0.6 + 0.5) * 0.10 * motionAmp;
+          targetY = 0.25 + Math.sin(whisperPhase) * 0.10 * motionAmp;
+          targetZ = 1.10 + Math.cos(whisperPhase * 0.9) * 0.18 * motionAmp;
+          targetScale = 1.05 + a * 0.06 + Math.sin(whisperPhase * 1.4) * 0.12 * soft + bass * 0.04 + beatPulse * 0.02;
+          targetRotZ = Math.sin(whisperPhase * 0.4) * 0.04;
           // 降低亮度模拟低语氛围
           if (data.textMat && data.textMat.uniforms && data.textMat.uniforms.uOpacity) {
-            data.textMat.uniforms.uOpacity.value = Math.min(data.textMat.uniforms.uOpacity.value, opacity * 0.95);
+            data.textMat.uniforms.uOpacity.value = Math.min(data.textMat.uniforms.uOpacity.value, opacity * 0.92);
           }
         } else if (motion === 'folia-aurora') {
-          // 心象：极光式大幅旋转 + 多频微颤 + 光晕呼吸 + 3D倾斜
+          // 心象：极光式大幅旋转 + 多频微颤 + 光晕呼吸
           var auroraPhase = t * 0.28 + seed;
-          targetY = 0.30 + Math.sin(auroraPhase) * 0.22 * motionAmp;
-          targetZ = 1.12 + Math.cos(auroraPhase * 1.1) * 0.35 * motionAmp;
-          targetScale += Math.sin(t * 0.7 + seed * 1.5) * 0.15 * soft + beatPulse * 0.05;
-          targetRotZ = Math.sin(auroraPhase * 0.5) * 0.18;
-          targetRotX = Math.sin(auroraPhase * 0.8 + 0.6) * 0.24 * motionAmp;
+          targetY = 0.28 + Math.sin(auroraPhase) * 0.20 * motionAmp;
+          targetZ = 1.18 + Math.cos(auroraPhase * 1.1) * 0.32 * motionAmp;
+          targetScale += Math.sin(t * 0.7 + seed * 1.5) * 0.13 * soft + beatPulse * 0.05;
+          targetRotZ = Math.sin(auroraPhase * 0.5) * 0.10;
+          targetRotX = Math.sin(auroraPhase * 0.8 + 0.6) * 0.14 * motionAmp;
           // 极光光晕呼吸
           if (data.sunMat) {
             var auroraBloom = 0.5 + 0.5 * Math.sin(t * 0.5 + seed * 2.0);
-            data.sunMat.opacity += (Math.min(0.9, 0.25 + auroraBloom * 0.42 + stageLyrics.beatGlow * 0.20) - data.sunMat.opacity) * 0.08;
+            data.sunMat.opacity += (Math.min(0.85, 0.22 + auroraBloom * 0.40 + stageLyrics.beatGlow * 0.18) - data.sunMat.opacity) * 0.08;
           }
           if (data.glowMat) {
-            data.glowMat.opacity += (Math.min(0.55, 0.14 + auroraBloom * 0.24) - data.glowMat.opacity) * 0.10;
+            data.glowMat.opacity += (Math.min(0.50, 0.12 + auroraBloom * 0.22) - data.glowMat.opacity) * 0.10;
           }
         } else {
           // float (default)
@@ -22713,36 +22711,17 @@ function setPreset(p, opts) {
   if (foliaMotionMap[p]) {
     fx.lyricMotionStyle = foliaMotionMap[p];
     if (typeof setParticleLyricsSilently === 'function') setParticleLyricsSilently(true);
-    fx.lyricScale = 1.65;
+    fx.lyricScale = 1.55;
     fx.lyricOffsetX = 0;
     fx.lyricOffsetY = 0;
     fx.lyricOffsetZ = 0;
     fx.lyricCameraLock = true;
     fx.cinema = true;
     fx.lyricGlow = true;
-    fx.lyricGlowStrength = 0.75;
-    fx.lyricMotionSoftness = 0.9;
-    fx.lyricColorMode = 'custom';
-    fx.lyricColor = '#b8e0ff';
-    fx.lyricHighlightMode = 'custom';
-    fx.lyricHighlightColor = '#ffffff';
-    fx.backgroundColorMode = 'custom';
-    fx.backgroundColor = '#000000';
-    fx.backgroundColorCustom = true;
-    fx.backgroundOpacity = 0;
-    fx.lyricGlowParticles = true;
+    fx.lyricGlowStrength = 0.65;
+    fx.lyricMotionSoftness = 0.85;
     if (typeof window.syncLyricDiyControls === 'function') window.syncLyricDiyControls();
-    if (typeof refreshCurrentLyricStyle === 'function') refreshCurrentLyricStyle();
     if (!opts.silent && typeof showToast === 'function') showToast('Folia 沉浸式歌词: ' + presetMeta[p].name);
-  } else if (changed && prev >= 8 && prev <= 11) {
-    // 从 folia 预设切走时恢复默认歌词颜色与背景模式
-    fx.lyricColorMode = fxDefaults.lyricColorMode || 'auto';
-    fx.lyricHighlightMode = fxDefaults.lyricHighlightMode || 'auto';
-    fx.backgroundColorMode = fxDefaults.backgroundColorMode || 'cover';
-    fx.backgroundColorCustom = false;
-    fx.backgroundOpacity = fxDefaults.backgroundOpacity == null ? 1 : fxDefaults.backgroundOpacity;
-    fx.lyricGlowParticles = fxDefaults.lyricGlowParticles !== false;
-    if (typeof refreshCurrentLyricStyle === 'function') refreshCurrentLyricStyle();
   }
   if (changed && !opts.silent) showToast('视觉预设: ' + presetMeta[p].name);
   var shouldCommitPlaybackPreset = !!opts.commitPlaybackPreset || !opts.noSave;
