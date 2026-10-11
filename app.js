@@ -1141,8 +1141,7 @@ function normalizeDevelopmentLockedFxState() {
   fx.wallpaperMode = false;
 }
 function migrateVisualPresetIndex(p) {
-  p = clampRange(Number(p) || 0, 0, 8);
-  if (p === 8) return 0;
+  p = Number(p) || 0;
   var max = typeof presetMeta !== 'undefined' && presetMeta && presetMeta.length ? presetMeta.length - 1 : 7;
   return clampRange(p, 0, max);
 }
@@ -21407,6 +21406,10 @@ var presetMeta = [
   { name: '星河', desc: '壁纸粒子 · 音乐律动' },
   { name: '安魂', desc: '骷髅·YUI7W', descHtml: '骷髅·<span class="pc-yui7w">YUI7W</span>' },
   { name: '音域地形', nameHtml: '音域地形 <span class="pc-name-en">Sonic-Topography</span>', desc: '作者 Ajin', descHtml: '作者 <span class="pc-author-ajin">Ajin</span>' },
+  { name: '流光', nameHtml: '流光 <span class="pc-name-en">Folia Flow</span>', desc: '歌词流光扫过 · Folia' },
+  { name: '云阶', nameHtml: '云阶 <span class="pc-name-en">Folia Cloud</span>', desc: '歌词层叠云浪 · Folia' },
+  { name: '倾诉', nameHtml: '倾诉 <span class="pc-name-en">Folia Whisper</span>', desc: '歌词低语呼吸 · Folia' },
+  { name: '心象', nameHtml: '心象 <span class="pc-name-en">Folia Aurora</span>', desc: '歌词极光幻动 · Folia' },
 ];
 var presetIcons = [
   '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 14c3-2 5-2 8 0s5 2 8 0M3 10c3-2 5-2 8 0s5 2 8 0M3 18c3-2 5-2 8 0s5 2 8 0"/></svg>',
@@ -21417,8 +21420,16 @@ var presetIcons = [
   '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 15c2.2-4.4 4.4-4.4 6.6 0s4.4 4.4 6.6 0S20.6 10.6 23 15"/><path d="M3 9c2.2 2.2 4.4 2.2 6.6 0s4.4-2.2 6.6 0S20.6 11.2 23 9"/><circle cx="12" cy="12" r="1.7" fill="currentColor"/></svg>',
   '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3.2h4v6.2h4.2v3.8H14v7.6h-4v-7.6H5.8V9.4H10z"/></svg>',
   '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18c2-3 4-3 6 0s4 3 6 0 4-3 6 0"/><path d="M3 12c2-2.5 4-2.5 6 0s4 2.5 6 0 4-2.5 6 0"/><path d="M3 6c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/><circle cx="18" cy="5" r="1.2" fill="currentColor"/></svg>',
+  // 流光：横向光波
+  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M2 9c3 0 3-2 6-2s3 2 6 2 3-2 6-2"/><path d="M2 13c3 0 3 2 6 2s3-2 6-2 3 2 6 2"/><path d="M2 17c3 0 3-1.5 6-1.5s3 1.5 6 1.5 3-1.5 6-1.5"/></svg>',
+  // 云阶：层叠云浪
+  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16c1.2-2 2.6-2 4 0s2.6 2 4 0 2.6-2 4 0 2.6 2 4 0"/><path d="M4 11c1.2-1.8 2.6-1.8 4 0s2.6 1.8 4 0 2.6-1.8 4 0 2.6 1.8 4 0"/><path d="M4 6c1.2-1.5 2.6-1.5 4 0s2.6 1.5 4 0 2.6-1.5 4 0 2.6 1.5 4 0"/></svg>',
+  // 倾诉：呼吸波纹
+  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="2.4"/><circle cx="12" cy="12" r="5.5" opacity="0.6"/><circle cx="12" cy="12" r="8.6" opacity="0.32"/></svg>',
+  // 心象：极光旋光
+  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 14c2-4 5-5 8-3s5 3 8 0"/><path d="M4 10c2-3 5-4 8-2s5 3 8-1" opacity="0.7"/><path d="M4 18c2-3 5-4 8-2s5 3 8-1" opacity="0.45"/></svg>',
 ];
-var presetDisplayOrder = [0, 6, 7, 5, 4, 2, 1, 3];
+var presetDisplayOrder = [0, 6, 7, 8, 9, 10, 11, 5, 4, 2, 1, 3];
 var lyricColorPresets = [
   { name:'雾蓝', color:'#a9b8c8' },
   { name:'银蓝', color:'#9db8cf' },
@@ -22671,6 +22682,12 @@ function setPreset(p, opts) {
   var prev = fx.preset;
   var changed = prev !== p;
   fx.preset = p;
+  // Folia 歌词预设：切换到对应的歌词运动样式
+  var foliaMotionMap = { 8: 'folia-flow', 9: 'folia-cloud', 10: 'folia-whisper', 11: 'folia-aurora' };
+  if (foliaMotionMap[p]) {
+    fx.lyricMotionStyle = foliaMotionMap[p];
+    if (typeof syncLyricDiyControls === 'function') syncLyricDiyControls();
+  }
   if (changed && prev === SKULL_PRESET_INDEX && p !== SKULL_PRESET_INDEX) clearSkullPresetResidue();
   if (p === SKULL_PRESET_INDEX) loadSkullParticleAsset();
   if (changed && p === VOID_PRESET_INDEX) dismissPlaybackBeatAnalysis(true);
@@ -22687,6 +22704,7 @@ function setPreset(p, opts) {
     else if (p === 5) { orbit.userRadius = 9.4; orbit.userPhi = 0.34; orbit.userTheta = -0.52; orbit.baselineRadius = 9.4; orbit.baselinePhi = 0.34; }
     else if (p === 6) { orbit.userRadius = 7.4; orbit.userPhi = 0.10; orbit.userTheta = 0.18; orbit.baselineRadius = 7.4; orbit.baselinePhi = 0.10; }
     else if (p === 7) { orbit.userRadius = 8.6; orbit.userPhi = 0.22; orbit.userTheta = 0.0; orbit.baselineRadius = 8.6; orbit.baselinePhi = 0.22; }
+    else if (p >= 8) { orbit.userRadius = 8.2; orbit.userPhi = 0.16; orbit.userTheta = 0.0; orbit.baselineRadius = 8.2; orbit.baselinePhi = 0.16; }
     else              { orbit.userRadius = 6.6; orbit.userPhi = 0.08; orbit.userTheta = 0.0; orbit.baselineRadius = 6.6; orbit.baselinePhi = 0.08; }
     orbit.baselineTheta = p === 5 ? -0.52 : (p === 6 ? 0.18 : 0.0);
   }
