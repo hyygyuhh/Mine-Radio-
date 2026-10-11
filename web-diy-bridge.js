@@ -206,12 +206,12 @@
 
   window.setLyricMotionStyle = function (style) {
     ensureFxDefaults();
-    if (!/^(float|smooth|glass|shine|glitch)$/.test(String(style || ''))) style = 'float';
+    if (!/^(float|smooth|glass|shine|glitch|folia-flow|folia-cloud|folia-whisper|folia-aurora)$/.test(String(style || ''))) style = 'float';
     fx.lyricMotionStyle = style;
     syncLyricDiyControls();
     if (typeof saveLyricLayout === 'function') saveLyricLayout();
     if (typeof showToast === 'function') {
-      var labels = { float: '漂浮', smooth: '柔滑', glass: '玻璃', shine: '线光', glitch: '故障' };
+      var labels = { float: '漂浮', smooth: '柔滑', glass: '玻璃', shine: '线光', glitch: '故障', 'folia-flow': '流光', 'folia-cloud': '云阶', 'folia-whisper': '倾诉', 'folia-aurora': '心象' };
       showToast('歌词动画: ' + (labels[style] || style));
     }
   };

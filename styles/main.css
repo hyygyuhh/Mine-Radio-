@@ -1411,6 +1411,8 @@ body.desktop-shell.diy-mode #bottom-bar.stage-mode{left:50%;width:min(1080px,cal
 
 /* --- 三态分段 --- */
 .fx-seg{display:flex;border-radius:11px;border:1px solid rgba(255,255,255,.08);overflow:hidden;background:rgba(255,255,255,.026);margin-bottom:10px}
+.fx-seg.lyric-motion-style-seg{flex-wrap:wrap}
+.fx-seg.lyric-motion-style-seg button{flex:1 1 20%;min-width:60px}
 .fx-seg button{flex:1;padding:8px 4px;background:none;border:none;color:rgba(255,255,255,.55);cursor:pointer;font-size:11.5px;font-family:inherit;transition:all .2s;letter-spacing:.4px;border-right:1px solid rgba(255,255,255,.05)}
 .fx-seg button:last-child{border-right:none}
 .fx-seg button:hover{background:rgba(255,255,255,.05);color:#fff}

@@ -7240,6 +7240,57 @@ function updateStageLyrics3D(dt) {
             var chroma = clampRange(Number(fx.lyricGlitchChroma) || 1, 0, 1.6);
             if (flicker && chroma > 0.2) data.textMat.uniforms.uOpacity.value = Math.max(0.35, opacity * (1 - chroma * 0.18 * Math.random()));
           }
+        } else if (motion === 'folia-flow') {
+          // 流光：横向缓慢漂移 + 竖向流光扫过 + 呼吸缩放
+          var flowPhase = t * 0.42 + seed;
+          targetY = 0.18 + Math.sin(flowPhase) * 0.022 * motionAmp;
+          targetZ = 1.48 + Math.cos(flowPhase * 0.8) * 0.045 * motionAmp;
+          targetScale += Math.sin(t * 1.1 + seed) * 0.018 * soft + bass * 0.022;
+          targetRotZ = Math.sin(flowPhase * 0.6) * 0.012;
+          // 横向流光位移
+          mesh.position.x += (Math.sin(t * 0.30 + seed * 1.3) * 0.06 * motionAmp - mesh.position.x) * 0.08;
+          // 流光扫过：通过 glow 强度脉冲模拟
+          if (data.glowMat) {
+            var sweep = 0.5 + 0.5 * Math.sin(t * 1.8 + seed);
+            data.glowMat.opacity += (Math.min(0.42, 0.10 + sweep * 0.16 + stageLyrics.beatGlow * 0.10) - data.glowMat.opacity) * 0.12;
+          }
+        } else if (motion === 'folia-cloud') {
+          // 云阶：多层级联波浪，竖向阶梯式起伏
+          var cloudPhase = t * 0.35 + seed * 2.1;
+          targetY = 0.20 + Math.sin(cloudPhase) * 0.030 * motionAmp + Math.sin(cloudPhase * 2.3) * 0.012;
+          targetZ = 1.50 + Math.cos(cloudPhase * 0.7) * 0.050 * motionAmp;
+          targetScale += Math.sin(t * 0.8 + seed * 1.7) * 0.020 * soft;
+          targetRotZ = Math.sin(cloudPhase * 0.5) * 0.010;
+          targetRotX = Math.sin(cloudPhase * 0.9 + 1.2) * 0.016 * motionAmp;
+          // 阶梯式微偏移模拟云层错落
+          mesh.position.x += (Math.sin(t * 0.22 + seed) * 0.04 - mesh.position.x) * 0.06;
+        } else if (motion === 'folia-whisper') {
+          // 倾诉：极轻柔呼吸，靠近观众的私密感，微缩放脉动
+          var whisperPhase = t * 0.62 + seed * 0.8;
+          targetY = 0.16 + Math.sin(whisperPhase) * 0.012 * motionAmp;
+          targetZ = 1.36 + Math.cos(whisperPhase * 0.9) * 0.020 * motionAmp;
+          targetScale = 0.94 + a * 0.040 + Math.sin(whisperPhase * 1.4) * 0.014 * soft + bass * 0.016 + beatPulse * 0.008;
+          targetRotZ = Math.sin(whisperPhase * 0.4) * 0.005;
+          // 降低亮度模拟低语氛围
+          if (data.textMat && data.textMat.uniforms && data.textMat.uniforms.uOpacity) {
+            data.textMat.uniforms.uOpacity.value = Math.min(data.textMat.uniforms.uOpacity.value, opacity * 0.92);
+          }
+        } else if (motion === 'folia-aurora') {
+          // 心象：极光式缓慢旋转 + 多频微颤 + 光晕呼吸
+          var auroraPhase = t * 0.28 + seed;
+          targetY = 0.19 + Math.sin(auroraPhase) * 0.026 * motionAmp;
+          targetZ = 1.46 + Math.cos(auroraPhase * 1.1) * 0.040 * motionAmp;
+          targetScale += Math.sin(t * 0.7 + seed * 1.5) * 0.016 * soft + beatPulse * 0.020;
+          targetRotZ = Math.sin(auroraPhase * 0.5) * 0.014;
+          targetRotX = Math.sin(auroraPhase * 0.8 + 0.6) * 0.018 * motionAmp;
+          // 极光光晕呼吸
+          if (data.sunMat) {
+            var auroraBloom = 0.5 + 0.5 * Math.sin(t * 0.5 + seed * 2.0);
+            data.sunMat.opacity += (Math.min(0.6, 0.12 + auroraBloom * 0.22 + stageLyrics.beatGlow * 0.08) - data.sunMat.opacity) * 0.06;
+          }
+          if (data.glowMat) {
+            data.glowMat.opacity += (Math.min(0.30, 0.06 + auroraBloom * 0.10) - data.glowMat.opacity) * 0.08;
+          }
         } else {
           // float (default)
           var breathe = Math.sin(t * 0.92 + seed) * 0.050 + Math.sin(t * 0.41 + seed * 0.7) * 0.028;
@@ -7253,7 +7304,7 @@ function updateStageLyrics3D(dt) {
           var fadeMul = 1 - edgeFade * 0.18 * (1 - soft);
           data.textMat.uniforms.uOpacity.value = Math.min(data.textMat.uniforms.uOpacity.value, opacity * fadeMul + opacity * (1 - fadeMul));
         }
-        var ease = motion === 'glitch' ? 0.42 : (0.05 + soft * 0.08);
+        var ease = motion === 'glitch' ? 0.42 : (motion.indexOf('folia-') === 0 ? 0.06 + soft * 0.05 : (0.05 + soft * 0.08));
         mesh.position.y += (targetY - mesh.position.y) * ease;
         mesh.position.z += (targetZ - mesh.position.z) * ease;
         mesh.scale.setScalar(targetScale);
