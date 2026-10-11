@@ -22682,11 +22682,19 @@ function setPreset(p, opts) {
   var prev = fx.preset;
   var changed = prev !== p;
   fx.preset = p;
-  // Folia 歌词预设：切换到对应的歌词运动样式
+  // Folia 歌词预设：切换到对应的歌词运动样式 + 全屏沉浸式歌词布局
   var foliaMotionMap = { 8: 'folia-flow', 9: 'folia-cloud', 10: 'folia-whisper', 11: 'folia-aurora' };
   if (foliaMotionMap[p]) {
     fx.lyricMotionStyle = foliaMotionMap[p];
-    if (typeof syncLyricDiyControls === 'function') syncLyricDiyControls();
+    fx.lyricScale = 1.45;
+    fx.lyricOffsetX = 0;
+    fx.lyricOffsetY = 0;
+    fx.lyricOffsetZ = 0;
+    fx.lyricCameraLock = true;
+    fx.cinema = true;
+    fx.lyricGlow = true;
+    fx.lyricGlowStrength = 0.55;
+    if (typeof window.syncLyricDiyControls === 'function') window.syncLyricDiyControls();
   }
   if (changed && prev === SKULL_PRESET_INDEX && p !== SKULL_PRESET_INDEX) clearSkullPresetResidue();
   if (p === SKULL_PRESET_INDEX) loadSkullParticleAsset();
@@ -29541,10 +29549,11 @@ function tickHomeIdleVisualFrame(dt) {
   updateCamera();
   var skullPresetActive = fx && fx.preset === SKULL_PRESET_INDEX;
   var sonicPresetActive = fx && fx.preset === 7;
-  particles.visible = !skullPresetActive && !sonicPresetActive;
-  if (bloomParticles) bloomParticles.visible = !skullPresetActive && !sonicPresetActive && fx.bloom && fx.bloomStrength > 0.01;
-  if (floatGroup) floatGroup.visible = !skullPresetActive && !sonicPresetActive;
-  if (backCoverGroup) backCoverGroup.visible = !skullPresetActive && !sonicPresetActive;
+  var foliaPresetActive = fx && fx.preset >= 8;
+  particles.visible = !skullPresetActive && !sonicPresetActive && !foliaPresetActive;
+  if (bloomParticles) bloomParticles.visible = !skullPresetActive && !sonicPresetActive && !foliaPresetActive && fx.bloom && fx.bloomStrength > 0.01;
+  if (floatGroup) floatGroup.visible = !skullPresetActive && !sonicPresetActive && !foliaPresetActive;
+  if (backCoverGroup) backCoverGroup.visible = !skullPresetActive && !sonicPresetActive && !foliaPresetActive;
   try {
     if (window.MineradioSonicTopography && typeof MineradioSonicTopography.update === 'function') {
       MineradioSonicTopography.update(dt, {
@@ -29795,10 +29804,11 @@ function animate() {
   tickGestureRotation(dt);
   var skullPresetActive = fx && fx.preset === SKULL_PRESET_INDEX;
   var sonicPresetActive = fx && fx.preset === 7;
-  particles.visible = !skullPresetActive && !sonicPresetActive;
-  if (bloomParticles) bloomParticles.visible = !skullPresetActive && !sonicPresetActive && fx.bloom && fx.bloomStrength > 0.01;
-  if (floatGroup) floatGroup.visible = !skullPresetActive && !sonicPresetActive;
-  if (backCoverGroup) backCoverGroup.visible = !skullPresetActive && !sonicPresetActive;
+  var foliaPresetActive = fx && fx.preset >= 8;
+  particles.visible = !skullPresetActive && !sonicPresetActive && !foliaPresetActive;
+  if (bloomParticles) bloomParticles.visible = !skullPresetActive && !sonicPresetActive && !foliaPresetActive && fx.bloom && fx.bloomStrength > 0.01;
+  if (floatGroup) floatGroup.visible = !skullPresetActive && !sonicPresetActive && !foliaPresetActive;
+  if (backCoverGroup) backCoverGroup.visible = !skullPresetActive && !sonicPresetActive && !foliaPresetActive;
   try {
     if (window.MineradioSonicTopography && typeof MineradioSonicTopography.update === 'function') {
       MineradioSonicTopography.update(dt, {
