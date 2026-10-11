@@ -5485,6 +5485,8 @@ function readSavedLyricLayout() {
       bgFade: clampRange(Number(raw.bgFade) || fxDefaults.bgFade, 0, 1.2),
       bloomStrength: clampRange(Number(raw.bloomStrength) || fxDefaults.bloomStrength, 0, 1.6),
       lyricGlowStrength: clampRange(Number(raw.lyricGlowStrength) || fxDefaults.lyricGlowStrength, 0, 0.85),
+      lyricMotionStyle: /^(float|smooth|glass|shine|glitch|folia-flow|folia-cloud|folia-whisper|folia-aurora)$/.test(String(raw.lyricMotionStyle || '')) ? raw.lyricMotionStyle : fxDefaults.lyricMotionStyle,
+      lyricMotionSoftness: clampRange(Number(raw.lyricMotionSoftness) || fxDefaults.lyricMotionSoftness || 0.72, 0.15, 1.2),
       lyricScale: clampRange(Number(raw.lyricScale) || 1, 0.35, 1.65),
       lyricOffsetX: clampRange(Number(raw.lyricOffsetX) || 0, -2.0, 2.0),
       lyricOffsetY: clampRange(Number(raw.lyricOffsetY) || 0, -1.2, 1.35),
@@ -5577,6 +5579,8 @@ function flushLyricLayoutSave() {
       bgFade: clampRange(Number(fx.bgFade) || fxDefaults.bgFade, 0, 1.2),
       bloomStrength: clampRange(Number(fx.bloomStrength) || fxDefaults.bloomStrength, 0, 1.6),
       lyricGlowStrength: clampRange(Number(fx.lyricGlowStrength) || fxDefaults.lyricGlowStrength, 0, 0.85),
+      lyricMotionStyle: /^(float|smooth|glass|shine|glitch|folia-flow|folia-cloud|folia-whisper|folia-aurora)$/.test(String(fx.lyricMotionStyle || '')) ? fx.lyricMotionStyle : 'float',
+      lyricMotionSoftness: clampRange(Number(fx.lyricMotionSoftness) || fxDefaults.lyricMotionSoftness || 0.72, 0.15, 1.2),
       lyricScale: clampRange(Number(fx.lyricScale) || 1, 0.35, 1.65),
       lyricOffsetX: clampRange(Number(fx.lyricOffsetX) || 0, -2.0, 2.0),
       lyricOffsetY: clampRange(Number(fx.lyricOffsetY) || 0, -1.2, 1.35),
@@ -7240,55 +7244,55 @@ function updateStageLyrics3D(dt) {
             if (flicker && chroma > 0.2) data.textMat.uniforms.uOpacity.value = Math.max(0.35, opacity * (1 - chroma * 0.18 * Math.random()));
           }
         } else if (motion === 'folia-flow') {
-          // 流光：横向缓慢漂移 + 竖向流光扫过 + 呼吸缩放
+          // 流光：横向大幅漂移 + 竖向流光扫过 + 呼吸缩放
           var flowPhase = t * 0.42 + seed;
-          targetY = 0.20 + Math.sin(flowPhase) * 0.060 * motionAmp;
-          targetZ = 1.46 + Math.cos(flowPhase * 0.8) * 0.120 * motionAmp;
-          targetScale += Math.sin(t * 1.1 + seed) * 0.050 * soft + bass * 0.030;
-          targetRotZ = Math.sin(flowPhase * 0.6) * 0.025;
+          targetY = 0.30 + Math.sin(flowPhase) * 0.18 * motionAmp;
+          targetZ = 1.20 + Math.cos(flowPhase * 0.8) * 0.35 * motionAmp;
+          targetScale += Math.sin(t * 1.1 + seed) * 0.14 * soft + bass * 0.06;
+          targetRotZ = Math.sin(flowPhase * 0.6) * 0.08;
           // 横向流光位移
-          mesh.position.x += (Math.sin(t * 0.30 + seed * 1.3) * 0.15 * motionAmp - mesh.position.x) * 0.08;
+          mesh.position.x += (Math.sin(t * 0.30 + seed * 1.3) * 0.45 * motionAmp - mesh.position.x) * 0.12;
           // 流光扫过：通过 glow 强度脉冲模拟
           if (data.glowMat) {
             var sweep = 0.5 + 0.5 * Math.sin(t * 1.8 + seed);
-            data.glowMat.opacity += (Math.min(0.55, 0.14 + sweep * 0.24 + stageLyrics.beatGlow * 0.14) - data.glowMat.opacity) * 0.12;
+            data.glowMat.opacity += (Math.min(0.7, 0.20 + sweep * 0.35 + stageLyrics.beatGlow * 0.20) - data.glowMat.opacity) * 0.15;
           }
         } else if (motion === 'folia-cloud') {
-          // 云阶：多层级联波浪，竖向阶梯式起伏
+          // 云阶：多层级联波浪，竖向阶梯式大幅起伏
           var cloudPhase = t * 0.35 + seed * 2.1;
-          targetY = 0.22 + Math.sin(cloudPhase) * 0.080 * motionAmp + Math.sin(cloudPhase * 2.3) * 0.030;
-          targetZ = 1.48 + Math.cos(cloudPhase * 0.7) * 0.130 * motionAmp;
-          targetScale += Math.sin(t * 0.8 + seed * 1.7) * 0.055 * soft;
-          targetRotZ = Math.sin(cloudPhase * 0.5) * 0.022;
-          targetRotX = Math.sin(cloudPhase * 0.9 + 1.2) * 0.040 * motionAmp;
+          targetY = 0.35 + Math.sin(cloudPhase) * 0.22 * motionAmp + Math.sin(cloudPhase * 2.3) * 0.08;
+          targetZ = 1.25 + Math.cos(cloudPhase * 0.7) * 0.40 * motionAmp;
+          targetScale += Math.sin(t * 0.8 + seed * 1.7) * 0.16 * soft;
+          targetRotZ = Math.sin(cloudPhase * 0.5) * 0.06;
+          targetRotX = Math.sin(cloudPhase * 0.9 + 1.2) * 0.12 * motionAmp;
           // 阶梯式微偏移模拟云层错落
-          mesh.position.x += (Math.sin(t * 0.22 + seed) * 0.12 - mesh.position.x) * 0.06;
+          mesh.position.x += (Math.sin(t * 0.22 + seed) * 0.35 - mesh.position.x) * 0.10;
         } else if (motion === 'folia-whisper') {
-          // 倾诉：极轻柔呼吸，靠近观众的私密感，微缩放脉动
+          // 倾诉：轻柔呼吸，靠近观众的私密感，缩放脉动
           var whisperPhase = t * 0.62 + seed * 0.8;
-          targetY = 0.18 + Math.sin(whisperPhase) * 0.030 * motionAmp;
-          targetZ = 1.34 + Math.cos(whisperPhase * 0.9) * 0.060 * motionAmp;
-          targetScale = 0.96 + a * 0.050 + Math.sin(whisperPhase * 1.4) * 0.040 * soft + bass * 0.025 + beatPulse * 0.012;
-          targetRotZ = Math.sin(whisperPhase * 0.4) * 0.012;
+          targetY = 0.25 + Math.sin(whisperPhase) * 0.10 * motionAmp;
+          targetZ = 1.10 + Math.cos(whisperPhase * 0.9) * 0.18 * motionAmp;
+          targetScale = 1.05 + a * 0.06 + Math.sin(whisperPhase * 1.4) * 0.12 * soft + bass * 0.04 + beatPulse * 0.02;
+          targetRotZ = Math.sin(whisperPhase * 0.4) * 0.04;
           // 降低亮度模拟低语氛围
           if (data.textMat && data.textMat.uniforms && data.textMat.uniforms.uOpacity) {
             data.textMat.uniforms.uOpacity.value = Math.min(data.textMat.uniforms.uOpacity.value, opacity * 0.92);
           }
         } else if (motion === 'folia-aurora') {
-          // 心象：极光式缓慢旋转 + 多频微颤 + 光晕呼吸
+          // 心象：极光式大幅旋转 + 多频微颤 + 光晕呼吸
           var auroraPhase = t * 0.28 + seed;
-          targetY = 0.20 + Math.sin(auroraPhase) * 0.070 * motionAmp;
-          targetZ = 1.44 + Math.cos(auroraPhase * 1.1) * 0.110 * motionAmp;
-          targetScale += Math.sin(t * 0.7 + seed * 1.5) * 0.045 * soft + beatPulse * 0.028;
-          targetRotZ = Math.sin(auroraPhase * 0.5) * 0.030;
-          targetRotX = Math.sin(auroraPhase * 0.8 + 0.6) * 0.045 * motionAmp;
+          targetY = 0.28 + Math.sin(auroraPhase) * 0.20 * motionAmp;
+          targetZ = 1.18 + Math.cos(auroraPhase * 1.1) * 0.32 * motionAmp;
+          targetScale += Math.sin(t * 0.7 + seed * 1.5) * 0.13 * soft + beatPulse * 0.05;
+          targetRotZ = Math.sin(auroraPhase * 0.5) * 0.10;
+          targetRotX = Math.sin(auroraPhase * 0.8 + 0.6) * 0.14 * motionAmp;
           // 极光光晕呼吸
           if (data.sunMat) {
             var auroraBloom = 0.5 + 0.5 * Math.sin(t * 0.5 + seed * 2.0);
-            data.sunMat.opacity += (Math.min(0.7, 0.16 + auroraBloom * 0.30 + stageLyrics.beatGlow * 0.12) - data.sunMat.opacity) * 0.06;
+            data.sunMat.opacity += (Math.min(0.85, 0.22 + auroraBloom * 0.40 + stageLyrics.beatGlow * 0.18) - data.sunMat.opacity) * 0.08;
           }
           if (data.glowMat) {
-            data.glowMat.opacity += (Math.min(0.40, 0.08 + auroraBloom * 0.16) - data.glowMat.opacity) * 0.08;
+            data.glowMat.opacity += (Math.min(0.50, 0.12 + auroraBloom * 0.22) - data.glowMat.opacity) * 0.10;
           }
         } else {
           // float (default)
@@ -7303,7 +7307,7 @@ function updateStageLyrics3D(dt) {
           var fadeMul = 1 - edgeFade * 0.18 * (1 - soft);
           data.textMat.uniforms.uOpacity.value = Math.min(data.textMat.uniforms.uOpacity.value, opacity * fadeMul + opacity * (1 - fadeMul));
         }
-        var ease = motion === 'glitch' ? 0.42 : (motion.indexOf('folia-') === 0 ? 0.06 + soft * 0.05 : (0.05 + soft * 0.08));
+        var ease = motion === 'glitch' ? 0.42 : (motion.indexOf('folia-') === 0 ? 0.18 + soft * 0.10 : (0.05 + soft * 0.08));
         mesh.position.y += (targetY - mesh.position.y) * ease;
         mesh.position.z += (targetZ - mesh.position.z) * ease;
         mesh.scale.setScalar(targetScale);
@@ -22682,21 +22686,6 @@ function setPreset(p, opts) {
   var prev = fx.preset;
   var changed = prev !== p;
   fx.preset = p;
-  // Folia 歌词预设：切换到对应的歌词运动样式 + 全屏沉浸式歌词布局
-  var foliaMotionMap = { 8: 'folia-flow', 9: 'folia-cloud', 10: 'folia-whisper', 11: 'folia-aurora' };
-  if (foliaMotionMap[p]) {
-    fx.lyricMotionStyle = foliaMotionMap[p];
-    if (typeof setParticleLyricsSilently === 'function') setParticleLyricsSilently(true);
-    fx.lyricScale = 1.45;
-    fx.lyricOffsetX = 0;
-    fx.lyricOffsetY = 0;
-    fx.lyricOffsetZ = 0;
-    fx.lyricCameraLock = true;
-    fx.cinema = true;
-    fx.lyricGlow = true;
-    fx.lyricGlowStrength = 0.55;
-    if (typeof window.syncLyricDiyControls === 'function') window.syncLyricDiyControls();
-  }
   if (changed && prev === SKULL_PRESET_INDEX && p !== SKULL_PRESET_INDEX) clearSkullPresetResidue();
   if (p === SKULL_PRESET_INDEX) loadSkullParticleAsset();
   if (changed && p === VOID_PRESET_INDEX) dismissPlaybackBeatAnalysis(true);
@@ -22716,6 +22705,23 @@ function setPreset(p, opts) {
     else if (p >= 8) { orbit.userRadius = 8.2; orbit.userPhi = 0.16; orbit.userTheta = 0.0; orbit.baselineRadius = 8.2; orbit.baselinePhi = 0.16; }
     else              { orbit.userRadius = 6.6; orbit.userPhi = 0.08; orbit.userTheta = 0.0; orbit.baselineRadius = 6.6; orbit.baselinePhi = 0.08; }
     orbit.baselineTheta = p === 5 ? -0.52 : (p === 6 ? 0.18 : 0.0);
+  }
+  // Folia 歌词预设：放在最后，确保不被覆盖 — 全屏沉浸式歌词布局
+  var foliaMotionMap = { 8: 'folia-flow', 9: 'folia-cloud', 10: 'folia-whisper', 11: 'folia-aurora' };
+  if (foliaMotionMap[p]) {
+    fx.lyricMotionStyle = foliaMotionMap[p];
+    if (typeof setParticleLyricsSilently === 'function') setParticleLyricsSilently(true);
+    fx.lyricScale = 1.55;
+    fx.lyricOffsetX = 0;
+    fx.lyricOffsetY = 0;
+    fx.lyricOffsetZ = 0;
+    fx.lyricCameraLock = true;
+    fx.cinema = true;
+    fx.lyricGlow = true;
+    fx.lyricGlowStrength = 0.65;
+    fx.lyricMotionSoftness = 0.85;
+    if (typeof window.syncLyricDiyControls === 'function') window.syncLyricDiyControls();
+    if (!opts.silent && typeof showToast === 'function') showToast('Folia 沉浸式歌词: ' + presetMeta[p].name);
   }
   if (changed && !opts.silent) showToast('视觉预设: ' + presetMeta[p].name);
   var shouldCommitPlaybackPreset = !!opts.commitPlaybackPreset || !opts.noSave;
