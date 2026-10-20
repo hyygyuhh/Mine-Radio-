@@ -1,0 +1,1958 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<script>
+/* 仅在正式 HTTPS 站点启用；局域网 http://IP:端口 不能 upgrade，否则 CSS/JS 全被升到 https 而加载失败 */
+(function () {
+  try {
+    if (location.protocol !== 'https:') return;
+    var host = String(location.hostname || '').toLowerCase();
+    if (host === 'localhost' || host === '127.0.0.1' || /^\d+\.\d+\.\d+\.\d+$/.test(host)) return;
+    var meta = document.createElement('meta');
+    meta.httpEquiv = 'Content-Security-Policy';
+    meta.content = 'upgrade-insecure-requests';
+    document.head.appendChild(meta);
+  } catch (_) {}
+})();
+</script>
+<title>Mineradio — 网页版在线音乐可视化播放器 | 免安装在线听歌</title>
+<meta name="description" content="Mineradio 是网页版免安装在线音乐可视化播放器，浏览器打开即可在线听歌。支持网易云/QQ 音乐登录、歌单同步、逐字歌词、3D 歌单架与粒子视觉预设，提供洛雪音乐、Folia、YesPlayMusic 风格的沉浸式歌词动效。免费在线使用，无需下载。">
+<meta name="keywords" content="Mineradio,mineradio,mineradio在线播放,mineradio网页版,mineradio在线听歌,mineradio在线播放器,mineradio音乐可视化,mineradio音乐可视化播放器,mineradio播放器,在线音乐可视化,音乐可视化播放器,网页版音乐播放器,在线听歌,免安装音乐播放器,网页版洛雪音乐,洛雪音乐在线版,洛雪平替,Folia播放器,Folia网页版,Folia平替,YesPlayMusic,YesPlayMusic在线版,开源音乐播放器,在线音乐播放器推荐,网页版音乐播放器推荐,音乐可视化,逐字歌词,沉浸式歌词,3D歌词,网页听歌,免费在线听歌,Mineradio Bridge,mineradio.art,minerradio,mineredio,mineeradio">
+<meta name="author" content="Mineradio">
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+<link rel="canonical" href="https://mineradio.art/">
+<link rel="me" href="https://mineradio.cn">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Mineradio">
+<meta property="og:title" content="Mineradio — 网页版在线音乐可视化播放器 | 洛雪/Folia 平替，免安装在线听歌">
+<meta property="og:description" content="Mineradio 网页版免安装在线音乐可视化播放器，浏览器打开即可在线听歌。支持网易云/QQ 音乐、逐字歌词、3D 歌单架与沉浸式歌词动效（洛雪音乐、Folia 风格）。免费在线使用。">
+<meta property="og:url" content="https://mineradio.art/">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://mineradio.art/icons/icon512.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Mineradio — 网页版在线音乐可视化播放器 | 洛雪/Folia 平替">
+<meta name="twitter:description" content="免安装在线听歌，支持网易云/QQ 音乐、逐字歌词、3D 歌单架与沉浸式歌词动效。">
+<meta name="twitter:image" content="https://mineradio.art/icons/icon512.png">
+<meta name="referrer" content="no-referrer-when-downgrade">
+<meta name="theme-color" content="#08090B">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="48x48" href="/icons/icon48.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/icon32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/icons/icon16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/icons/icon180.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- 首屏只拉 UI 正文字体；装饰字体空闲后再补 -->
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;700&family=Cinzel+Decorative:wght@700&family=UnifrakturCook:wght@700&display=swap" rel="stylesheet"></noscript>
+<script>
+(function () {
+  function loadDisplayFonts() {
+    if (window.__mineradioDisplayFontsLoaded) return;
+    window.__mineradioDisplayFontsLoaded = true;
+    var link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=UnifrakturCook:wght@700&display=swap';
+    document.head.appendChild(link);
+  }
+  function schedule() {
+    if ('requestIdleCallback' in window) requestIdleCallback(loadDisplayFonts, { timeout: 3500 });
+    else setTimeout(loadDisplayFonts, 1800);
+  }
+  if (document.readyState === 'complete') schedule();
+  else window.addEventListener('load', schedule, { once: true });
+})();
+</script>
+<script>
+try {
+  document.documentElement.classList.add(localStorage.getItem('mineradio-diy-player-mode-v1') === '1' ? 'diy-mode-preload' : 'simple-mode-preload');
+  try {
+    var phonePre = window.matchMedia('(max-width: 720px), (max-height: 520px) and (max-width: 960px)').matches;
+    if (phonePre) {
+      document.documentElement.classList.add('phone-shell-preload', 'phone-shell');
+      document.documentElement.classList.remove('control-glass-svg-ok');
+    }
+  } catch (e) {}
+} catch (e) {
+  document.documentElement.classList.add('simple-mode-preload');
+}
+</script>
+<script>
+window.markDonateQrLoaded = window.markDonateQrLoaded || function () {
+  var shell = document.getElementById('donate-qr-shell');
+  if (shell) shell.classList.add('has-image');
+};
+window.markDonateQrFailed = window.markDonateQrFailed || function () {
+  var shell = document.getElementById('donate-qr-shell');
+  if (shell) shell.classList.remove('has-image');
+};
+</script>
+<script>
+(function () {
+  function upgradeUrl(url) {
+    if (!url || typeof url !== 'string') return url;
+    return url.indexOf('http://') === 0 ? ('https://' + url.slice(7)) : url;
+  }
+  function fixMediaEl(el) {
+    if (!el) return;
+    var src = el.getAttribute('src');
+    if (src && src.indexOf('http://') === 0) el.setAttribute('src', upgradeUrl(src));
+  }
+  function fixStyleUrl(el) {
+    if (!el || !el.style) return;
+    var bg = el.style.backgroundImage || '';
+    if (bg && bg.indexOf('http://') >= 0) {
+      el.style.backgroundImage = bg.replace(/url\(\s*["']?http:\/\//gi, function (m) {
+        return m.replace('http://', 'https://');
+      });
+    }
+  }
+  function scanRoot(root) {
+    if (!root) return;
+    if (root.nodeType === 1) {
+      if (/^IMG|AUDIO|VIDEO$/i.test(root.tagName)) fixMediaEl(root);
+      fixStyleUrl(root);
+    }
+    if (!root.querySelectorAll) return;
+    root.querySelectorAll('img[src^="http://"],audio[src^="http://"],video[src^="http://"]').forEach(fixMediaEl);
+    root.querySelectorAll('[style*="http://"]').forEach(fixStyleUrl);
+  }
+  function patchSetter(Proto, prop) {
+    var desc = Object.getOwnPropertyDescriptor(Proto.prototype, prop);
+    if (!desc || !desc.set) return;
+    Object.defineProperty(Proto.prototype, prop, {
+      configurable: true,
+      enumerable: desc.enumerable,
+      get: desc.get,
+      set: function (v) { desc.set.call(this, upgradeUrl(v)); }
+    });
+  }
+  patchSetter(HTMLImageElement, 'src');
+  patchSetter(HTMLMediaElement, 'src');
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () { scanRoot(document); });
+  } else {
+    scanRoot(document);
+  }
+})();
+</script>
+<link rel="stylesheet" href="styles/main.css" fetchpriority="high">
+<link rel="stylesheet" href="styles/themes.css">
+<link rel="stylesheet" href="styles/home-dashboard-diy.css" id="home-dashboard-diy-css">
+<link rel="stylesheet" href="styles/mobile-home.css" id="mobile-home-css">
+<link rel="stylesheet" href="styles/mobile-shell.css" id="mobile-shell-css">
+<link rel="stylesheet" href="styles/mobile-touch.css" id="mobile-touch-css">
+<script>
+(function () {
+  function injectDiyCss() {
+    if (document.getElementById('home-dashboard-diy-css')) return;
+    var link = document.createElement('link');
+    link.id = 'home-dashboard-diy-css';
+    link.rel = 'stylesheet';
+    link.href = 'styles/home-dashboard-diy.css';
+    var mobile = document.getElementById('mobile-home-css');
+    if (mobile && mobile.parentNode) mobile.parentNode.insertBefore(link, mobile);
+    else document.head.appendChild(link);
+  }
+  window.__mineradioEnsureDiyCss = injectDiyCss;
+})();
+</script>
+<link rel="stylesheet" href="styles/login-stage.css" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="styles/account-stage.css" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="styles/diy-console.css" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="styles/folia-stage.css" media="print" onload="this.media='all'">
+<noscript>
+<link rel="stylesheet" href="styles/home-dashboard-diy.css">
+<link rel="stylesheet" href="styles/mobile-home.css">
+<link rel="stylesheet" href="styles/mobile-shell.css">
+<link rel="stylesheet" href="styles/mobile-touch.css">
+<link rel="stylesheet" href="styles/login-stage.css">
+<link rel="stylesheet" href="styles/account-stage.css">
+<link rel="stylesheet" href="styles/diy-console.css">
+<link rel="stylesheet" href="styles/folia-stage.css">
+</noscript>
+<script>
+var _hmt = _hmt || [];
+(function () {
+  function loadLateAnalytics() {
+    if (window.__mineradioAnalyticsLoaded) return;
+    window.__mineradioAnalyticsLoaded = true;
+    var hm = document.createElement('script');
+    hm.async = true;
+    hm.src = 'https://hm.baidu.com/hm.js?68339da949af1ef539351026c1b10a8a';
+    document.head.appendChild(hm);
+    (function (c, l, a, r, i, t, y) {
+      c[a] = c[a] || function () { (c[a].q = c[a].q || []).push(arguments); };
+      t = l.createElement(r); t.async = 1; t.src = 'https://www.clarity.ms/tag/' + i;
+      y = l.getElementsByTagName(r)[0]; y.parentNode.insertBefore(t, y);
+    })(window, document, 'clarity', 'script', 'y5dvmwz4jq');
+  }
+  function schedule() {
+    if ('requestIdleCallback' in window) requestIdleCallback(loadLateAnalytics, { timeout: 4500 });
+    else setTimeout(loadLateAnalytics, 2500);
+  }
+  if (document.readyState === 'complete') schedule();
+  else window.addEventListener('load', schedule, { once: true });
+})();
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Mineradio 在线播放器",
+  "alternateName": "Mineradio 网页版",
+  "url": "https://mineradio.art/",
+  "applicationCategory": "MultimediaApplication",
+  "operatingSystem": "Web",
+  "browserRequirements": "Requires JavaScript, requires HTML5 audio",
+  "description": "Mineradio 在线音乐可视化播放器，网页版免安装，浏览器打开即可在线听歌。支持搜索播放、歌单同步、逐字歌词、3D 歌单架与粒子视觉预设，可登录网易云音乐与 QQ 音乐。",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "CNY"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Mineradio",
+    "url": "https://mineradio.cn/"
+  },
+  "sameAs": "https://mineradio.cn/"
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Mineradio",
+  "alternateName": "Mineradio 客户端",
+  "url": "https://mineradio.cn/",
+  "downloadUrl": "https://mineradio.cn/",
+  "applicationCategory": "MultimediaApplication",
+  "operatingSystem": "Windows, macOS, iOS, Android",
+  "description": "Mineradio 桌面与移动端客户端，提供 Windows、macOS、iOS、Android 多端下载，歌单与收藏跨端同步。下载请前往官网 mineradio.cn。",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "CNY"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Mineradio",
+    "url": "https://mineradio.cn/"
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Mineradio 网页版怎么在线听歌？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "访问 https://mineradio.art/ 即可在浏览器中直接打开 Mineradio 网页版在线音乐可视化播放器，免安装，打开就能搜索播放、同步歌单、查看逐字歌词。支持网易云音乐与 QQ 音乐账号登录。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Mineradio 客户端在哪里下载？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Mineradio 桌面与移动端客户端（Windows、macOS、iOS、Android）请前往官网 https://mineradio.cn/ 下载，歌单与收藏可跨端同步。mineradio.art 仅提供网页版在线播放，不提供客户端下载。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Mineradio 网页版和客户端有什么区别？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "mineradio.art 是网页版在线播放器，免安装、浏览器打开即用，适合临时听歌与不想安装软件的用户；mineradio.cn 提供 Windows、macOS、iOS、Android 客户端下载，支持离线与跨端同步。两者账号与歌单互通。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Mineradio 支持哪些平台？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "网页版支持 Windows、macOS、Linux 浏览器直接打开；客户端支持 Windows、macOS、iOS、Android，请到官网 mineradio.cn 下载。配合 Mineradio Bridge 浏览器扩展可解锁更多平台音源。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Mineradio 是否免费？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Mineradio 网页版与客户端均免费使用。在线听歌访问 mineradio.art，下载客户端前往 mineradio.cn。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Mineradio 和洛雪音乐（Lx Music）哪个好？有什么区别？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "洛雪音乐是开源桌面音乐播放器，需要下载安装；Mineradio 提供免安装的网页版（mineradio.art），浏览器打开即用，同时也有桌面与移动端客户端。两者都支持多音源、歌单同步与逐字歌词。Mineradio 的差异化在于网页版无需安装、音乐可视化与 3D 歌单架、沉浸式歌词动效预设，以及与客户端跨端同步。如果不想安装软件，Mineradio 网页版是洛雪音乐的在线平替选择。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "洛雪音乐有没有网页版/在线版？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "洛雪音乐本身主要提供桌面与移动端客户端，没有官方网页版。如果想在浏览器里免安装在线听歌，可以使用 Mineradio 网页版（https://mineradio.art/），它支持网易云/QQ 音乐登录、歌单同步、逐字歌词与音乐可视化，可作为洛雪音乐的在线平替。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Mineradio 和 Folia 播放器有什么区别？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Folia 是一款以沉浸式歌词动画和玻璃拟态 UI 著称的音乐播放器。Mineradio 网页版同样提供沉浸式歌词动效，内置流光、云阶、倾诉、心象等多种歌词视觉预设，支持 3D 歌词倾斜、粒子光晕与呼吸缩放。不同的是 Mineradio 是免安装网页版，浏览器打开即可使用，并支持网易云/QQ 音乐账号登录与歌单同步，可作为 Folia 的免费在线平替。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Folia 播放器有没有免费网页版？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Folia 播放器主要以客户端形式分发。Mineradio 网页版（https://mineradio.art/）提供类似 Folia 的沉浸式歌词动效（流光、云阶、倾诉、心象等预设），免费免安装，浏览器打开即可在线听歌，可作为 Folia 的免费在线平替。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Mineradio 和 YesPlayMusic 哪个好？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "YesPlayMusic 是基于网易云音乐的开源第三方播放器，需下载安装；Mineradio 提供免安装网页版（mineradio.art）与多端客户端。两者都支持网易云音乐账号与歌单。Mineradio 的优势在于网页版即用、音乐可视化、3D 歌单架与多种沉浸式歌词动效预设，并支持 QQ 音乐。不想安装软件时，Mineradio 网页版可作为 YesPlayMusic 的在线平替。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "有没有不用下载的网页版音乐播放器？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "有。Mineradio 网页版（https://mineradio.art/）免安装、免下载，浏览器打开即可在线听歌，支持网易云/QQ 音乐登录、歌单同步、逐字歌词、音乐可视化与沉浸式歌词动效，适合不想安装软件的用户。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "免费在线音乐播放器推荐，哪个好用？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "免费在线音乐播放器推荐 Mineradio 网页版（https://mineradio.art/）：免安装、免下载，浏览器打开即用；支持网易云/QQ 音乐登录、歌单同步、逐字歌词、音乐可视化、3D 歌单架与沉浸式歌词动效（流光、云阶、倾诉、心象）。相比洛雪音乐、Folia、YesPlayMusic 等需安装的客户端，Mineradio 网页版更轻量，打开就能听。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Mineradio 支持逐字歌词和卡拉OK 效果吗？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "支持。Mineradio 网页版支持逐字歌词（卡拉OK 式逐字高亮）与逐行歌词，并提供多种沉浸式歌词动效预设（流光、云阶、倾诉、心象），包含 3D 倾斜、粒子光晕、呼吸缩放等视觉效果。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Mineradio 支持网易云音乐和 QQ 音乐吗？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "支持。Mineradio 网页版可登录网易云音乐与 QQ 音乐账号，同步歌单与收藏，搜索并播放两家平台的歌曲，配合 Mineradio Bridge 扩展还可解锁更多音源。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Mineradio 的音乐可视化效果有哪些？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Mineradio 提供多种音乐可视化预设，包括粒子频谱、3D 歌单架、沉浸式歌词动效（流光、云阶、倾诉、心象）等，支持节奏联动、光晕脉冲与歌词 3D 倾斜，可在网页版（mineradio.art）免费体验。"
+      }
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "HowTo",
+  "name": "如何使用 Mineradio 网页版在线听歌",
+  "description": "三步在浏览器中免安装在线听歌：打开网页、登录账号、搜索播放。",
+  "step": [
+    {
+      "@type": "HowToStep",
+      "position": 1,
+      "name": "打开 Mineradio 网页版",
+      "text": "在浏览器中访问 https://mineradio.art/ ，无需下载安装，网页打开即可使用。"
+    },
+    {
+      "@type": "HowToStep",
+      "position": 2,
+      "name": "登录网易云或 QQ 音乐",
+      "text": "点击登录按钮，使用网易云音乐或 QQ 音乐账号登录，同步你的歌单与收藏。"
+    },
+    {
+      "@type": "HowToStep",
+      "position": 3,
+      "name": "搜索并播放音乐",
+      "text": "在搜索框中输入歌曲名、歌手或歌词，点击播放即可在线听歌，还可切换逐字歌词与音乐可视化预设。"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "首页",
+      "item": "https://mineradio.art/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "在线音乐播放器",
+      "item": "https://mineradio.art/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "Mineradio",
+  "url": "https://mineradio.art/",
+  "logo": "https://mineradio.art/icons/icon512.png",
+  "description": "Mineradio 提供网页版免安装在线音乐可视化播放器与多端客户端，支持网易云/QQ 音乐、逐字歌词、3D 歌单架与沉浸式歌词动效。",
+  "sameAs": [
+    "https://mineradio.cn/"
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  "name": "开源与在线音乐播放器对比",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Mineradio 网页版",
+      "item": "https://mineradio.art/",
+      "description": "免安装网页版在线音乐可视化播放器，浏览器打开即用，支持网易云/QQ 音乐、逐字歌词、3D 歌单架与沉浸式歌词动效，提供洛雪、Folia 风格的歌词预设。"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "洛雪音乐 Lx Music",
+      "description": "开源桌面音乐播放器，需下载安装，支持多音源与歌单同步。"
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": "Folia 播放器",
+      "description": "以沉浸式歌词动画与玻璃拟态 UI 著称的音乐播放器，需下载安装。"
+    },
+    {
+      "@type": "ListItem",
+      "position": 4,
+      "name": "YesPlayMusic",
+      "description": "基于网易云音乐的开源第三方播放器，需下载安装。"
+    }
+  ]
+}
+</script>
+<style>.seo-h1,.seo-content{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.seo-content{white-space:normal;width:0;height:0}</style>
+</head>
+<body>
+<script>
+  /* 首帧就带上 phone-shell，避免桌面样式先刷再切手机布局 */
+  try {
+    if (document.documentElement.classList.contains('phone-shell')) {
+      document.body.classList.add('phone-shell', 'phone-booting');
+    }
+  } catch (_e) {}
+</script>
+<h1 class="seo-h1">Mineradio — 网页版在线音乐可视化播放器 | 免安装在线听歌，洛雪/Folia 平替</h1>
+<div class="seo-content" aria-hidden="true">
+<h2>Mineradio 是什么</h2>
+<p>Mineradio 是一款网页版免安装的在线音乐可视化播放器，访问 https://mineradio.art/ 即可在浏览器中直接打开使用，无需下载安装任何软件。Mineradio 同时提供 Windows、macOS、iOS、Android 多端客户端，账号与歌单可跨端同步，客户端下载请前往官网 mineradio.cn。</p>
+
+<h2>核心功能</h2>
+<ul>
+<li>免安装网页版：浏览器打开即用，无需下载，支持 Windows、macOS、Linux 任意浏览器。</li>
+<li>多平台账号：支持网易云音乐与 QQ 音乐登录，同步歌单、收藏与播放记录。</li>
+<li>搜索播放：支持按歌曲名、歌手、歌词搜索，在线播放高品质音乐。</li>
+<li>逐字歌词：卡拉OK 式逐字高亮与逐行歌词，跟随节奏精准显示。</li>
+<li>沉浸式歌词动效：内置流光、云阶、倾诉、心象等多种歌词视觉预设，支持 3D 歌词倾斜、粒子光晕、呼吸缩放，风格对标 Folia 播放器。</li>
+<li>音乐可视化：粒子频谱、节奏联动、光晕脉冲等多种可视化效果。</li>
+<li>3D 歌单架：以 3D 形式展示歌单与封面，视觉体验出众。</li>
+<li>Mineradio Bridge：配合浏览器扩展可解锁更多平台音源。</li>
+</ul>
+
+<h2>与洛雪音乐、Folia、YesPlayMusic 的对比</h2>
+<p>洛雪音乐（Lx Music）是广受欢迎的开源桌面音乐播放器，需要下载安装，支持多音源与歌单同步。Folia 播放器以沉浸式歌词动画和玻璃拟态 UI 著称，同样需要下载安装。YesPlayMusic 是基于网易云音乐的开源第三方播放器，需下载安装。</p>
+<p>Mineradio 的差异化在于提供免安装的网页版（mineradio.art），浏览器打开即可在线听歌，无需下载；同时保留了沉浸式歌词动效、音乐可视化、3D 歌单架等高级功能，并支持网易云与 QQ 音乐双平台。对于不想安装软件、希望即开即听的用户，Mineradio 网页版是洛雪音乐、Folia、YesPlayMusic 的理想在线平替。</p>
+
+<h2>使用场景</h2>
+<ul>
+<li>临时听歌：不想安装软件，浏览器打开就能听。</li>
+<li>办公场景：网页版不占桌面空间，一键播放。</li>
+<li>歌词沉浸体验：流光、云阶等动效预设，适合欣赏歌词。</li>
+<li>多端同步：网页版听歌记录可同步到客户端。</li>
+<li>可视化欣赏：粒子频谱与 3D 歌单架带来视觉享受。</li>
+</ul>
+
+<h2>常见问题</h2>
+<p>Mineradio 网页版免费吗？免费。需要下载吗？不需要，浏览器打开 mineradio.art 即可。支持哪些平台？网页版支持任意浏览器，客户端支持 Windows、macOS、iOS、Android。支持网易云和 QQ 音乐吗？支持，可登录并同步歌单。</p>
+</div>
+<div id="desktop-window-shell">
+<div id="desktop-titlebar" aria-label="window controls">
+  <div class="desktop-drag-region">
+    <div class="desktop-app-mark" aria-hidden="true"></div>
+    <div class="desktop-app-title" aria-hidden="true"></div>
+  </div>
+  <div class="desktop-window-controls">
+    <button id="visual-guide-btn" class="icon-btn" type="button" onclick="startVisualGuide({ manual: true })" title="查看使用引导" aria-label="查看使用引导">?</button>
+    <button id="update-entry" class="update-entry" type="button" onclick="openUpdatePanel()" title="发现新版本" aria-label="发现新版本">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle class="update-ring" cx="12" cy="12" r="8.8"></circle>
+        <circle id="update-progress-ring" class="update-progress-ring" cx="12" cy="12" r="8.8"></circle>
+        <path class="update-arrow" d="M12 16.5V7.5"></path>
+        <path class="update-arrow" d="M8.7 10.7 12 7.4l3.3 3.3"></path>
+      </svg>
+    </button>
+    <button id="diy-mode-btn" class="desktop-mode-btn" type="button" onclick="toggleDiyMode()" title="开启 DIY 玩家模式" aria-label="开启 DIY 玩家模式" aria-pressed="false">DIY</button>
+    <button class="desktop-window-btn" data-window-action="minimize" title="最小化" aria-label="最小化">
+      <svg viewBox="0 0 16 16"><path d="M3 8h10"/></svg>
+    </button>
+    <button class="desktop-window-btn" data-window-action="maximize" title="全屏" aria-label="全屏">
+      <svg class="icon-maximize" viewBox="0 0 16 16"><rect x="4" y="4" width="8" height="8" rx="1.5"/></svg>
+      <svg class="icon-restore" viewBox="0 0 16 16" style="display:none"><path d="M5 3.5h7.5v7.5"/><rect x="3.5" y="5.5" width="7" height="7" rx="1.3"/></svg>
+    </button>
+    <button class="desktop-window-btn close" data-window-action="close" title="关闭" aria-label="关闭">
+      <svg viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+    </button>
+  </div>
+</div>
+<div id="fullscreen-diy-zone" aria-hidden="true">
+  <button id="fullscreen-diy-btn" class="desktop-mode-btn" type="button" onclick="toggleDiyMode()" title="DIY" aria-label="DIY" aria-pressed="false">DIY</button>
+</div>
+<div id="custom-bg"><video id="custom-bg-video" muted loop playsinline preload="metadata"></video></div>
+<div id="album-bg"></div>
+<div id="album-bg-next" aria-hidden="true"></div>
+<div id="canvas-container"></div>
+<div id="folia-stage" class="folia-stage" aria-hidden="true"></div>
+<canvas id="idle-guide-canvas" aria-hidden="true"></canvas>
+
+<!-- 启动页 -->
+<div id="splash">
+  <canvas id="splash-canvas"></canvas>
+  <div class="splash-bg-noise"></div>
+
+  <!-- 主内容 -->
+  <div class="splash-content">
+    <div class="splash-wordmark" id="splash-wordmark" aria-label="Mineradio">
+      <span class="splash-word-mine">Mine</span>
+      <span class="splash-word-radio" aria-label="radio">rad<span class="splash-word-i" aria-hidden="true"></span><span class="splash-word-o">o</span></span>
+    </div>
+    <div class="splash-signal-line"></div>
+    <div class="splash-sub">private visual radio</div>
+    <div class="splash-enter" aria-hidden="true">点击进入</div>
+  </div>
+</div>
+
+<div id="hint" aria-hidden="true"></div>
+
+<!-- 顶部搜索 -->
+<div id="search-area">
+  <div id="upload-actions">
+    <button id="upload-btn" class="icon-btn" onclick="document.getElementById('file-input').click()" title="导入音乐或封面">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    </button>
+    <button id="clear-cover-btn" class="icon-btn" onclick="clearCustomCoverForCurrent()" title="取消自定义封面" aria-label="取消自定义封面">×</button>
+    <div id="upload-tip" role="status" aria-live="polite">
+      <button class="upload-tip-close" onclick="closeUploadTip(true)" aria-label="关闭提示">×</button>
+      <span class="upload-tip-title">导入入口</span>
+      这里支持上传歌曲，也可以给当前曲目换自定义封面。
+    </div>
+  </div>
+  <div id="search-stack">
+    <div id="search-box">
+      <button id="search-submit-btn" type="button" aria-label="搜索" title="搜索">
+        <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      </button>
+      <input id="search-input" type="text" placeholder="搜索歌曲、歌手..." autocomplete="off" spellcheck="false">
+    </div>
+    <div id="search-mode-tabs" class="search-mode-tabs" role="tablist" aria-label="Search mode">
+      <button id="search-mode-song" class="active" type="button" onclick="setSearchMode('song')" aria-selected="true">All</button>
+      <button id="search-mode-netease" type="button" onclick="setSearchMode('netease')" aria-selected="false">NE</button>
+      <button id="search-mode-qq" type="button" onclick="setSearchMode('qq')" aria-selected="false">QQ</button>
+      <button id="search-mode-kg" type="button" onclick="setSearchMode('kg')" aria-selected="false">KG</button>
+      <button id="search-mode-podcast" type="button" onclick="setSearchMode('podcast')" aria-selected="false">Podcast</button>
+    </div>
+    <div id="search-results"></div>
+  </div>
+  <div id="phone-chrome-slot" class="phone-chrome-slot" hidden>
+    <button id="phone-chrome-more" class="phone-chrome-more" type="button" onclick="togglePhoneChromeMenu()" title="更多" aria-label="更多" aria-expanded="false" aria-controls="phone-chrome-menu">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
+    </button>
+    <div id="phone-chrome-menu" class="phone-chrome-menu" role="menu" hidden>
+      <div id="phone-chrome-menu-actions" class="phone-chrome-menu-actions"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 音乐 Home：对齐桌面端 Dashboard -->
+<section id="empty-home" aria-label="Mineradio 音乐首页">
+  <div class="empty-home-shell">
+    <div class="home-hero" aria-live="polite">
+      <div class="daily-review-card">
+        <div class="daily-review-content">
+          <div class="daily-review-brand">MINERADIO</div>
+          <div id="daily-review-date" class="daily-review-date"></div>
+          <div id="daily-review-time" class="daily-review-time">--:--</div>
+          <div class="daily-review-quote">“让今天的声音，从你喜欢的地方开始。”</div>
+          <div class="daily-review-source">今日乐评 · 随心换一首心情</div>
+        </div>
+        <div class="daily-review-actions">
+          <button type="button" class="daily-review-btn primary" onclick="homeDashboardNextReview()">换一条</button>
+          <button id="home-dashboard-video-choose" type="button" class="daily-review-btn" onclick="openHomeDashboardVideoPicker()">更换背景</button>
+          <button id="home-dashboard-video-clear" type="button" class="daily-review-btn ghost" onclick="clearHomeDashboardVideo()" hidden>恢复默认</button>
+          <button type="button" class="daily-review-btn ghost" onclick="openHomePlayerConsole()">播放控制台</button>
+        </div>
+      </div>
+      <input id="home-dashboard-video-input" type="file" accept="image/*,video/mp4,video/webm,.jpg,.jpeg,.png,.webp,.gif,.mp4,.webm" hidden aria-hidden="true">
+    </div>
+
+    <nav id="home-phone-cta" class="home-phone-cta" aria-label="常用操作" hidden>
+      <button type="button" class="home-phone-cta-btn primary" data-phone-cta="login" onclick="onUserBtnClick()">登录同步</button>
+      <button type="button" class="home-phone-cta-btn" data-phone-cta="search" onclick="focusHomePhoneSearch()">搜索歌曲</button>
+      <button type="button" class="home-phone-cta-btn" data-phone-cta="local" onclick="document.getElementById('file-input').click()">导入本地</button>
+      <button type="button" class="home-phone-cta-btn primary" data-phone-cta="continue" onclick="resumeHomeDashboardPlayback()">继续播放</button>
+      <button type="button" class="home-phone-cta-btn" data-phone-cta="library" onclick="openHomeDashboardLibrary()">音乐库</button>
+      <button type="button" class="home-phone-cta-btn" data-phone-cta="daily" onclick="playHomeDaily()">每日推荐</button>
+    </nav>
+
+    <div class="home-grid home-quick-grid" aria-label="常用音乐入口">
+      <button class="home-card home-card-featured" data-home-tone="search" type="button"
+        onclick="resumeHomeDashboardPlayback()">
+        <div class="home-card-label">CONTINUE</div>
+        <div class="home-card-title">继续播放</div>
+        <div class="home-card-sub">从当前队列或最近播放继续</div>
+        <div class="home-card-art"></div>
+      </button>
+      <button class="home-card home-card-quick" data-home-tone="library" type="button"
+        onclick="openHomeDashboardLibrary()">
+        <div class="home-card-label">LIBRARY</div>
+        <div class="home-card-title">音乐库</div>
+        <div class="home-card-sub">歌单、本地与已登录平台</div>
+        <div class="home-card-art"></div>
+      </button>
+      <button class="home-card home-card-quick" data-home-tone="mix" type="button"
+        onclick="playHomeDaily()">
+        <div class="home-card-label">DAILY MIX</div>
+        <div class="home-card-title">每日推荐</div>
+        <div class="home-card-sub">今日精选曲目</div>
+        <div class="home-card-art"></div>
+      </button>
+      <button class="home-card home-card-quick" data-home-tone="playlist" type="button"
+        onclick="playHomeRecent()">
+        <div class="home-card-label">RECENT</div>
+        <div class="home-card-title">最近播放</div>
+        <div class="home-card-sub">回听刚播过的歌</div>
+        <div class="home-card-art"></div>
+      </button>
+    </div>
+
+    <div class="home-rail home-insight-rail">
+      <div id="home-insight-dock" class="home-insight-dock" aria-label="今日聆听和音乐发现">
+        <section class="home-insight-card home-listen-card" aria-labelledby="home-listen-heading">
+          <div class="home-insight-head">
+            <div id="home-listen-heading" class="home-insight-kicker">
+              <span class="kicker-full">LISTENING TODAY · 今日聆听</span>
+              <span class="kicker-phone">今日聆听</span>
+            </div>
+            <button class="home-insight-link" type="button" onclick="openHomeInsight()">查看偏好</button>
+          </div>
+          <div class="home-listen-metrics">
+            <div class="home-listen-metric"><strong id="home-today-time" class="home-listen-value">0 分钟</strong><span class="home-listen-label">聆听时长</span></div>
+            <div class="home-listen-metric"><strong id="home-today-count" class="home-listen-value">0 首</strong><span class="home-listen-label">今日歌曲</span></div>
+            <div class="home-listen-metric home-listen-metric-extra"><strong id="home-today-artist" class="home-listen-value">等待记录</strong><span id="home-today-streak" class="home-listen-label">开始播放后生成</span></div>
+          </div>
+        </section>
+
+        <button id="home-next-card" class="home-insight-card home-next-card" type="button"
+          onclick="playHomeNextFromDock()" aria-label="播放下一首">
+          <span id="home-next-cover" class="home-next-cover" aria-hidden="true"></span>
+          <span class="home-next-copy">
+            <span class="home-insight-kicker">
+              <span class="kicker-full">NEXT UP · 接下来播放</span>
+              <span class="kicker-phone">接下来</span>
+            </span>
+            <span id="home-next-title" class="home-next-title">队列里还没有歌曲</span>
+            <span id="home-next-sub" class="home-next-sub">点击打开音乐库</span>
+          </span>
+          <span class="home-next-arrow" aria-hidden="true">›</span>
+        </button>
+
+        <section class="home-discovery-strip" aria-label="为你挑选">
+          <header class="home-discovery-head">
+            <span class="home-insight-kicker">
+              <span class="kicker-full">FOR YOU · 为你挑选</span>
+              <span class="kicker-phone">为你挑选</span>
+            </span>
+            <span class="home-discovery-title">换一首，也许正合心意</span>
+          </header>
+          <div id="home-discovery-list" class="home-discovery-list" aria-live="polite"></div>
+        </section>
+
+        <button class="home-insight-card home-ranking-entry" type="button" onclick="openHomeDashboardCharts()"
+          aria-label="打开音乐发现">
+          <span class="home-ranking-entry-copy">
+            <span class="home-insight-kicker">
+              <span class="kicker-full">DISCOVER · 音乐发现</span>
+              <span class="kicker-phone">音乐发现</span>
+            </span>
+            <span class="home-ranking-entry-title">平台热歌与个人偏好</span>
+            <span class="home-ranking-entry-sub">热歌榜、偏好与发现入口</span>
+          </span>
+          <span class="home-ranking-entry-art" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+          <span class="home-next-arrow" aria-hidden="true">›</span>
+        </button>
+
+        <button class="home-insight-card home-ranking-entry home-radio-entry" type="button"
+          onclick="openHomeDashboardRadio()" aria-label="打开平台推荐">
+          <span class="home-ranking-entry-copy">
+            <span class="home-insight-kicker">
+              <span class="kicker-full">PLATFORM PICKS · 平台推荐</span>
+              <span class="kicker-phone">平台推荐</span>
+            </span>
+            <span class="home-ranking-entry-title">推荐电台 / 歌单</span>
+            <span class="home-ranking-entry-sub">每日歌曲与平台 Feed</span>
+          </span>
+          <span class="home-radio-entry-art" aria-hidden="true"><i></i><i></i></span>
+          <span class="home-next-arrow" aria-hidden="true">›</span>
+        </button>
+      </div>
+
+      <div class="home-legacy-rail" aria-hidden="true">
+        <div id="home-rail-title"></div>
+        <div id="home-rail-note"></div>
+        <div id="home-tile-row" class="home-tile-row"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div id="home-platform-recommend-mask" class="modal-mask" role="dialog" aria-modal="true" aria-hidden="true"
+  aria-labelledby="home-platform-recommend-title">
+  <div class="modal home-platform-recommend-modal">
+    <div class="home-platform-recommend-head">
+      <div>
+        <h2 id="home-platform-recommend-title">平台推荐</h2>
+        <p>只读取平台可验证的推荐数据，不用关键词搜索替代。</p>
+      </div>
+      <button id="home-platform-recommend-close" class="home-platform-recommend-close" type="button"
+        aria-label="关闭平台推荐">×</button>
+    </div>
+    <div id="home-platform-recommend-tabs" class="home-platform-recommend-tabs" role="tablist"
+      aria-label="推荐平台">
+      <button type="button" role="tab" data-home-recommend-source="netease" aria-selected="true">网易云</button>
+      <button type="button" role="tab" data-home-recommend-source="qishui" aria-selected="false">汽水</button>
+      <button type="button" role="tab" data-home-recommend-source="qq" aria-selected="false">QQ</button>
+      <button type="button" role="tab" data-home-recommend-source="kugou" aria-selected="false">酷狗</button>
+      <button type="button" role="tab" data-home-recommend-source="spotify" aria-selected="false">Spotify</button>
+    </div>
+    <div id="home-platform-recommend-status" class="home-platform-recommend-status" role="status"
+      aria-live="polite"></div>
+    <div id="home-platform-recommend-list" class="home-platform-recommend-list"></div>
+    <div class="home-platform-recommend-actions">
+      <button id="home-platform-recommend-refresh" type="button">刷新当前平台</button>
+      <button id="home-platform-recommend-done" type="button">完成</button>
+    </div>
+  </div>
+</div>
+
+<!-- 顶部右侧 (只保留用户) -->
+<div id="top-right">
+  <button id="user-capsule-hide-btn" class="user-capsule-hide-btn" type="button" onclick="toggleUserCapsuleAutoHide(event)" title="自动隐藏账号胶囊">‹</button>
+  <button id="web-diy-btn" class="desktop-mode-btn" type="button" onclick="toggleDiyMode()" title="开启 DIY 玩家模式" aria-label="开启 DIY 玩家模式" aria-pressed="false">DIY</button>
+  <button id="home-btn" class="icon-btn" onclick="goHome()" title="回到 Home" aria-label="回到 Home">
+    <svg width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><path d="M3 10.8 12 3l9 7.8"/><path d="M5 10v10h14V10"/><path d="M9.5 20v-5h5v5"/></svg>
+  </button>
+  <button id="user-btn" class="icon-btn logged-out" onclick="onUserBtnClick()" title="登录账号">
+    <span class="login-word">登录</span>
+  </button>
+</div>
+
+<button id="fx-fab" title="视觉控制台">
+  <svg width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><path d="M4 7h8"/><path d="M16 7h4"/><circle cx="14" cy="7" r="2"/><path d="M4 17h4"/><path d="M12 17h8"/><circle cx="10" cy="17" r="2"/></svg>
+</button>
+<button id="fx-fab-hide-btn" type="button" onclick="toggleFxFabAutoHide(event)" title="自动隐藏视觉控制台">‹</button>
+
+<!-- DIY 控制台 -->
+<div id="fx-panel" class="fx-console" aria-label="DIY 视觉控制台">
+  <div class="fx-head">
+    <div class="fx-head-brand">
+      <span class="fx-head-mark" aria-hidden="true"></span>
+      <div class="fx-head-main">
+        <div class="fx-title">视觉控制台</div>
+        <div class="fx-sub" id="fx-console-status">MINERADIO · 即时生效</div>
+      </div>
+    </div>
+    <div class="fx-head-actions">
+      <button class="fx-panel-pin" id="fx-panel-pin-btn" type="button" onclick="toggleFxPanelPinned()" title="固定控制台" aria-label="固定控制台" aria-pressed="false">
+        <svg class="fx-panel-pin-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 21v-4.5"/>
+          <path d="M8.25 3.5h7.5L14.5 11H9.5L8.25 3.5z"/>
+          <path d="M9 11h6"/>
+        </svg>
+      </button>
+      <button class="fx-panel-close" type="button" onclick="toggleFxPanel(false)" title="关闭" aria-label="关闭控制台">×</button>
+    </div>
+  </div>
+
+  <div class="fx-section-label" id="fx-home-style-label">Home 样式</div>
+  <div class="fx-seg folia-home-seg" id="folia-home-seg">
+    <button type="button" data-folia-home="mr" class="active" onclick="setFoliaHomeStyle('mr')">Mineradio</button>
+    <button type="button" data-folia-home="wall" onclick="setFoliaHomeStyle('wall')">Folia 海报墙</button>
+  </div>
+
+  <div class="fx-section-label" id="fx-presets-surface-label">预设体系</div>
+  <div class="fx-seg presets-surface-seg" id="presets-surface-seg">
+    <button type="button" data-presets-surface="mr" class="active" onclick="setPresetsSurface('mr')">Mineradio</button>
+    <button type="button" data-presets-surface="folia" onclick="setPresetsSurface('folia')">Folia</button>
+  </div>
+
+  <div id="mr-presets-surface">
+    <div class="fx-section-label" id="fx-mr-preset-label">视觉预设</div>
+    <div class="preset-grid" id="preset-grid"></div>
+    <div class="fx-section-label">用户存档</div>
+    <div class="user-archive-grid" id="user-archive-grid"></div>
+  </div>
+
+  <div id="folia-presets-surface" hidden>
+    <div class="fx-section-label">Folia 歌词动画</div>
+    <div class="preset-grid folia-mode-grid" id="folia-mode-grid" role="listbox" aria-label="Folia 歌词动画"></div>
+    <div id="folia-stage-status">关闭 · 使用页面歌词</div>
+    <div class="fx-section-label">Folia 背景</div>
+    <div class="preset-grid folia-bg-grid" id="folia-bg-grid" role="listbox" aria-label="Folia 背景"></div>
+    <div class="folia-bg-slot" id="folia-bg-slot">
+      <div class="folia-bg-url" id="folia-bg-url-row">
+        <div class="folia-bg-import-row">
+          <label class="fx-mini-btn ghost folia-file-btn">导入图片
+            <input id="folia-bg-import-input" type="file" accept="image/*" onchange="importFoliaBackground(this.files); this.value=''">
+          </label>
+          <button type="button" class="fx-mini-btn ghost" id="folia-bg-import-clear" hidden onclick="clearFoliaBackgroundImport()">清除导入</button>
+        </div>
+        <div class="folia-bg-import-preview" id="folia-bg-import-preview" hidden>
+          <img id="folia-bg-import-thumb" alt="">
+          <span id="folia-bg-import-name"></span>
+        </div>
+        <label class="folia-bg-url-label" for="folia-bg-url">嵌入地址
+          <input id="folia-bg-url" type="url" placeholder="https://" onchange="setFoliaBackgroundUrl(this.value)">
+        </label>
+      </div>
+      <div id="folia-bg-common-row" hidden>
+        <div class="fx-seg folia-tune-seg" style="margin-top:8px">
+          <button type="button" id="folia-bg-cover" onclick="setFoliaBgCommon('useCoverColorBg', !document.getElementById('folia-bg-cover').classList.contains('active'))">封面取色</button>
+          <button type="button" id="folia-bg-geo" onclick="setFoliaBgCommon('disableGeometricBackground', !document.getElementById('folia-bg-geo').classList.contains('active'))">关掉几何</button>
+          <button type="button" id="folia-bg-vignette" onclick="setFoliaBgCommon('disableVignette', !document.getElementById('folia-bg-vignette').classList.contains('active'))">关掉暗角</button>
+        </div>
+        <div class="fx-slider"><label>遮罩透明度</label><input id="folia-bg-opacity" type="range" min="0.15" max="1" step="0.01" value="0.75" oninput="setFoliaBgCommon('opacity', Number(this.value))"><output>0.75</output></div>
+        <div class="folia-bg-hint">封面取色时请把遮罩调到约 0.7，设为 1 会完全盖住封面色。</div>
+      </div>
+    </div>
+    <div class="fx-fold" id="folia-tune-fold" hidden>
+      <div class="fx-fold-head" onclick="document.getElementById('folia-tune-fold').classList.toggle('open')">
+        <span class="fx-fold-title"><strong>当前动画细调</strong><small>参数随所选歌词动画变化</small></span><span class="arrow">▶</span>
+      </div>
+      <div class="fx-fold-body">
+        <div id="folia-tuning-panel"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="fx-section-label">界面主题</div>
+  <div class="app-theme-grid" id="app-theme-grid" role="listbox" aria-label="界面主题"></div>
+  <div class="ai-theme-card" id="ai-theme-card">
+    <div class="ai-theme-head">
+      <div class="ai-theme-title">
+        <strong>AI 主题</strong>
+        <small id="ai-theme-status">封面取色，或粘贴外部生成的 DualTheme JSON</small>
+      </div>
+      <button class="fx-mini-btn ai-theme-generate" type="button" onclick="generateAiThemeFromCover()">从封面生成</button>
+    </div>
+    <div class="ai-theme-preview" id="ai-theme-preview" aria-hidden="true"></div>
+    <div class="ai-theme-actions">
+      <button class="fx-mini-btn ghost" type="button" onclick="copyAiThemePrompt()">复制提示词</button>
+      <button class="fx-mini-btn ghost" type="button" id="ai-theme-import-toggle" onclick="toggleAiThemeImport()" aria-expanded="false">粘贴结果</button>
+    </div>
+    <div class="ai-theme-import" id="ai-theme-import" hidden>
+      <label class="ai-theme-import-label" for="ai-theme-json">粘贴模型返回的 JSON</label>
+      <textarea id="ai-theme-json" rows="4" spellcheck="false" placeholder='{"name":"Aurora","dark":{"accentColor":"#7EC8D8","backgroundColor":"#08090B","primaryColor":"#E8ECEF","secondaryColor":"#9DB8CF"}}'></textarea>
+      <button class="fx-mini-btn ai-theme-apply" type="button" onclick="applyAiThemeJson()">应用到界面</button>
+    </div>
+  </div>
+  <div class="fx-section-label">自定义颜色</div>
+  <div class="lyric-color-row">
+    <input id="ui-accent-picker" class="lyric-color-picker" type="color" value="#00f5d4" title="界面高亮色">
+    <div class="fx-color-row-label">界面高亮<small id="ui-accent-value">#00F5D4</small></div>
+    <button class="fx-mini-btn ghost" type="button" onclick="resetUiAccentColor()">默认</button>
+  </div>
+  <div class="lyric-color-row visual-tint-row">
+    <input id="visual-tint-picker" class="lyric-color-picker" type="color" value="#9db8cf" title="视觉主色">
+    <div class="fx-color-row-label">视觉主色<small id="visual-tint-value">封面取色</small></div>
+    <button class="fx-mini-btn ghost" id="visual-tint-auto-btn" type="button" onclick="openCoverColorPicker('visualTint')">封面</button>
+    <button class="fx-mini-btn ghost" type="button" onclick="resetVisualTintColor()">默认</button>
+  </div>
+  <div class="cover-color-pop" id="cover-color-pop">
+    <div class="cover-color-head"><span>Cover Picker</span><button class="cover-color-close" type="button" onclick="closeCoverColorPicker()">×</button></div>
+    <div class="cover-color-body">
+      <div class="cover-color-art" id="cover-color-art" onclick="pickCoverColorFromArt(event)" onmousemove="moveCoverColorLoupe(event)" onmouseleave="hideCoverColorLoupe()"></div>
+      <div class="cover-color-side">
+        <div class="cover-color-preview" id="cover-color-preview"></div>
+        <div class="cover-color-hint" id="cover-color-hint">点击专辑封面任意位置取色，或使用下方推荐色。</div>
+        <div class="cover-color-swatches" id="cover-color-swatches"></div>
+      </div>
+    </div>
+  </div>
+  <div class="color-lab-pop" id="color-lab-pop">
+    <div class="color-lab-head"><span id="color-lab-title">Color</span><button class="color-lab-close" type="button" onclick="closeColorLab()">×</button></div>
+    <div class="color-lab-sv" id="color-lab-sv"><div class="color-lab-cursor" id="color-lab-cursor"></div></div>
+    <div class="color-lab-row">
+      <div class="color-lab-preview" id="color-lab-preview"></div>
+      <input class="color-lab-hue" id="color-lab-hue" type="range" min="0" max="360" step="1">
+      <input class="color-lab-hex" id="color-lab-hex" type="text" value="#F00000" maxlength="7">
+    </div>
+    <div class="color-lab-presets" id="color-lab-presets"></div>
+  </div>
+  <div class="cover-color-loupe" id="cover-color-loupe"></div>
+  <div class="lyric-color-row">
+    <input id="home-accent-picker" class="lyric-color-picker" type="color" value="#00f5d4" title="Home 填充色">
+    <div class="fx-color-row-label">Home 填充<small id="home-accent-value">#00F5D4</small></div>
+    <button class="fx-mini-btn ghost" type="button" onclick="resetHomeAccentColor()">默认</button>
+  </div>
+  <div class="lyric-color-row">
+    <input id="home-icon-picker" class="lyric-color-picker" type="color" value="#f4d28a" title="主页图标">
+    <div class="fx-color-row-label">主页图标<small id="home-icon-value">#F4D28A</small></div>
+    <button class="fx-mini-btn ghost" type="button" onclick="resetHomeIconColor()">默认</button>
+  </div>
+  <div class="lyric-color-row">
+    <input id="visual-icon-picker" class="lyric-color-picker" type="color" value="#7fd8ff" title="视觉图标">
+    <div class="fx-color-row-label">视觉图标<small id="visual-icon-value">#7FD8FF</small></div>
+    <button class="fx-mini-btn ghost" type="button" onclick="resetVisualIconColor()">默认</button>
+  </div>
+  <div class="lyric-color-row">
+    <input id="bg-color-picker" class="lyric-color-picker" type="color" value="#000000" title="背景颜色">
+    <div class="fx-color-row-label">背景颜色<small id="bg-color-value">#000000</small></div>
+    <button class="fx-mini-btn ghost" type="button" onclick="resetCustomBackgroundColor()">&#23553;&#38754;</button>
+  </div>
+  <div class="lyric-color-row image-pick-row">
+    <button class="fx-mini-btn ghost" type="button" onclick="document.getElementById('background-image-input').click()">选择</button>
+    <div class="fx-color-row-label">背景媒体<small id="bg-image-value">未设置</small></div>
+    <button class="fx-mini-btn ghost" type="button" onclick="clearCustomBackgroundImage()">清除</button>
+  </div>
+  <div class="fx-slider"><label>背景透明度</label><input id="fx-bgopacity" type="range" min="0" max="1" step="0.01"><output></output></div>
+  <div class="fx-slider"><label>控制台玻璃色差</label><input id="fx-glassaberration" type="range" min="0" max="140" step="1"><output></output></div>
+
+  <div class="fx-section-label">主控</div>
+  <div class="fx-slider"><label>律动强度</label><input id="fx-intensity" type="range" min="0.2" max="1.6" step="0.01"><output></output></div>
+  <div class="fx-slider"><label>立体感</label><input id="fx-depth" type="range" min="0.2" max="1.8" step="0.01"><output></output></div>
+  <div class="fx-slider"><label>封面清晰度</label><input id="fx-coverres" type="range" min="0.75" max="1.55" step="0.01"><output></output></div>
+  <div class="fx-slider"><label>镜头晃动</label><input id="fx-cineshake" type="range" min="0" max="1.8" step="0.01"><output></output></div>
+  <div class="fx-slider"><label>歌词溢光</label><input id="fx-lyricglow" type="range" min="0" max="0.85" step="0.01"><output></output></div>
+  <div class="fx-slider" id="fx-lyricbgadapt-row"><label>亮底避光</label><input id="fx-lyricbgadapt" type="range" min="0" max="1" step="0.01"><output></output></div>
+
+  <div class="fx-section-label" id="fx-sonic-ground-section">音域地形</div>
+  <div class="fx-slider"><label>地面起伏</label><input id="fx-sonicamp" type="range" min="0" max="100" step="1"><output></output></div>
+  <div class="fx-slider"><label>起伏速度</label><input id="fx-sonicspeed" type="range" min="0" max="100" step="1"><output></output></div>
+  <div class="fx-slider"><label>地形密度</label><input id="fx-sonicdensity" type="range" min="0" max="100" step="1"><output></output></div>
+  <div class="fx-slider"><label>地面范围</label><input id="fx-sonicrange" type="range" min="0" max="100" step="1"><output></output></div>
+  <div class="fx-slider"><label>歌词避让</label><input id="fx-soniclower" type="range" min="0" max="100" step="1"><output></output></div>
+  <div class="fx-slider"><label>地面远近</label><input id="fx-sonicdepth" type="range" min="0" max="100" step="1"><output></output></div>
+  <div class="fx-slider"><label>地形自转</label><input id="fx-sonicautorotate" type="range" min="0" max="100" step="1"><output></output></div>
+  <div class="fx-section-label" id="fx-sonic-audio-section">音域频谱</div>
+  <div class="fx-toggle-grid sonic-audio-toggle-grid" id="sonic-audio-toggle-grid">
+    <div class="fx-toggle" id="t-sonicAudioMonitorEnabled" onclick="toggleFx('sonicAudioMonitorEnabled')"><span>实时频谱</span><span class="dot"></span></div>
+    <div class="fx-toggle" id="t-sonicAudioAutoTrack" onclick="toggleFx('sonicAudioAutoTrack')"><span>Kick 自动</span><span class="dot"></span></div>
+  </div>
+  <div class="sonic-audio-monitor" id="sonic-audio-monitor">
+    <div class="sonic-audio-monitor-head">
+      <button class="fx-mini-btn ghost" id="sonic-audio-monitor-toggle" type="button">频谱面板</button>
+      <div class="sonic-audio-meter"><span id="sonic-audio-meter-fill"></span></div>
+      <small id="sonic-audio-monitor-label">AUTO 1-4</small>
+    </div>
+    <div class="sonic-audio-monitor-panel" id="sonic-audio-monitor-panel">
+      <canvas id="sonic-audio-monitor-canvas" width="320" height="108"></canvas>
+    </div>
+  </div>
+  <div class="fx-slider"><label>Kick 灵敏</label><input id="fx-sonicaudiosensitivity" type="range" min="0" max="100" step="1"><output></output></div>
+  <div class="fx-slider"><label>范围起点</label><input id="fx-sonicaudiobandstart" type="range" min="0" max="510" step="1"><output></output></div>
+  <div class="fx-slider"><label>范围终点</label><input id="fx-sonicaudiobandend" type="range" min="2" max="512" step="1"><output></output></div>
+  <div class="fx-slider"><label>触发阈值</label><input id="fx-sonicaudiothreshold" type="range" min="0" max="100" step="1"><output></output></div>
+  <div class="fx-slider"><label>触发力度</label><input id="fx-sonicaudiopulse" type="range" min="0" max="100" step="1"><output></output></div>
+  <div class="fx-slider"><label>中心低频</label><input id="fx-sonicsubbass" type="range" min="0" max="100" step="1"><output></output></div>
+  <div class="fx-slider"><label>低频重量</label><input id="fx-sonicbass" type="range" min="0" max="100" step="1"><output></output></div>
+  <div class="fx-slider"><label>慢波流动</label><input id="fx-soniclowmid" type="range" min="0" max="100" step="1"><output></output></div>
+  <div class="fx-slider"><label>方向流</label><input id="fx-sonicmid" type="range" min="0" max="100" step="1"><output></output></div>
+  <div class="fx-slider"><label>尖峰</label><input id="fx-sonichighmid" type="range" min="0" max="100" step="1"><output></output></div>
+  <div class="fx-slider"><label>闪光触发</label><input id="fx-sonicpresence" type="range" min="0" max="100" step="1"><output></output></div>
+  <div class="fx-slider"><label>边缘微闪</label><input id="fx-sonicbrilliance" type="range" min="0" max="100" step="1"><output></output></div>
+  <div class="fx-slider"><label>空气颗粒</label><input id="fx-sonicair" type="range" min="0" max="100" step="1"><output></output></div>
+  <div class="fx-section-label" id="fx-sonic-color-section">音域颜色</div>
+  <div class="lyric-color-row" id="sonic-ground-base-row">
+    <input id="sonic-ground-base-picker" class="lyric-color-picker" type="color" value="#05070c" title="地形暗部">
+    <div class="fx-color-row-label">地形暗部<small id="sonic-ground-base-value">#05070C</small></div>
+    <button class="fx-mini-btn ghost" type="button" onclick="resetSonicGroundColor('sonicGroundBaseColor')">默认</button>
+  </div>
+  <div class="lyric-color-row" id="sonic-ground-cool-row">
+    <input id="sonic-ground-cool-picker" class="lyric-color-picker" type="color" value="#0066ff" title="冷色峰值">
+    <div class="fx-color-row-label">冷色峰值<small id="sonic-ground-cool-value">#0066FF</small></div>
+    <button class="fx-mini-btn ghost" type="button" onclick="resetSonicGroundColor('sonicGroundCoolColor')">默认</button>
+  </div>
+  <div class="lyric-color-row" id="sonic-ground-warm-row">
+    <input id="sonic-ground-warm-picker" class="lyric-color-picker" type="color" value="#ff3c19" title="暖色峰值">
+    <div class="fx-color-row-label">暖色峰值<small id="sonic-ground-warm-value">#FF3C19</small></div>
+    <button class="fx-mini-btn ghost" type="button" onclick="resetSonicGroundColor('sonicGroundWarmColor')">默认</button>
+  </div>
+  <div class="lyric-color-row" id="sonic-ground-accent-row">
+    <input id="sonic-ground-accent-picker" class="lyric-color-picker" type="color" value="#33e6ff" title="涟漪高光">
+    <div class="fx-color-row-label">涟漪高光<small id="sonic-ground-accent-value">#33E6FF</small></div>
+    <button class="fx-mini-btn ghost" type="button" onclick="resetSonicGroundColor('sonicGroundAccentColor')">默认</button>
+  </div>
+  <div class="fx-slider"><label>音域光强</label><input id="fx-sonicglow" type="range" min="0" max="100" step="1"><output></output></div>
+  <div class="fx-section-label" id="fx-sonic-floating-section">音域方块</div>
+  <div class="fx-toggle-grid" id="sonic-floating-toggle-grid">
+    <div class="fx-toggle" id="t-sonicGroundFloatingEnabled" onclick="toggleFx('sonicGroundFloatingEnabled')"><span>浮空方块</span><span class="dot"></span></div>
+  </div>
+  <div class="fx-slider"><label>方块数量</label><input id="fx-sonicfloatcount" type="range" min="0" max="100" step="1"><output></output></div>
+  <div class="fx-slider"><label>方块强度</label><input id="fx-sonicfloatintensity" type="range" min="0" max="100" step="1"><output></output></div>
+  <div class="fx-slider"><label>方块小值</label><input id="fx-sonicfloatmin" type="range" min="0" max="100" step="1"><output></output></div>
+  <div class="fx-slider"><label>方块大值</label><input id="fx-sonicfloatmax" type="range" min="0" max="100" step="1"><output></output></div>
+  <div class="fx-slider"><label>方块速度</label><input id="fx-sonicfloatspeed" type="range" min="0" max="100" step="1"><output></output></div>
+
+  <div id="fx-lyric-surface">
+    <div id="fx-lyric-essentials">
+      <div class="fx-section-label">歌词源</div>
+      <div class="lyric-source-row">
+        <div class="fx-seg lyric-source-seg" id="lyric-source-seg">
+          <button id="lyric-source-original" type="button" class="active" onclick="setLyricSourceMode('original')">原词</button>
+          <button id="lyric-source-custom" type="button" onclick="setLyricSourceMode('custom')">自定义</button>
+        </div>
+      </div>
+      <div class="fx-section-label">歌词行数</div>
+      <div class="fx-seg lyric-display-mode-seg" id="lyric-display-mode-seg">
+        <button type="button" data-mode="single" onclick="setLyricDisplayMode('single')">单行</button>
+        <button type="button" data-mode="dual" onclick="setLyricDisplayMode('dual')">双行</button>
+        <button type="button" data-mode="triple" onclick="setLyricDisplayMode('triple')">三行</button>
+        <button type="button" data-mode="cinema" onclick="setLyricDisplayMode('cinema')">沉浸</button>
+        <button type="button" data-mode="custom" onclick="setLyricDisplayMode('custom')">自定</button>
+      </div>
+      <div class="fx-slider"><label>显示行数</label><input id="fx-lyriccustomlines" type="range" min="1" max="10" step="1"><output></output></div>
+      <div class="fx-section-label">双语翻译</div>
+      <div class="fx-seg lyric-translation-mode-seg" id="lyric-translation-mode-seg">
+        <button type="button" data-translation="off" onclick="setLyricTranslationMode('off')">关闭</button>
+        <button type="button" data-translation="current" onclick="setLyricTranslationMode('current')">当前</button>
+        <button type="button" data-translation="dual" onclick="setLyricTranslationMode('dual')">双行</button>
+        <button type="button" data-translation="multi" onclick="setLyricTranslationMode('multi')">多行</button>
+      </div>
+      <p id="folia-page-lyric-note" hidden>Folia 全屏歌词已开启，可在「预设 → Folia」切换动画与背景；关闭 Folia 后可调页面歌词。</p>
+    </div>
+  <div id="fx-page-lyric-controls">
+      <div class="fx-section-label">页面歌词动画</div>
+      <div class="fx-seg lyric-motion-style-seg" id="lyric-motion-style-seg">
+        <button type="button" data-motion="float" onclick="setLyricMotionStyle('float')">漂浮</button>
+        <button type="button" data-motion="smooth" onclick="setLyricMotionStyle('smooth')">柔滑</button>
+        <button type="button" data-motion="glass" onclick="setLyricMotionStyle('glass')">玻璃</button>
+        <button type="button" data-motion="shine" onclick="setLyricMotionStyle('shine')">线光</button>
+        <button type="button" data-motion="glitch" onclick="setLyricMotionStyle('glitch')">故障</button>
+      </div>
+      <div class="lyric-glitch-controls" id="lyric-glitch-controls">
+        <button id="lyric-glitch-camera-bind" class="fx-mini-btn ghost lyric-glitch-bind" type="button" onclick="toggleLyricGlitchCameraBind()">跟随鼓点故障</button>
+        <div class="fx-slider"><label>故障强度</label><input id="fx-lyricglitchintensity" type="range" min="0" max="1.5" step="0.01"><output></output></div>
+        <div class="fx-slider"><label>切片幅度</label><input id="fx-lyricglitchslice" type="range" min="0" max="1.4" step="0.01"><output></output></div>
+        <div class="fx-slider"><label>色散强度</label><input id="fx-lyricglitchchroma" type="range" min="0" max="1.6" step="0.01"><output></output></div>
+        <div class="fx-slider"><label>触发速度</label><input id="fx-lyricglitchrate" type="range" min="0.45" max="2.2" step="0.01"><output></output></div>
+        <div class="fx-slider"><label>抖动幅度</label><input id="fx-lyricglitchjitter" type="range" min="0" max="1.8" step="0.01"><output></output></div>
+      </div>
+      <div class="fx-slider"><label>上下句清晰</label><input id="fx-lyriccontextopacity" type="range" min="0.25" max="1" step="0.01"><output></output></div>
+      <div class="fx-slider"><label>上下句间距</label><input id="fx-lyriccontextspread" type="range" min="0.60" max="2.40" step="0.01"><output></output></div>
+      <div class="fx-slider"><label>译文间距</label><input id="fx-lyrictranslationgap" type="range" min="0.28" max="2.20" step="0.01"><output></output></div>
+      <div class="fx-slider"><label>边缘渐隐</label><input id="fx-lyricedgefade" type="range" min="0" max="1" step="0.01"><output></output></div>
+      <div class="fx-slider"><label>动画柔顺</label><input id="fx-lyricmotionsoftness" type="range" min="0.15" max="1.2" step="0.01"><output></output></div>
+    </div>
+  <div class="fx-fold" id="fx-lyric-fold">
+    <div class="fx-fold-head" onclick="document.getElementById('fx-lyric-fold').classList.toggle('open')">
+      <span class="fx-fold-title"><strong>歌词外观</strong><small>颜色 / 字体 / 位置</small></span><span class="arrow">▶</span>
+    </div>
+    <div class="fx-fold-body">
+      <div class="fx-section-label">歌词颜色</div>
+      <div class="lyric-color-grid" id="lyric-color-grid"></div>
+      <div class="lyric-color-row">
+        <input id="lyric-color-picker" class="lyric-color-picker" type="color" value="#a9b8c8" title="色轮取色">
+        <div class="lyric-color-value" id="lyric-color-value">封面取色</div>
+        <button class="fx-mini-btn ghost" id="lyric-auto-btn" type="button" onclick="setLyricColorAuto()">封面</button>
+      </div>
+      <div class="fx-section-label">高亮颜色</div>
+      <div class="lyric-color-row">
+        <input id="lyric-highlight-picker" class="lyric-color-picker" type="color" value="#fff0b8" title="高亮取色">
+        <div class="lyric-color-value" id="lyric-highlight-value">跟随歌词</div>
+        <button class="fx-mini-btn ghost" id="lyric-highlight-auto-btn" type="button" onclick="setLyricHighlightAuto()">跟随</button>
+      </div>
+      <div class="fx-section-label">溢光颜色</div>
+      <div class="lyric-color-row linked" id="lyric-glow-row" onclick="handleLyricGlowRowClick(event)">
+        <input id="lyric-glow-picker" class="lyric-color-picker" type="color" value="#9db8cf" title="溢光取色">
+        <div class="lyric-color-value" id="lyric-glow-value">跟随高亮</div>
+        <button class="fx-mini-btn ghost active" id="lyric-glow-link-btn" type="button" onclick="toggleLyricGlowLink(event)">链接</button>
+      </div>
+      <div class="lyric-glow-effect-row">
+        <button class="fx-mini-btn ghost" id="lyric-glow-enable-btn" type="button" onclick="toggleFx('lyricGlow')">后层溢光</button>
+        <button class="fx-mini-btn ghost" id="lyric-glow-beat-btn" type="button" onclick="toggleFx('lyricGlowBeat')">跟随鼓点</button>
+      </div>
+      <div class="fx-section-label">歌词字体</div>
+      <div class="fx-font-grid expanded" id="lyric-font-grid">
+        <button type="button" data-font="sans" onclick="setLyricFont('sans')">默认</button>
+        <button type="button" data-font="hei" onclick="setLyricFont('hei')">黑体</button>
+        <button type="button" data-font="song" onclick="setLyricFont('song')">宋体</button>
+        <button type="button" data-font="bold-song" onclick="setLyricFont('bold-song')">粗宋</button>
+        <button type="button" data-font="stone-song" onclick="setLyricFont('stone-song')">石印宋</button>
+        <button type="button" data-font="kai-song" onclick="setLyricFont('kai-song')">楷宋</button>
+        <button type="button" data-font="serif-en" onclick="setLyricFont('serif-en')">Serif</button>
+        <button type="button" data-font="gothic" onclick="setLyricFont('gothic')">Gothic</button>
+        <button type="button" data-font="editorial" onclick="setLyricFont('editorial')">Editorial</button>
+        <button type="button" data-font="humanist" onclick="setLyricFont('humanist')">Humanist</button>
+        <button type="button" data-font="mono" onclick="setLyricFont('mono')">等宽</button>
+        <button type="button" data-font="display" onclick="setLyricFont('display')">标题</button>
+      </div>
+      <div class="fx-slider"><label>字间距</label><input id="fx-lyricspacing" type="range" min="-0.04" max="0.18" step="0.005"><output></output></div>
+      <div class="fx-slider"><label>行距</label><input id="fx-lyriclineheight" type="range" min="0.72" max="1.80" step="0.01"><output></output></div>
+      <div class="fx-slider"><label>字重</label><input id="fx-lyricweight" type="range" min="500" max="900" step="50"><output></output></div>
+      <div id="fx-lyric-layout">
+      <div class="fx-section-label">歌词布局</div>
+      <div class="fx-slider"><label>歌词大小</label><input id="fx-lyricscale" type="range" min="0.35" max="1.65" step="0.01"><output></output></div>
+      <div class="fx-slider"><label>水平位置</label><input id="fx-lyricx" type="range" min="-4.0" max="4.0" step="0.01"><output></output></div>
+      <div class="fx-slider"><label>垂直位置</label><input id="fx-lyricy" type="range" min="-2.4" max="2.7" step="0.01"><output></output></div>
+      <div class="fx-slider"><label>景深位置</label><input id="fx-lyricz" type="range" min="-3.2" max="3.2" step="0.01"><output></output></div>
+      <div class="fx-slider"><label>上下角度</label><input id="fx-lyrictiltx" type="range" min="-84" max="84" step="1"><output></output></div>
+      <div class="fx-slider"><label>左右角度</label><input id="fx-lyrictilty" type="range" min="-84" max="84" step="1"><output></output></div>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <div class="fx-fold" id="fx-overlay-fold">
+    <div class="fx-fold-head" onclick="document.getElementById('fx-overlay-fold').classList.toggle('open')">
+      <span class="fx-fold-title"><strong>叠加效果</strong><small>粒子 / 镜头 / 溢光</small></span><span class="arrow">▶</span>
+    </div>
+    <div class="fx-fold-body">
+      <div class="fx-toggle-grid">
+        <div class="fx-toggle" id="t-float" onclick="toggleFx('floatLayer')"><span>浮空粒子层</span><span class="dot"></span></div>
+        <div class="fx-toggle" id="t-cinema" onclick="toggleFx('cinema')"><span>电影镜头</span><span class="dot"></span></div>
+        <div class="fx-toggle" id="t-lyricGlow" onclick="toggleFx('lyricGlow')"><span>歌词溢光</span><span class="dot"></span></div>
+        <div class="fx-toggle" id="t-lyricGlowBeat" onclick="toggleFx('lyricGlowBeat')"><span>鼓点溢光</span><span class="dot"></span></div>
+        <div class="fx-toggle" id="t-lyricGlowParticles" onclick="toggleFx('lyricGlowParticles')"><span>歌词光粒</span><span class="dot"></span></div>
+        <div class="fx-toggle" id="t-lyricCameraLock" onclick="toggleFx('lyricCameraLock')"><span>歌词镜头绑定</span><span class="dot"></span></div>
+        <div class="fx-toggle" id="t-bloom" onclick="toggleFx('bloom')"><span>粒子溢光</span><span class="dot"></span></div>
+        <div class="fx-toggle" id="t-edge" onclick="toggleFx('edge')"><span>轮廓高亮</span><span class="dot"></span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="fx-fold" id="fx-stage-fold">
+    <div class="fx-fold-head" onclick="document.getElementById('fx-stage-fold').classList.toggle('open')">
+      <span class="fx-fold-title"><strong>3D / 手势</strong><small>歌单架 / 摄像头交互</small></span><span class="arrow">▶</span>
+    </div>
+    <div class="fx-fold-body">
+      <div class="fx-section-label">3D 歌单架</div>
+      <div class="fx-seg" id="shelf-seg">
+        <button data-shelf="off">关闭</button>
+        <button data-shelf="side" class="active">侧栏</button>
+        <button data-shelf="stage">舞台</button>
+      </div>
+
+      <div class="fx-section-label">歌单架镜头</div>
+      <div class="fx-seg" id="shelf-camera-seg">
+        <button data-shelf-camera="dynamic" class="active">动态镜头</button>
+        <button data-shelf-camera="static">静态镜头</button>
+      </div>
+      <div class="fx-section-label">歌单架显示</div>
+      <div class="fx-seg" id="shelf-presence-seg">
+        <button data-shelf-presence="auto" class="active">自动隐藏</button>
+        <button data-shelf-presence="always">常驻</button>
+      </div>
+      <div class="fx-section-label">歌单架内容</div>
+      <div class="fx-toggle-grid">
+        <div class="fx-toggle" id="t-shelfShowPodcasts" onclick="toggleFx('shelfShowPodcasts')" title="关闭后 3D 歌单架不显示播客收藏"><span>显示播客歌单</span><span class="dot"></span></div>
+        <div class="fx-toggle" id="t-shelfMergeCollections" onclick="toggleFx('shelfMergeCollections')" title="开启后我的歌单与收藏歌单按一条线连续滚动"><span>合并收藏歌单</span><span class="dot"></span></div>
+      </div>
+      <div class="fx-section-label">歌单架外观</div>
+      <div class="lyric-color-row">
+        <input id="shelf-accent-picker" class="lyric-color-picker" type="color" value="#f4d28a" title="歌单架颜色">
+        <div class="fx-color-row-label">歌单架颜色<small id="shelf-accent-value">#F4D28A</small></div>
+        <button class="fx-mini-btn ghost" type="button" onclick="resetShelfAccentColor()">默认</button>
+      </div>
+      <div class="fx-slider"><label>歌单架大小</label><input id="fx-shelfsize" type="range" min="0.65" max="1.45" step="0.01"><output></output></div>
+      <div class="fx-slider"><label>左右位置</label><input id="fx-shelfx" type="range" min="-1.2" max="1.2" step="0.01"><output></output></div>
+      <div class="fx-slider"><label>上下位置</label><input id="fx-shelfy" type="range" min="-0.9" max="0.9" step="0.01"><output></output></div>
+      <div class="fx-slider"><label>前后景深</label><input id="fx-shelfz" type="range" min="-0.9" max="0.9" step="0.01"><output></output></div>
+      <div class="fx-slider"><label>侧向角度</label><input id="fx-shelfangle" type="range" min="-30" max="30" step="1"><output></output></div>
+      <div class="fx-slider"><label>整体透明度</label><input id="fx-shelfopacity" type="range" min="0.25" max="1" step="0.01"><output></output></div>
+      <div class="fx-slider"><label>背景透明度</label><input id="fx-shelfbgalpha" type="range" min="0.25" max="0.98" step="0.01"><output></output></div>
+
+      <div class="fx-section-label">摄像头交互</div>
+      <div class="fx-seg" id="cam-seg">
+        <button data-cam="off" class="active">关闭</button>
+        <button data-cam="gesture">手势触碰</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="fx-advanced" id="fx-advanced">
+    <div class="fx-advanced-head" onclick="document.getElementById('fx-advanced').classList.toggle('open')">
+      <span>高级参数</span><span class="arrow">▶</span>
+    </div>
+    <div class="fx-advanced-body">
+      <div class="fx-section-label">直播 / 后台</div>
+      <div class="fx-seg" id="performance-background-seg" title="控制窗口隐藏、最小化或后台运行时的渲染策略">
+        <button data-performance-background="auto">自动优化</button>
+        <button data-performance-background="keep">保持运行</button>
+        <button data-performance-background="release">停止释放</button>
+      </div>
+      <div class="fx-section-label">画质档位</div>
+      <div class="fx-seg" id="performance-quality-seg" title="控制可见状态下的渲染像素预算，重启后保留">
+        <button data-performance-quality="eco">低</button>
+        <button data-performance-quality="balanced">中</button>
+        <button data-performance-quality="high">高</button>
+        <button data-performance-quality="ultra">超高</button>
+      </div>
+      <div class="fx-toggle-grid">
+        <div class="fx-toggle" id="t-liveBackgroundKeep" onclick="toggleFx('liveBackgroundKeep')" title="开启后后台或最小化时保持视觉渲染，不进入低占用暂停"><span>直播后台保持</span><span class="dot"></span></div>
+      </div>
+      <div class="fx-slider"><label>粒子尺寸</label><input id="fx-point" type="range" min="0.5" max="2.2" step="0.01"><output></output></div>
+      <div class="fx-slider"><label>流速</label><input id="fx-speed" type="range" min="0.2" max="2.5" step="0.01"><output></output></div>
+      <div class="fx-slider"><label>扭曲</label><input id="fx-twist" type="range" min="0" max="0.6" step="0.01"><output></output></div>
+      <div class="fx-slider"><label>色彩张力</label><input id="fx-color" type="range" min="0.5" max="2.0" step="0.01"><output></output></div>
+      <div class="fx-slider"><label>溢光强度</label><input id="fx-bloom" type="range" min="0" max="1.6" step="0.01"><output></output></div>
+      <div class="fx-slider"><label>离散感</label><input id="fx-scatter" type="range" min="0" max="0.5" step="0.01"><output></output></div>
+      <div class="fx-slider"><label>背景压缩</label><input id="fx-bgfade" type="range" min="0" max="1.2" step="0.01"><output></output></div>
+    </div>
+  </div>
+
+  <div class="fx-actions">
+    <button class="fx-mini-btn" type="button" onclick="resetFx()">恢复默认</button>
+    <button class="fx-mini-btn ghost" type="button" onclick="toggleFxPanel(false)">收起</button>
+  </div>
+</div>
+
+<div id="phone-queue-backdrop" class="phone-queue-backdrop" hidden onclick="closePhonePlaylistPanel()" aria-hidden="true"></div>
+<!-- 歌单/队列面板 (左侧贴边自动显示, 无关闭按钮) -->
+<div id="playlist-panel">
+  <div class="queue-head">
+    <div><div class="fx-title">歌单 / 队列</div><div class="fx-sub" id="playlist-panel-sub">QUEUE · 鼠标移开自动隐藏</div></div>
+    <div class="queue-head-act">
+      <button id="playlist-pin-btn" class="fx-mini-btn ghost playlist-pin-btn" onclick="togglePlaylistPanelPinned()" title="常开歌单" aria-label="常开歌单"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4l6 6"/><path d="M5 15l4 4"/><path d="M14 4l-2 5-4 4-3 2 4 4 2-3 4-4 5-2z"/><path d="M9 19l-4 4"/></svg></button>
+      <button class="fx-mini-btn ghost" onclick="shuffleQueue()">随机</button>
+      <button type="button" class="fx-mini-btn ghost phone-queue-close" onclick="closePhonePlaylistPanel()" title="关闭" aria-label="关闭队列">×</button>
+    </div>
+  </div>
+  <div class="panel-tabs">
+    <button id="tab-queue" class="panel-tab active" onclick="switchPlaylistTab('queue')">当前队列</button>
+    <button id="tab-pl" class="panel-tab" onclick="switchPlaylistTab('playlists')">我的歌单</button>
+    <button id="tab-podcast" class="panel-tab" onclick="switchPlaylistTab('podcasts')">我的播客</button>
+  </div>
+  <div id="queue-pane">
+    <div class="queue-toolbar">
+      <div id="play-mode-chip" class="queue-chip">顺序循环</div>
+      <div style="display:flex;gap:6px">
+        <button class="fx-mini-btn ghost" onclick="cyclePlayMode()" style="height:26px;padding:0 10px;font-size:11px">切换模式</button>
+        <button class="fx-mini-btn ghost" onclick="clearQueue()" style="height:26px;padding:0 10px;font-size:11px">清空</button>
+      </div>
+    </div>
+    <div id="queue-next-hint" class="queue-next-hint"></div>
+    <div id="queue-list" class="queue-list"></div>
+  </div>
+  <div id="pl-pane" style="display:none">
+    <div class="pl-provider-tabs" id="pl-provider-tabs">
+      <button type="button" data-pl-provider="netease" class="active" onclick="switchUserPlaylistProvider('netease')">网易</button>
+      <button type="button" data-pl-provider="qq" onclick="switchUserPlaylistProvider('qq')">QQ</button>
+      <button type="button" data-pl-provider="kg" onclick="switchUserPlaylistProvider('kg')">酷狗</button>
+    </div>
+    <div class="queue-toolbar">
+      <div class="queue-chip" id="pl-provider-chip">登录后显示个人歌单</div>
+      <button class="fx-mini-btn ghost" onclick="refreshUserPlaylists(true)" style="height:26px;padding:0 10px;font-size:11px">刷新</button>
+    </div>
+    <div id="pl-list" style="margin-top:6px"></div>
+  </div>
+  <div id="podcast-pane" style="display:none">
+    <div class="queue-toolbar">
+      <div class="queue-chip">收藏 / 创建 / 喜欢</div>
+      <button class="fx-mini-btn ghost" onclick="refreshUserPlaylists(true)" style="height:26px;padding:0 10px;font-size:11px">刷新</button>
+    </div>
+    <div id="podcast-list"></div>
+  </div>
+</div>
+
+<!-- 试听提醒 -->
+<div id="trial-banner">
+  <svg class="ic" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+  <span id="trial-text">仅播放试听片段</span>
+  <span id="trial-login-btn" class="login-link" onclick="showLoginModal()">登录账号</span>
+  <span class="close" onclick="document.getElementById('trial-banner').classList.remove('show')">×</span>
+</div>
+
+<!-- AI 深度加载角标 -->
+<div id="ai-depth-chip"><div class="mini-spin"></div><span id="ai-depth-text">AI 深度估计…</span></div>
+
+<!-- 节拍分析角标 -->
+<div id="beat-chip"><div class="mini-spin"></div><span id="beat-text">分析节奏…</span></div>
+
+<!-- 舞台歌词 (大字 3D, 由 JS 动态填充) -->
+<div id="stage-lyrics"></div>
+
+<!-- 手势 HUD + 手骨架 -->
+<div id="gesture-hud" class="gesture-hud">
+  <div>手势：<b id="gesture-label">待命</b></div>
+  <div id="gesture-confirm" class="gesture-confirm">将手放进摄像头视野</div>
+  <div class="gesture-meter"><span id="gesture-fill"></span></div>
+  <div class="gesture-legend">手掌推开粒子 · 捏合旋转 · 握拳收束 · 手掌悬停可选歌单</div>
+</div>
+<canvas id="hand-canvas"></canvas>
+
+<!-- 左下小封面 -->
+<div id="thumb-wrap">
+  <img id="thumb-cover" src="" alt="">
+  <div id="thumb-info">
+    <div id="thumb-title" onclick="openTrackDetailModal('song')" title="歌曲详情"></div>
+    <div id="thumb-artist" onclick="openTrackDetailModal('artist')" title="歌手详情"></div>
+  </div>
+</div>
+
+<!-- 底部控件 -->
+<svg id="control-glass-svg" class="control-glass-filter-svg" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+  <defs>
+    <filter id="mineradio-control-glass-filter" color-interpolation-filters="sRGB" x="-12%" y="-28%" width="124%" height="156%">
+      <feImage id="control-glass-map" x="0" y="0" width="100%" height="100%" preserveAspectRatio="none" result="map"></feImage>
+      <feDisplacementMap in="SourceGraphic" in2="map" scale="180" xChannelSelector="R" yChannelSelector="B" result="dispRed"></feDisplacementMap>
+      <feOffset in="dispRed" dx="-90" dy="0" result="dispRedShifted"></feOffset>
+      <feMerge result="dispRedAligned"><feMergeNode in="SourceGraphic"></feMergeNode><feMergeNode in="dispRedShifted"></feMergeNode></feMerge>
+      <feColorMatrix in="dispRedAligned" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="red"></feColorMatrix>
+      <feDisplacementMap in="SourceGraphic" in2="map" scale="170" xChannelSelector="R" yChannelSelector="B" result="dispGreen"></feDisplacementMap>
+      <feOffset in="dispGreen" dx="-90" dy="0" result="dispGreenShifted"></feOffset>
+      <feMerge result="dispGreenAligned"><feMergeNode in="SourceGraphic"></feMergeNode><feMergeNode in="dispGreenShifted"></feMergeNode></feMerge>
+      <feColorMatrix in="dispGreenAligned" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="green"></feColorMatrix>
+      <feDisplacementMap in="SourceGraphic" in2="map" scale="160" xChannelSelector="R" yChannelSelector="B" result="dispBlue"></feDisplacementMap>
+      <feOffset in="dispBlue" dx="-90" dy="0" result="dispBlueShifted"></feOffset>
+      <feMerge result="dispBlueAligned"><feMergeNode in="SourceGraphic"></feMergeNode><feMergeNode in="dispBlueShifted"></feMergeNode></feMerge>
+      <feColorMatrix in="dispBlueAligned" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="blue"></feColorMatrix>
+      <feBlend in="red" in2="green" mode="screen" result="rg"></feBlend>
+      <feBlend in="rg" in2="blue" mode="screen" result="output"></feBlend>
+      <feGaussianBlur in="output" stdDeviation="0.5"></feGaussianBlur>
+    </filter>
+    <filter id="mineradio-search-box-glass-filter" color-interpolation-filters="sRGB" x="-24%" y="-34%" width="158%" height="168%">
+      <feImage id="search-box-glass-map" x="-10%" y="-4%" width="120%" height="108%" preserveAspectRatio="none" result="map"></feImage>
+      <feDisplacementMap in="SourceGraphic" in2="map" scale="180" xChannelSelector="R" yChannelSelector="B" result="dispRed"></feDisplacementMap>
+      <feOffset in="dispRed" dx="-90" dy="0" result="dispRedShifted"></feOffset>
+      <feMerge result="dispRedAligned"><feMergeNode in="SourceGraphic"></feMergeNode><feMergeNode in="dispRedShifted"></feMergeNode></feMerge>
+      <feColorMatrix in="dispRedAligned" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="red"></feColorMatrix>
+      <feDisplacementMap in="SourceGraphic" in2="map" scale="170" xChannelSelector="R" yChannelSelector="B" result="dispGreen"></feDisplacementMap>
+      <feOffset in="dispGreen" dx="-90" dy="0" result="dispGreenShifted"></feOffset>
+      <feMerge result="dispGreenAligned"><feMergeNode in="SourceGraphic"></feMergeNode><feMergeNode in="dispGreenShifted"></feMergeNode></feMerge>
+      <feColorMatrix in="dispGreenAligned" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="green"></feColorMatrix>
+      <feDisplacementMap in="SourceGraphic" in2="map" scale="160" xChannelSelector="R" yChannelSelector="B" result="dispBlue"></feDisplacementMap>
+      <feOffset in="dispBlue" dx="-90" dy="0" result="dispBlueShifted"></feOffset>
+      <feMerge result="dispBlueAligned"><feMergeNode in="SourceGraphic"></feMergeNode><feMergeNode in="dispBlueShifted"></feMergeNode></feMerge>
+      <feColorMatrix in="dispBlueAligned" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="blue"></feColorMatrix>
+      <feBlend in="red" in2="green" mode="screen" result="rg"></feBlend>
+      <feBlend in="rg" in2="blue" mode="screen" result="output"></feBlend>
+      <feGaussianBlur in="output" stdDeviation="0.5"></feGaussianBlur>
+    </filter>
+    <filter id="mineradio-search-pill-glass-filter" color-interpolation-filters="sRGB" x="-48%" y="-68%" width="210%" height="236%">
+      <feImage id="search-pill-glass-map" x="-24%" y="-14%" width="148%" height="128%" preserveAspectRatio="none" result="map"></feImage>
+      <feDisplacementMap in="SourceGraphic" in2="map" scale="118" xChannelSelector="R" yChannelSelector="B" result="dispRed"></feDisplacementMap>
+      <feOffset in="dispRed" dx="-34" dy="0" result="dispRedShifted"></feOffset>
+      <feMerge result="dispRedAligned"><feMergeNode in="SourceGraphic"></feMergeNode><feMergeNode in="dispRedShifted"></feMergeNode></feMerge>
+      <feColorMatrix in="dispRedAligned" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="red"></feColorMatrix>
+      <feDisplacementMap in="SourceGraphic" in2="map" scale="108" xChannelSelector="R" yChannelSelector="B" result="dispGreen"></feDisplacementMap>
+      <feOffset in="dispGreen" dx="-34" dy="0" result="dispGreenShifted"></feOffset>
+      <feMerge result="dispGreenAligned"><feMergeNode in="SourceGraphic"></feMergeNode><feMergeNode in="dispGreenShifted"></feMergeNode></feMerge>
+      <feColorMatrix in="dispGreenAligned" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="green"></feColorMatrix>
+      <feDisplacementMap in="SourceGraphic" in2="map" scale="100" xChannelSelector="R" yChannelSelector="B" result="dispBlue"></feDisplacementMap>
+      <feOffset in="dispBlue" dx="-34" dy="0" result="dispBlueShifted"></feOffset>
+      <feMerge result="dispBlueAligned"><feMergeNode in="SourceGraphic"></feMergeNode><feMergeNode in="dispBlueShifted"></feMergeNode></feMerge>
+      <feColorMatrix in="dispBlueAligned" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="blue"></feColorMatrix>
+      <feBlend in="red" in2="green" mode="screen" result="rg"></feBlend>
+      <feBlend in="rg" in2="blue" mode="screen" result="output"></feBlend>
+      <feGaussianBlur in="output" stdDeviation="0.35"></feGaussianBlur>
+    </filter>
+  </defs>
+</svg>
+<button id="bottom-handle" type="button" aria-label="展开播放器控制台" title="播放器控制台"><span></span></button>
+<div id="bottom-bar">
+  <div id="mini-queue-popover" class="mini-queue-popover" onclick="event.stopPropagation()">
+    <div class="mini-queue-head">
+      <div>
+        <div class="mini-queue-title">当前队列</div>
+        <div id="mini-queue-count" class="mini-queue-count">0 首</div>
+      </div>
+      <button class="fx-mini-btn ghost" onclick="closeMiniQueue()" title="关闭" style="height:26px;padding:0 9px;font-size:13px">×</button>
+    </div>
+    <div id="mini-queue-list" class="mini-queue-list"></div>
+  </div>
+  <div id="progress-bar"><div id="progress-fill"></div><div id="progress-thumb" aria-hidden="true"></div></div>
+  <div id="controls">
+    <div class="control-cluster actions">
+      <div class="control-track">
+        <div id="control-cover" class="control-cover cover-empty" aria-hidden="true"></div>
+        <div class="control-meta">
+          <div id="control-title" class="control-title" onclick="openTrackDetailModal('song')" title="歌曲详情"></div>
+          <div id="control-artist" class="control-artist" onclick="openTrackDetailModal('artist')" title="歌手详情"></div>
+        </div>
+      </div>
+      <div id="quality-control" class="quality-control">
+        <button id="quality-btn" class="ctrl-btn quality-pill" onclick="toggleQualityPanel(event)" title="音质"><span id="quality-btn-label">臻音</span></button>
+        <div class="quality-popover" id="quality-options" onclick="event.stopPropagation()"></div>
+      </div>
+      <button id="heart-btn" class="ctrl-btn" onclick="toggleLikeCurrent()" title="红心喜欢"><svg class="heart-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21.45c-.32 0-.62-.12-.86-.34l-1.23-1.12C5.54 16.03 2.25 13.05 2.25 8.9 2.25 5.48 4.88 2.9 8.28 2.9c1.7 0 3.35.72 4.52 1.96C13.97 3.62 15.62 2.9 17.32 2.9c3.4 0 6.03 2.58 6.03 6 0 4.15-3.29 7.13-7.66 11.09l-1.23 1.12c-.24.22-.54.34-.86.34z"/></svg></button>
+      <button id="collect-btn" class="ctrl-btn" onclick="openCollectModalForCurrent()" title="收藏到歌单"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg></button>
+    </div>
+    <div class="control-cluster transport">
+    <button id="play-mode-btn" class="ctrl-btn" onclick="cyclePlayMode()" title="播放顺序"><svg id="play-mode-icon" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></button>
+    <button id="prev-btn" class="ctrl-btn" onclick="prevTrack()" title="上一首"><svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>
+    <button id="play-btn" class="ctrl-btn" onclick="togglePlay()" title="播放/暂停"><svg id="play-icon" width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+    <button id="next-btn" class="ctrl-btn" onclick="nextTrack()" title="下一首"><svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
+    <button id="mini-queue-btn" class="ctrl-btn" onclick="toggleMiniQueue(event)" title="当前队列"><svg width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg></button>
+    </div>
+    <div class="control-cluster modes">
+    <button class="ctrl-btn lyrics-toggle-btn" onclick="toggleLyricsPanel()" title="歌词"><span class="lyrics-word-icon">词</span></button>
+    <div id="volume-control" class="volume-control">
+      <button id="volume-btn" class="ctrl-btn" onclick="toggleVolumePanel(event)" title="音量 / 静音"><svg id="volume-icon" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15 9.5a4 4 0 0 1 0 5"/></svg></button>
+      <div class="volume-popover" onclick="event.stopPropagation()">
+        <input id="volume-slider" type="range" min="0" max="1" step="0.01" value="1" aria-label="音量">
+        <span id="volume-value">100%</span>
+      </div>
+    </div>
+    <button id="controls-hide-btn" class="ctrl-btn active" onclick="toggleControlsAutoHide()" title="控制条自动隐藏"><svg width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 8h14"/><path d="M8 12h8"/><path d="M10 16h4"/></svg></button>
+    <button id="immersive-btn" class="ctrl-btn" onclick="toggleImmersiveMode()" title="全沉浸式" aria-label="全沉浸式" aria-pressed="false"><svg width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><path d="M4 9V5a1 1 0 0 1 1-1h4"/><path d="M15 4h4a1 1 0 0 1 1 1v4"/><path d="M20 15v4a1 1 0 0 1-1 1h-4"/><path d="M9 20H5a1 1 0 0 1-1-1v-4"/><circle cx="12" cy="12" r="2.2"/></svg></button>
+    <button class="ctrl-btn fullscreen-toggle-btn" onclick="toggleFullscreen()" title="全屏 (F)"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 7V3h4"/><path d="M21 7V3h-4"/><path d="M3 17v4h4"/><path d="M21 17v4h-4"/></svg></button>
+    <div id="time-display">0:00 / 0:00</div>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="file-input" accept=".mp3,.flac,.wav,.ogg,.m4a,.jpg,.jpeg,.png,.webp" multiple style="display:none">
+<input type="file" id="background-image-input" accept=".jpg,.jpeg,.png,.webp,.mp4,.webm,.mov,image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" style="display:none">
+<div id="drop-overlay"><div class="drop-text">拖放音乐或封面</div></div>
+<div id="free-camera-hint"></div>
+<div id="loading-overlay"><div class="spinner"></div></div>
+
+<canvas id="login-guide-canvas" aria-hidden="true"></canvas>
+
+<!-- 登录模态：舞台式双栏布局 -->
+<div id="login-modal" class="modal-mask">
+  <div class="modal dual-login-modal login-stage-modal">
+    <header class="login-stage-head">
+      <div class="login-brand-mark">
+        <img class="login-brand-icon" src="icons/icon128.png" width="44" height="44" alt="">
+        <div class="login-brand-copy">
+          <div class="login-intro-kicker">Mineradio</div>
+          <div class="login-brand-title">接入账号</div>
+        </div>
+      </div>
+      <button class="login-stage-close" type="button" onclick="closeLoginModal()" aria-label="关闭登录">×</button>
+    </header>
+
+    <div class="login-stage-grid">
+      <aside class="login-stage-rail">
+        <div class="login-intro">
+          <div class="login-intro-title">音乐播放器，也是一座视觉舞台</div>
+          <div class="login-intro-body">登录后同步歌单、红心与播客；未登录也可先搜索或导入本地音乐开播。</div>
+        </div>
+        <ul class="login-perk-list" aria-label="登录后可用的功能">
+          <li><span class="login-perk-dot" aria-hidden="true"></span>同步歌单、收藏与播放记录</li>
+          <li><span class="login-perk-dot" aria-hidden="true"></span>会员音质与平台专属内容</li>
+          <li><span class="login-perk-dot" aria-hidden="true"></span>未登录也可搜索或导入本地</li>
+        </ul>
+
+        <div class="login-platform-block">
+          <div class="login-rail-label">选择平台</div>
+          <div class="login-platform-tabs" id="login-platform-tabs" role="tablist" aria-label="登录平台">
+            <button id="login-provider-netease" class="netease active" type="button" role="tab" aria-selected="true" onclick="setLoginProvider('netease')"><span class="login-provider-logo">NE</span><span class="login-provider-name">网易云</span></button>
+            <button id="login-provider-qq" class="qq" type="button" role="tab" aria-selected="false" onclick="setLoginProvider('qq')"><span class="login-provider-logo">QQ</span><span class="login-provider-name">QQ 音乐</span></button>
+            <button id="login-provider-kg" class="kg" type="button" role="tab" aria-selected="false" onclick="setLoginProvider('kg')"><span class="login-provider-logo">KG</span><span class="login-provider-name">酷狗</span></button>
+          </div>
+        </div>
+
+        <div id="login-extension-panel" class="login-extension-panel" aria-live="polite">
+          <div class="login-extension-head">
+            <div class="login-extension-icon"><img src="icons/icon512.png" width="42" height="42" alt="Mineradio Bridge" decoding="async" loading="lazy"></div>
+            <div class="login-extension-meta">
+              <div class="login-extension-title">Mineradio Bridge <span id="login-extension-version">v1.4.1</span></div>
+              <div id="login-extension-status" class="login-extension-status">正在检测扩展…</div>
+            </div>
+            <span id="login-extension-badge" class="login-extension-badge">检测中</span>
+          </div>
+          <div class="login-extension-body">网页版搜索、播放和账号同步依赖本机 Bridge 扩展；请先安装后再继续登录。</div>
+          <ol class="login-extension-steps">
+            <li>下载扩展包（电脑需解压；iOS 用 Orion 可直接装 zip）</li>
+            <li>Chrome / Edge：扩展管理 → 开发者模式 → 加载已解压</li>
+            <li>iPhone / iPad：Orion 浏览器 → 扩展 → 从文件安装 zip</li>
+          </ol>
+          <div class="login-extension-drives-label">扩展下载</div>
+          <div id="login-extension-drives" class="login-extension-drives"></div>
+          <div class="login-extension-actions">
+            <button id="login-extension-refresh-btn" class="modal-btn" type="button" onclick="refreshLoginExtensionPanel()">重新检测</button>
+          </div>
+          <div class="login-extension-foot">安装后点扩展图标「刷新状态」，再回此页检测。也可看 <button type="button" onclick="openBridgeExtensionInstallGuide()">安装说明</button></div>
+        </div>
+      </aside>
+
+      <section class="login-stage-auth" aria-labelledby="login-modal-title">
+        <div class="login-auth-copy">
+          <h2 id="login-modal-title">登录网易云音乐</h2>
+          <div id="login-modal-desc" class="desc">用 <b>网易云 App 扫码</b> 登录。也可改用官方网页。</div>
+        </div>
+
+        <div class="login-auth-stage">
+          <div id="qr-shell" class="qr-shell qr-mode qr-loading netease-preview">
+            <img id="qr-img" alt="扫码登录" width="200" height="200" style="display:none">
+            <button id="qq-web-login-card" class="qq-login-mark" type="button" onclick="openProviderWebLogin()"><b>NE</b><span>打开官方登录</span></button>
+          </div>
+          <div id="qr-status" class="preview">正在生成扫码…</div>
+        </div>
+
+        <div id="qq-cookie-panel" class="qq-cookie-panel">
+          <textarea id="qq-cookie-input" class="qq-cookie-input" spellcheck="false" autocomplete="off" placeholder="uin=...; qqmusic_key=...; qm_keyst=..."></textarea>
+          <div class="qq-cookie-actions">
+            <div class="qq-cookie-note">从 y.qq.com 的登录会话导入。</div>
+            <button id="qq-cookie-save-btn" class="modal-btn primary" type="button" onclick="submitQQCookieLogin()">保存</button>
+          </div>
+        </div>
+        <div id="kg-cookie-panel" class="qq-cookie-panel">
+          <textarea id="kg-cookie-input" class="qq-cookie-input" spellcheck="false" autocomplete="off" placeholder="userid=...; token=...; NickName=..."></textarea>
+          <div class="qq-cookie-actions">
+            <div class="qq-cookie-note">从 kugou.com 的登录会话导入。</div>
+            <button id="kg-cookie-save-btn" class="modal-btn primary" type="button" onclick="submitKGCookieLogin()">保存</button>
+          </div>
+        </div>
+
+        <div class="login-auth-actions btn-row">
+          <button id="refresh-qr-btn" class="modal-btn primary" type="button" onclick="refreshQr()">刷新二维码</button>
+          <button id="login-official-fallback-btn" class="modal-btn" type="button" onclick="openProviderWebLogin()">官网登录</button>
+          <button id="qq-cookie-toggle-btn" class="modal-btn" type="button" onclick="toggleQQCookiePanel()">手动导入</button>
+          <button id="login-refresh-status-btn" class="modal-btn ghost-link" type="button" onclick="refreshProviderLoginStatus()">刷新状态</button>
+        </div>
+
+        <div class="login-auth-secondary">
+          <button class="login-text-btn" type="button" onclick="skipLoginAndFocusSearch()">先搜索一首歌</button>
+          <button id="login-both-btn" class="login-text-btn" type="button" onclick="requestDualLoginMode()">我两个都要</button>
+          <button class="login-text-btn" type="button" onclick="closeLoginModal()">取消</button>
+        </div>
+      </section>
+    </div>
+
+    <footer id="login-donate-row" class="login-donate-row">
+      <button class="login-donate-btn" type="button" onclick="showDonateModal()">赞赏支持 · 请作者喝杯咖啡</button>
+    </footer>
+  </div>
+</div>
+
+<!-- 赞赏模态 -->
+<div id="donate-modal" class="modal-mask" onclick="if(event.target===this)closeDonateModal()">
+  <div class="modal donate-modal">
+    <h2>赞赏支持</h2>
+    <div class="desc">如果 Mineradio 帮到了你，欢迎扫码支持持续开发。<br>微信 / 支付宝均可，金额随意。</div>
+    <div class="donate-qr-wrap">
+      <div class="donate-qr-card">
+        <div class="donate-qr-badges">
+          <span class="donate-qr-badge wechat">微信支付</span>
+          <span class="donate-qr-badge alipay">支付宝</span>
+        </div>
+        <div id="donate-qr-shell" class="donate-qr-shell">
+          <img id="donate-qr-img" src="icons/donate-qr.png" alt="微信支付宝赞赏码" width="280" height="280" decoding="async" loading="lazy" onload="markDonateQrLoaded()" onerror="markDonateQrFailed()">
+          <div class="donate-qr-fallback">请将二合一收款码保存为<br><b>icons/donate-qr.png</b></div>
+        </div>
+      </div>
+    </div>
+    <div class="donate-modal-note">扫码后自动识别微信或支付宝，不会收集任何账号信息。</div>
+    <div class="btn-row">
+      <button class="modal-btn primary" type="button" onclick="closeDonateModal()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 已登录账号模态：舞台式布局 -->
+<div id="user-modal" class="modal-mask">
+  <div class="modal dual-user-modal account-stage-modal">
+    <header class="login-stage-head">
+      <div class="login-brand-mark">
+        <img class="login-brand-icon" src="icons/icon128.png" width="44" height="44" alt="">
+        <div class="login-brand-copy">
+          <div class="login-intro-kicker">Mineradio</div>
+          <div class="login-brand-title">账号中心</div>
+        </div>
+      </div>
+      <button class="login-stage-close" type="button" onclick="closeUserModal()" aria-label="关闭账号">×</button>
+    </header>
+
+    <div class="account-stage-body">
+      <section class="account-profile-hero" aria-labelledby="user-modal-name">
+        <div class="account-avatar-wrap">
+          <img id="user-modal-avatar" src="" alt="" referrerpolicy="no-referrer">
+          <span id="account-vip-pill" class="account-vip-pill" hidden></span>
+        </div>
+        <div class="account-profile-copy">
+          <div id="account-provider-chip" class="account-provider-chip netease"><span class="account-source-dot netease"></span><span>网易云音乐</span></div>
+          <h2 id="user-modal-name">账号信息</h2>
+          <div class="account-profile-badges" id="account-profile-badges">
+            <span id="account-uid-chip" class="account-meta-chip">UID —</span>
+            <span id="account-vip-chip" class="account-meta-chip">普通用户</span>
+          </div>
+          <div id="user-modal-vip" class="account-profile-meta" hidden>登录后显示会员与 UID</div>
+        </div>
+      </section>
+
+      <div id="account-summary-bar" class="account-summary-bar">
+        <div class="account-summary-copy">
+          <span id="account-summary-count" class="account-summary-count">已登录 0 / 3 个平台</span>
+          <span id="account-summary-mode" class="account-summary-mode">单账号视图</span>
+        </div>
+        <button class="account-summary-link" type="button" onclick="openAccountThemePicker()">外观主题</button>
+      </div>
+
+      <div class="account-rail-label">平台状态</div>
+      <div class="user-platform-tabs account-platform-grid" id="user-platform-tabs" role="tablist" aria-label="账号平台">
+        <button id="user-provider-netease" class="netease active" type="button" role="tab" aria-selected="true" onclick="setActiveAccountProvider('netease')">
+          <span class="login-provider-logo">NE</span>
+          <span class="account-platform-copy"><b>网易云</b><small data-account-status="netease">未登录</small></span>
+          <span class="account-platform-state" data-account-state="netease"></span>
+        </button>
+        <button id="user-provider-qq" class="qq" type="button" role="tab" aria-selected="false" onclick="setActiveAccountProvider('qq')">
+          <span class="login-provider-logo">QQ</span>
+          <span class="account-platform-copy"><b>QQ 音乐</b><small data-account-status="qq">未登录</small></span>
+          <span class="account-platform-state" data-account-state="qq"></span>
+        </button>
+        <button id="user-provider-kg" class="kg" type="button" role="tab" aria-selected="false" onclick="setActiveAccountProvider('kg')">
+          <span class="login-provider-logo">KG</span>
+          <span class="account-platform-copy"><b>酷狗</b><small data-account-status="kg">未登录</small></span>
+          <span class="account-platform-state" data-account-state="kg"></span>
+        </button>
+        <button id="user-provider-both" class="both" type="button" role="tab" aria-selected="false" onclick="enableDualAccountView()">
+          <span class="login-provider-logo">ALL</span>
+          <span class="account-platform-copy"><b>多平台展示</b><small>右上角并排账号</small></span>
+          <span class="account-platform-state dual"></span>
+        </button>
+      </div>
+
+      <div class="account-modal-actions">
+        <button id="account-add-netease" class="modal-btn" type="button" onclick="openProviderLogin('netease')">补登网易云</button>
+        <button id="account-add-qq" class="modal-btn" type="button" onclick="openProviderLogin('qq')">补登 QQ 音乐</button>
+        <button id="account-add-kg" class="modal-btn" type="button" onclick="openProviderLogin('kg')">补登酷狗音乐</button>
+      </div>
+
+      <div id="account-hint" class="account-hint">切换平台可查看对应账号；未登录的平台会直接进入登录流程。</div>
+
+      <div class="account-stage-actions btn-row">
+        <button class="modal-btn" type="button" onclick="closeUserModal()">关闭</button>
+        <button class="modal-btn" type="button" onclick="showLoginModal({ returnToAccount: true, source: 'account-manage' })">管理登录</button>
+        <button id="account-logout-btn" class="modal-btn primary" type="button" onclick="logoutActiveAccount()">退出当前平台</button>
+      </div>
+    </div>
+
+    <footer class="login-donate-row">
+      <button class="login-donate-btn" type="button" onclick="showDonateModal()">赞赏支持 · 请作者喝杯咖啡</button>
+    </footer>
+  </div>
+</div>
+
+<!-- 封面裁剪模态 -->
+<div id="cover-crop-modal" class="modal-mask">
+  <div class="modal cover-crop-modal">
+    <h2>裁剪封面</h2>
+    <div class="cover-crop-layout">
+      <div id="cover-crop-stage" class="cover-crop-stage">
+        <img id="cover-crop-img" alt="">
+      </div>
+      <div class="cover-crop-side">
+        <canvas id="cover-crop-preview" width="160" height="160"></canvas>
+        <label class="cover-zoom-control">
+          <span>缩放</span>
+          <input id="cover-crop-zoom" type="range" min="1" max="3.2" step="0.01" value="1">
+        </label>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="modal-btn" onclick="closeCoverCropModal()">取消</button>
+      <button class="modal-btn primary" onclick="commitCoverCrop()">使用封面</button>
+    </div>
+  </div>
+</div>
+
+<!-- 收藏到歌单模态 -->
+<div id="collect-modal" class="modal-mask">
+  <div class="modal collect-modal">
+    <h2>收藏到歌单</h2>
+    <div id="collect-current" class="collect-current"></div>
+    <div class="collect-create">
+      <input id="collect-new-name" type="text" placeholder="新建歌单名称" autocomplete="off" maxlength="40">
+      <button class="modal-btn primary" onclick="createPlaylistFromCollect()">创建</button>
+    </div>
+    <div id="collect-list" class="collect-list"></div>
+    <div class="btn-row">
+      <button class="modal-btn" onclick="closeCollectModal()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div id="local-beat-modal" class="modal-mask">
+  <div class="modal local-beat-modal">
+    <h2>本地节奏分析</h2>
+    <div class="local-beat-track">
+      <div id="local-beat-title" class="local-beat-track-title">本地歌曲</div>
+      <div id="local-beat-sub" class="local-beat-track-sub">选择一种电影视角分析方式</div>
+    </div>
+    <div class="local-beat-tabs">
+      <button id="local-beat-tab-mr" class="local-beat-tab active" type="button" onclick="selectLocalBeatMode('mr')">
+        <b>MR 分析</b><span>日常电影视角</span>
+      </button>
+      <button id="local-beat-tab-dj" class="local-beat-tab" type="button" onclick="selectLocalBeatMode('dj')">
+        <b>DJ 分析</b><span>长混音/强节奏</span>
+      </button>
+    </div>
+    <div id="local-beat-desc" class="local-beat-desc"></div>
+    <div id="local-beat-status" class="local-beat-status"></div>
+    <div class="btn-row">
+      <button id="local-beat-later-btn" class="modal-btn" onclick="closeLocalBeatModal()">暂不分析</button>
+      <button id="local-beat-cancel-btn" class="modal-btn" onclick="cancelLocalBeatAnalysis()" style="display:none">取消</button>
+      <button id="local-beat-start-btn" class="modal-btn primary" onclick="startLocalBeatAnalysis()">开始分析</button>
+    </div>
+  </div>
+</div>
+
+<div id="custom-lyric-modal" class="modal-mask">
+  <div class="modal custom-lyric-modal">
+    <h2>自定义歌词</h2>
+    <div class="custom-lyric-track">
+      <div id="custom-lyric-title" class="custom-lyric-title">当前歌曲</div>
+      <div id="custom-lyric-sub" class="custom-lyric-sub">支持 LRC 时间轴，也可以直接输入纯文本歌词</div>
+    </div>
+    <textarea id="custom-lyric-input" class="custom-lyric-input" spellcheck="false" placeholder="[00:12.00] 第一行歌词&#10;[00:16.50] 第二行歌词&#10;&#10;没有时间轴也可以，每一行会按歌曲时长自动铺开"></textarea>
+    <div id="custom-lyric-status" class="custom-lyric-status"></div>
+    <div class="btn-row">
+      <button class="modal-btn" onclick="deleteCustomLyricForCurrent()">删除</button>
+      <button class="modal-btn" onclick="closeCustomLyricModal()">关闭</button>
+      <button class="modal-btn primary" onclick="saveCustomLyricForCurrent()">保存使用</button>
+    </div>
+  </div>
+</div>
+
+<div id="track-detail-modal" class="modal-mask">
+  <div class="modal track-detail-modal">
+    <h2 id="track-detail-heading">歌曲详情</h2>
+    <div id="track-detail-body"></div>
+    <div class="btn-row">
+      <button class="modal-btn" onclick="closeTrackDetailModal()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div id="update-modal" class="modal-mask">
+  <div class="modal update-modal">
+    <div class="update-panel-inner">
+      <div class="update-panel-head">
+        <div>
+          <div class="update-kicker">MINERADIO</div>
+          <div id="update-modal-title" class="update-title">New release</div>
+          <div id="update-modal-version" class="update-version">v1.0.10</div>
+        </div>
+      </div>
+      <div class="update-hero">
+        <div id="update-hero-main" class="update-hero-main">电影镜头更稳，音源兜底更顺。</div>
+        <div id="update-hero-sub" class="update-hero-sub"></div>
+      </div>
+      <div id="update-list" class="update-list"></div>
+      <div class="update-actions">
+        <button id="update-primary-btn" class="update-primary-btn" type="button" onclick="startUpdatePreviewDownload()">
+          <span id="update-btn-fill" class="update-btn-fill"></span>
+          <span id="update-btn-label" class="update-btn-label">立即更新</span>
+        </button>
+        <button class="update-secondary-btn" type="button" onclick="closeUpdatePanel()">取消</button>
+      </div>
+      <div id="update-footnote" class="update-footnote">预览版只演示更新手感，不会真的下载安装。</div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div id="bridge-extension-notice" aria-live="polite" data-mode="">
+  <div class="source-fallback-head">
+    <div id="bridge-extension-notice-title" class="source-fallback-title">Bridge 扩展可更新</div>
+    <button class="source-fallback-close" type="button" onclick="dismissBridgeExtensionNotice()">×</button>
+  </div>
+  <div id="bridge-extension-notice-body" class="source-fallback-body">检测到旧版 Bridge，请下载并重新加载扩展。</div>
+  <div class="bridge-extension-actions">
+    <button id="bridge-extension-notice-primary" class="primary" type="button" onclick="handleBridgeExtensionNoticePrimary()">下载新版</button>
+    <button id="bridge-extension-notice-secondary" type="button" onclick="handleBridgeExtensionNoticeSecondary()">重新检测</button>
+  </div>
+</div>
+<div id="official-site-notice" aria-live="polite">
+  <div class="source-fallback-head">
+    <div class="source-fallback-title">体验更多平台</div>
+    <button class="source-fallback-close" type="button" onclick="dismissOfficialSiteNotice()">×</button>
+  </div>
+  <div class="source-fallback-body">除了网页版，Mineradio 还提供 Windows、macOS、安卓等多端客户端，歌单与收藏跨端同步。访问官网 mineradio.cn 即可下载体验。</div>
+  <div class="bridge-extension-actions">
+    <button class="primary" type="button" onclick="openOfficialSiteFromNotice()">访问官网</button>
+    <button type="button" onclick="dismissOfficialSiteNotice()">知道了</button>
+  </div>
+</div>
+<div id="source-fallback-notice" aria-live="polite">
+  <div class="source-fallback-head">
+    <div id="source-fallback-title" class="source-fallback-title">自动换源</div>
+    <button class="source-fallback-close" type="button" onclick="closeSourceFallbackNotice()">×</button>
+  </div>
+  <div id="source-fallback-body" class="source-fallback-body"></div>
+</div>
+
+<div id="visual-guide" aria-live="polite" aria-hidden="true">
+  <div class="visual-guide-scrim"></div>
+  <div id="visual-guide-ring" class="visual-guide-ring"></div>
+  <div id="visual-guide-card" class="visual-guide-card">
+    <div id="visual-guide-kicker" class="visual-guide-kicker">Guide</div>
+    <div id="visual-guide-title" class="visual-guide-title"></div>
+    <div id="visual-guide-body" class="visual-guide-body"></div>
+    <div id="visual-guide-hint" class="visual-guide-hint">点击空白处也可以继续</div>
+    <div class="visual-guide-actions">
+      <button type="button" onclick="closeVisualGuide(true)">跳过</button>
+      <div id="visual-guide-progress" class="visual-guide-progress"></div>
+      <button id="visual-guide-next" class="primary" type="button" onclick="nextVisualGuideStep()">下一步</button>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script src="vendor/three.r128.min.js" defer></script>
+<script src="vendor/gsap.min.js" defer></script>
+<script src="web-bridge.js" defer></script>
+<script src="runtime-helpers.js" defer></script>
+<script src="runtime-themes.js" defer></script>
+<script src="app.js" defer></script>
+<script src="app-playback.js" defer></script>
+<script src="app-shell.js" defer></script>
+<script src="home-dashboard.js" defer></script>
+<script src="web-diy-bridge.js" defer></script>
+<script>
+(function () {
+  // Folia 已开启则立刻注入；否则空闲后再加载，避免抢占首屏主线程
+  var needEarly = false;
+  try {
+    var stored = JSON.parse(localStorage.getItem('mineradio-folia-stage-v1') || '{}') || {};
+    needEarly = stored.enabled === true && stored.mode && stored.mode !== 'off';
+  } catch (e) {}
+  function injectFoliaHost() {
+    if (document.getElementById('folia-host-script') || window.MineradioFolia) return;
+    var s = document.createElement('script');
+    s.id = 'folia-host-script';
+    s.src = 'folia-host.js';
+    document.body.appendChild(s);
+  }
+  window.__mineradioEnsureFoliaHost = injectFoliaHost;
+  function whenFolia(method, args) {
+    injectFoliaHost();
+    var tries = 0;
+    (function wait() {
+      var api = window.MineradioFolia;
+      if (api && typeof api[method] === 'function') {
+        api[method].apply(api, args);
+        return;
+      }
+      if (++tries < 50) setTimeout(wait, 40);
+    })();
+  }
+  if (!window.setPresetsSurface) {
+    window.setPresetsSurface = function (surface) {
+      var next = surface === 'folia' ? 'folia' : 'mr';
+      try { localStorage.setItem('mineradio-presets-surface-v1', next); } catch (e0) {}
+      var mr = document.getElementById('mr-presets-surface');
+      var folia = document.getElementById('folia-presets-surface');
+      if (mr) mr.hidden = next !== 'mr';
+      if (folia) folia.hidden = next !== 'folia';
+      document.querySelectorAll('#presets-surface-seg [data-presets-surface]').forEach(function (btn) {
+        btn.classList.toggle('active', btn.getAttribute('data-presets-surface') === next);
+      });
+      if (next === 'folia') injectFoliaHost();
+    };
+    try {
+      var savedSurface = localStorage.getItem('mineradio-presets-surface-v1');
+      if (savedSurface === 'folia' || savedSurface === 'mr') window.setPresetsSurface(savedSurface);
+    } catch (e1) {}
+  }
+  if (!window.setFoliaLyricMode) {
+    window.setFoliaLyricMode = function (mode) { whenFolia('setMode', [mode]); };
+  }
+  if (!window.setFoliaBackground) {
+    window.setFoliaBackground = function (mode) { whenFolia('setBackground', [mode]); };
+  }
+  if (!window.setFoliaBackgroundUrl) {
+    window.setFoliaBackgroundUrl = function (url) { whenFolia('setBackgroundUrl', [url]); };
+  }
+  if (!window.importFoliaBackground) {
+    window.importFoliaBackground = function (files) { whenFolia('importBackground', [files]); };
+  }
+  if (!window.clearFoliaBackgroundImport) {
+    window.clearFoliaBackgroundImport = function () { whenFolia('clearBackgroundImport', []); };
+  }
+  if (!window.setFoliaTuning) {
+    window.setFoliaTuning = function (mode, key, value, fromSlider) {
+      whenFolia('setTuning', [mode, key, value, fromSlider]);
+    };
+  }
+  if (!window.setFoliaHomeStyle) {
+    window.setFoliaHomeStyle = function (style) { whenFolia('setHomeStyle', [style]); };
+  }
+  if (!window.setFoliaBgCommon) {
+    window.setFoliaBgCommon = function (key, value) { whenFolia('setBgCommon', [key, value]); };
+  }
+  try {
+    var homeStored = JSON.parse(localStorage.getItem('mineradio-folia-stage-v1') || '{}') || {};
+    if (homeStored.homeStyle === 'wall') needEarly = true;
+  } catch (e2) {}
+  if (needEarly) injectFoliaHost();
+  else {
+    function schedule() {
+      if ('requestIdleCallback' in window) requestIdleCallback(injectFoliaHost, { timeout: 4000 });
+      else setTimeout(injectFoliaHost, 2200);
+    }
+    if (document.readyState === 'complete') schedule();
+    else window.addEventListener('load', schedule, { once: true });
+  }
+})();
+</script>
+<noscript>
+  <div style="max-width:720px;margin:60px auto;padding:0 20px;font-family:'Noto Sans SC','Microsoft YaHei',sans-serif;color:#e8e8e8;background:#0a0a0a;line-height:1.8">
+    <h1 style="font-size:28px;margin-bottom:16px">Mineradio — 网页版在线音乐可视化播放器</h1>
+    <p>Mineradio 是免安装的在线音乐可视化播放器，浏览器打开即可在线听歌，无需下载。支持网易云音乐与 QQ 音乐登录、歌单同步、逐字歌词、音乐可视化与沉浸式歌词动效（流光、云阶、倾诉、心象）。</p>
+    <h2 style="font-size:20px;margin-top:24px">核心功能</h2>
+    <ul>
+      <li>免安装网页版，浏览器打开即用</li>
+      <li>网易云 / QQ 音乐账号登录，歌单同步</li>
+      <li>逐字歌词（卡拉OK 效果）与逐行歌词</li>
+      <li>沉浸式歌词动效：流光、云阶、倾诉、心象</li>
+      <li>音乐可视化：粒子频谱、3D 歌单架</li>
+      <li>桌面歌词悬浮与动态壁纸</li>
+    </ul>
+    <h2 style="font-size:20px;margin-top:24px">与其他播放器对比</h2>
+    <p>相比洛雪音乐、Folia、YesPlayMusic 等需下载安装的客户端，Mineradio 网页版免安装、免下载，浏览器打开 mineradio.art 即可在线听歌，同时提供类似 Folia 的沉浸式歌词动效，可作为这些播放器的免费在线平替。</p>
+    <p style="margin-top:24px;color:#999;font-size:14px">请启用 JavaScript 以获得完整体验。客户端下载请前往 <a href="https://mineradio.cn" style="color:#9cffdf">mineradio.cn</a>。</p>
+  </div>
+</noscript>
+</body>
+</html>

@@ -1,0 +1,505 @@
+/* ============================================================
+   Global phone shell — login, search, modals, panels, player
+   Requires body.phone-shell (≤720px). Desktop unchanged.
+   ============================================================ */
+
+@media (max-width: 720px), (max-height: 520px) and (max-width: 960px) {
+  body.phone-shell {
+    --phone-safe-top: env(safe-area-inset-top, 0px);
+    --phone-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --phone-sheet-radius: 22px;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+  }
+
+  body.phone-shell #hint,
+  body.phone-shell #trial-banner,
+  body.phone-shell #ai-depth-chip,
+  body.phone-shell #beat-chip,
+  body.phone-shell #gesture-hud,
+  body.phone-shell #hand-canvas,
+  body.phone-shell #free-camera-hint,
+  body.phone-shell #fullscreen-diy-zone {
+    display: none !important;
+  }
+
+  /* —— Search results —— */
+  body.phone-shell #search-results,
+  body.phone-shell.simple-mode #search-results {
+    max-height: min(58vh, calc(100dvh - 140px - var(--phone-safe-top)));
+    border-radius: 16px;
+    margin-top: 8px;
+  }
+
+  body.phone-shell #search-area.has-results {
+    z-index: 52;
+  }
+
+  body.phone-shell .search-result,
+  body.phone-shell .search-result-row {
+    min-height: 56px;
+  }
+
+  body.phone-shell .search-mode-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  body.phone-shell .search-mode-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* —— Toast —— */
+  body.phone-shell #toast {
+    top: calc(12px + var(--phone-safe-top) + 56px);
+    left: 16px;
+    right: 16px;
+    width: auto;
+    max-width: none;
+    transform: translateY(-6px);
+    text-align: center;
+    border-radius: 14px;
+    font-size: 13px;
+    padding: 12px 14px;
+  }
+
+  body.phone-shell #toast.show {
+    transform: translateY(0);
+  }
+
+  /* —— Generic modals → bottom sheets —— */
+  /* 手机端禁用 backdrop-filter：Android/MIUI 合成时会整块黑闪 */
+  body.phone-shell .modal-mask.show,
+  body.phone-shell #login-modal.modal-mask.show,
+  body.phone-shell #user-modal.modal-mask.show,
+  body.phone-shell #update-modal.modal-mask {
+    align-items: flex-end !important;
+    justify-content: stretch !important;
+    padding: 0 !important;
+    background: rgba(0, 0, 0, .62) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  body.phone-shell .modal-mask.show .modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    border-radius: var(--phone-sheet-radius) var(--phone-sheet-radius) 0 0 !important;
+    max-height: min(92dvh, calc(100dvh - 24px - var(--phone-safe-top))) !important;
+    padding: 18px 16px calc(18px + var(--phone-safe-bottom)) !important;
+    overflow: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    text-align: left;
+    filter: none !important;
+    animation: phone-sheet-up .28s cubic-bezier(.16, 1, .3, 1) both;
+  }
+
+  @keyframes phone-sheet-up {
+    from {
+      transform: translateY(22px);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+
+  body.phone-shell .modal-btn,
+  body.phone-shell .daily-review-btn {
+    min-height: 44px;
+  }
+
+  /* Login */
+  body.phone-shell #login-modal.modal-mask.show {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+
+  body.phone-shell .dual-login-modal.login-stage-modal,
+  body.phone-shell .dual-user-modal.account-stage-modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: min(94dvh, calc(100dvh - var(--phone-safe-top))) !important;
+    border-radius: var(--phone-sheet-radius) var(--phone-sheet-radius) 0 0 !important;
+    filter: none !important;
+    /* 不要进场动画：和 WebGL 叠层时 Android 会黑块闪 */
+    animation: none !important;
+  }
+
+  body.phone-shell .modal-mask.show .modal {
+    animation: none !important;
+  }
+
+  body.phone-shell #login-guide-canvas {
+    display: none !important;
+    opacity: 0 !important;
+  }
+
+  body.phone-shell .login-stage-grid {
+    display: flex !important;
+    flex-direction: column;
+    gap: 0;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  body.phone-shell .login-stage-rail {
+    border-right: 0 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, .06);
+    padding: 14px 16px !important;
+  }
+
+  body.phone-shell .login-stage-main {
+    padding: 14px 16px calc(16px + var(--phone-safe-bottom)) !important;
+  }
+
+  body.phone-shell .login-stage-head {
+    padding: 14px 16px 12px !important;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: rgba(10, 11, 14, .96);
+  }
+
+  body.phone-shell .login-brand-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  body.phone-shell .login-auth-actions {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  body.phone-shell .login-auth-actions .modal-btn {
+    width: 100%;
+  }
+
+  /* Account */
+  body.phone-shell .dual-user-modal.account-stage-modal,
+  body.phone-shell #user-modal .modal {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Track / collect / cover / lyric / beat / donate / update */
+  body.phone-shell .track-detail-modal,
+  body.phone-shell .collect-modal,
+  body.phone-shell .cover-crop-modal,
+  body.phone-shell .custom-lyric-modal,
+  body.phone-shell .local-beat-modal,
+  body.phone-shell .donate-modal,
+  body.phone-shell .modal.update-modal,
+  body.phone-shell .home-platform-recommend-modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: min(92dvh, calc(100dvh - 20px - var(--phone-safe-top))) !important;
+  }
+
+  body.phone-shell .home-platform-recommend-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  body.phone-shell .home-platform-recommend-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  body.phone-shell .home-platform-recommend-tabs button {
+    flex: 0 0 auto;
+    min-height: 40px;
+  }
+
+  /* Color pickers / labs */
+  body.phone-shell .cover-color-pop,
+  body.phone-shell .color-lab-pop {
+    left: 12px !important;
+    right: 12px !important;
+    width: auto !important;
+    max-width: none !important;
+    bottom: calc(16px + var(--phone-safe-bottom)) !important;
+    top: auto !important;
+  }
+
+  /* —— Playlist panel sheet (reinforce) —— */
+  body.phone-shell #playlist-panel {
+    top: auto !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    max-height: min(80dvh, calc(100dvh - 64px - var(--phone-safe-top))) !important;
+    border-radius: var(--phone-sheet-radius) var(--phone-sheet-radius) 0 0 !important;
+    padding: 16px 14px calc(16px + var(--phone-safe-bottom)) !important;
+    transform: translateY(110%) !important;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 47;
+  }
+
+  body.phone-shell #playlist-panel.show,
+  body.phone-shell #playlist-panel.peek {
+    transform: translateY(0) !important;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  body.phone-shell #playlist-panel .queue-item,
+  body.phone-shell #playlist-panel .pl-card {
+    min-height: 52px;
+  }
+
+  body.phone-shell .panel-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+  }
+
+  body.phone-shell .panel-tab {
+    flex: 0 0 auto;
+    min-height: 36px;
+  }
+
+  /* —— DIY console sheet (override diy-console.css mobile) —— */
+  body.phone-shell #fx-panel,
+  body.phone-shell.diy-mode #fx-panel.fx-console {
+    left: 0 !important;
+    right: 0 !important;
+    top: auto !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    max-height: min(86dvh, calc(100dvh - 40px - var(--phone-safe-top))) !important;
+    border-radius: var(--phone-sheet-radius) var(--phone-sheet-radius) 0 0 !important;
+    transform: translateY(110%) !important;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 48;
+    padding-bottom: var(--phone-safe-bottom) !important;
+  }
+
+  body.phone-shell #fx-panel.show,
+  body.phone-shell #fx-panel.peek,
+  body.phone-shell #fx-panel.pinned,
+  body.phone-shell.diy-mode #fx-panel.fx-console.show,
+  body.phone-shell.diy-mode #fx-panel.fx-console.peek,
+  body.phone-shell.diy-mode #fx-panel.fx-console.pinned {
+    transform: translateY(0) !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    right: 0 !important;
+  }
+
+  body.phone-shell.diy-mode #fx-panel.fx-console .fx-panel-tabs button {
+    min-width: 64px;
+    min-height: 48px;
+  }
+
+  body.phone-shell.diy-mode #fx-panel.fx-console .fx-console-pages {
+    max-height: min(62dvh, calc(100dvh - 220px - var(--phone-safe-bottom))) !important;
+  }
+
+  body.phone-shell .preset-card,
+  body.phone-shell .fx-mini-btn {
+    min-height: 40px;
+  }
+
+  /* —— Mini queue (phone uses playlist sheet) —— */
+  body.phone-shell #mini-queue-popover {
+    display: none !important;
+  }
+
+  /* —— Bottom player reinforce —— */
+  body.phone-shell #bottom-bar,
+  body.phone-shell #bottom-bar.stage-mode,
+  body.phone-shell.simple-mode #bottom-bar,
+  body.phone-shell.diy-mode #bottom-bar,
+  body.phone-shell.diy-mode #bottom-bar.stage-mode {
+    left: 50%;
+    bottom: calc(6px + var(--phone-safe-bottom));
+    width: calc(100vw - 12px);
+    max-width: none;
+    border-radius: 20px;
+    z-index: 42;
+  }
+
+  body.phone-shell #bottom-handle {
+    bottom: calc(8px + var(--phone-safe-bottom));
+    z-index: 43;
+    width: min(300px, 78vw);
+    height: 40px;
+  }
+
+  body.phone-shell #progress-bar {
+    height: 7px;
+    touch-action: none;
+  }
+
+  body.phone-shell #progress-thumb {
+    width: 18px;
+    height: 18px;
+    opacity: .9;
+  }
+
+  /* —— Folia wall / lyrics —— */
+  body.phone-shell.folia-home-wall #empty-home {
+    display: none !important;
+  }
+
+  body.phone-shell.folia-home-wall #search-area.peek,
+  body.phone-shell.folia-stage-active #search-area.peek,
+  body.phone-shell.folia-home-wall .phone-chrome-slot,
+  body.phone-shell.folia-stage-active .phone-chrome-slot,
+  body.phone-shell.folia-home-wall #bottom-bar,
+  body.phone-shell.folia-stage-active #bottom-bar,
+  body.phone-shell.folia-home-wall #bottom-handle,
+  body.phone-shell.folia-stage-active #bottom-handle {
+    z-index: 49;
+  }
+
+  body.phone-shell.folia-stage-active:not(.folia-home-wall) .control-cluster.modes {
+    display: flex !important;
+    justify-content: flex-end;
+    width: auto;
+    border-top: 0;
+    padding-top: 0;
+  }
+
+  body.phone-shell.folia-stage-active:not(.folia-home-wall) .control-cluster.modes > *:not(#web-diy-btn) {
+    display: none !important;
+  }
+
+  body.phone-shell.folia-stage-active:not(.folia-home-wall) #controls {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas: "track transport modes";
+  }
+
+  /* Folia 海报墙仍隐藏 FAB；歌词舞台保留 DIY 控制台入口 */
+  body.phone-shell.folia-home-wall #fx-fab {
+    display: none !important;
+  }
+
+  body.phone-shell.folia-stage-active.diy-mode #fx-fab {
+    display: grid !important;
+    place-items: center;
+    z-index: 50;
+  }
+
+  /* Notices — 底部卡片，勿同时设 top+bottom（会拉成整屏黑块） */
+  body.phone-shell #bridge-extension-notice,
+  body.phone-shell #official-site-notice,
+  body.phone-shell #source-fallback-notice {
+    top: auto !important;
+    left: 12px !important;
+    right: 12px !important;
+    width: auto !important;
+    max-width: none !important;
+    bottom: calc(88px + var(--phone-safe-bottom)) !important;
+    padding: 16px 16px 14px !important;
+    border-radius: 18px !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: rgba(10, 14, 18, .94) !important;
+    transform: none !important;
+    max-height: min(42vh, 280px);
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  body.phone-shell #bridge-extension-notice.show,
+  body.phone-shell #official-site-notice.show,
+  body.phone-shell #source-fallback-notice.show {
+    transform: none !important;
+  }
+
+  body.phone-shell.controls-visible #bridge-extension-notice,
+  body.phone-shell.controls-visible #official-site-notice,
+  body.phone-shell.controls-visible #source-fallback-notice {
+    bottom: calc(168px + var(--phone-safe-bottom)) !important;
+  }
+
+  body.phone-shell #bridge-extension-notice .source-fallback-title,
+  body.phone-shell #official-site-notice .source-fallback-title,
+  body.phone-shell #source-fallback-notice .source-fallback-title {
+    font-size: 15px;
+    line-height: 1.35;
+  }
+
+  body.phone-shell #bridge-extension-notice .source-fallback-body,
+  body.phone-shell #official-site-notice .source-fallback-body,
+  body.phone-shell #source-fallback-notice .source-fallback-body {
+    font-size: 13px;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, .72);
+  }
+
+  body.phone-shell #bridge-extension-notice .source-fallback-close,
+  body.phone-shell #official-site-notice .source-fallback-close,
+  body.phone-shell #source-fallback-notice .source-fallback-close {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  body.phone-shell #bridge-extension-notice .bridge-extension-actions,
+  body.phone-shell #official-site-notice .bridge-extension-actions {
+    display: grid !important;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  body.phone-shell #bridge-extension-notice .bridge-extension-actions button,
+  body.phone-shell #official-site-notice .bridge-extension-actions button {
+    height: 44px;
+    width: 100%;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  body.phone-shell.phone-landscape #bridge-extension-notice .bridge-extension-actions,
+  body.phone-shell.phone-landscape #official-site-notice .bridge-extension-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  body.phone-shell.phone-landscape #bridge-extension-notice,
+  body.phone-shell.phone-landscape #official-site-notice,
+  body.phone-shell.phone-landscape #source-fallback-notice {
+    left: auto !important;
+    right: 12px !important;
+    width: min(360px, calc(100vw - 24px)) !important;
+    max-height: min(70vh, 240px);
+  }
+
+  /* Drop overlay */
+  body.phone-shell #drop-overlay .drop-text {
+    font-size: 16px;
+    padding: 20px 24px;
+  }
+
+  /* Loading */
+  body.phone-shell #loading-overlay .spinner {
+    width: 40px;
+    height: 40px;
+  }
+
+  /* Visual guide */
+  body.phone-shell .visual-guide-card {
+    left: 12px !important;
+    right: 12px !important;
+    width: auto !important;
+    bottom: calc(24px + var(--phone-safe-bottom)) !important;
+  }
+}
+
+@media (min-width: 721px) {
+  /* no-op: keep file self-contained */
+}

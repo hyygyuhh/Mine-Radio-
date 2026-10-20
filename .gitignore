@@ -1,0 +1,5 @@
+# Local dev reference (desktop Electron copy)
+_desktop-ref/
+
+# Maintainer docs (not served by the site)
+docs/

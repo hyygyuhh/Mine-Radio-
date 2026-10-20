@@ -1,0 +1,488 @@
+/* ============================================================
+   Phone touch + landscape — pairs with body.phone-shell
+   ============================================================ */
+
+@media (max-width: 960px) {
+  body.phone-shell {
+    touch-action: manipulation;
+  }
+
+  /* 首帧只静默布局相关过渡，不要 animation:none 全树（移除时会重启动画=闪） */
+  body.phone-shell.phone-booting #bottom-bar,
+  body.phone-shell.phone-booting #search-area,
+  body.phone-shell.phone-booting #top-right,
+  body.phone-shell.phone-booting #phone-chrome-slot,
+  body.phone-shell.phone-booting #empty-home,
+  body.phone-shell.phone-booting #fx-panel,
+  body.phone-shell.phone-booting #playlist-panel {
+    transition: none !important;
+  }
+
+  /* Android/MIUI：backdrop-filter / filter:blur 合成极易整块黑闪 */
+  body.phone-shell .modal-mask,
+  body.phone-shell .modal-mask.show,
+  body.phone-shell #login-modal,
+  body.phone-shell #user-modal,
+  body.phone-shell #bottom-bar,
+  body.phone-shell #search-box,
+  body.phone-shell #search-results,
+  body.phone-shell #fx-panel,
+  body.phone-shell #playlist-panel,
+  body.phone-shell #fx-fab,
+  body.phone-shell .icon-btn,
+  body.phone-shell .ctrl-btn,
+  body.phone-shell .glass-saved-panel,
+  body.phone-shell .glass-saved-button,
+  body.phone-shell .home-card,
+  body.phone-shell .home-tile,
+  body.phone-shell .home-hero,
+  body.phone-shell .daily-review-actions button,
+  body.phone-shell .daily-review-btn {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  body.phone-shell .modal,
+  body.phone-shell .dual-login-modal,
+  body.phone-shell .dual-user-modal,
+  body.phone-shell .login-stage-modal,
+  body.phone-shell .account-stage-modal {
+    filter: none !important;
+    animation: none !important;
+    transform: none !important;
+  }
+
+  body.phone-shell #login-guide-canvas {
+    display: none !important;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    body.phone-shell,
+    body.phone-shell * {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+    }
+  }
+
+  body.phone-shell .ctrl-btn,
+  body.phone-shell .icon-btn,
+  body.phone-shell .desktop-mode-btn,
+  body.phone-shell #fx-fab,
+  body.phone-shell #web-diy-btn,
+  body.phone-shell .home-phone-cta-btn,
+  body.phone-shell .panel-tab,
+  body.phone-shell .fx-mini-btn,
+  body.phone-shell .modal-btn {
+    transition: background-color .12s ease, border-color .12s ease, color .12s ease, opacity .12s ease !important;
+    transform: none !important;
+  }
+
+  body.phone-shell .icon-btn:hover,
+  body.phone-shell .icon-btn:active {
+    transform: none !important;
+  }
+
+  body.phone-shell button,
+  body.phone-shell .ctrl-btn,
+  body.phone-shell .home-phone-cta-btn,
+  body.phone-shell .panel-tab,
+  body.phone-shell .fx-mini-btn,
+  body.phone-shell .modal-btn,
+  body.phone-shell .queue-item,
+  body.phone-shell .home-discovery-song,
+  body.phone-shell .home-ranking-entry,
+  body.phone-shell .home-next-card,
+  body.phone-shell .phone-chrome-more {
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  body.phone-shell #search-input,
+  body.phone-shell textarea,
+  body.phone-shell input[type="text"],
+  body.phone-shell input[type="password"],
+  body.phone-shell input:not([type]),
+  body.phone-shell [contenteditable] {
+    -webkit-user-select: text;
+    user-select: text;
+    touch-action: auto;
+  }
+
+  body.phone-shell #progress-bar,
+  body.phone-shell #volume-slider,
+  body.phone-shell input[type="range"] {
+    touch-action: none;
+  }
+
+  /* Prefer :active over sticky :hover on coarse pointers */
+  @media (hover: none) {
+    body.phone-shell .ctrl-btn:hover,
+    body.phone-shell #play-btn:hover,
+    body.phone-shell .home-phone-cta-btn:hover,
+    body.phone-shell .home-discovery-song:hover,
+    body.phone-shell .home-next-card:hover,
+    body.phone-shell .home-ranking-entry:hover,
+    body.phone-shell .queue-item:hover,
+    body.phone-shell .fx-mini-btn:hover,
+    body.phone-shell .modal-btn:hover,
+    body.phone-shell .panel-tab:hover {
+      transform: none;
+      background: inherit;
+    }
+
+    body.phone-shell .ctrl-btn:active,
+    body.phone-shell #play-btn:active,
+    body.phone-shell .home-phone-cta-btn:active,
+    body.phone-shell .home-discovery-song:active,
+    body.phone-shell .home-next-card:active,
+    body.phone-shell .home-ranking-entry:active,
+    body.phone-shell .queue-item:active,
+    body.phone-shell .phone-chrome-more:active {
+      transform: scale(.97);
+      filter: brightness(1.08);
+    }
+  }
+
+  body.phone-shell #empty-home,
+  body.phone-shell #playlist-panel,
+  body.phone-shell #fx-panel,
+  body.phone-shell #search-results,
+  body.phone-shell .modal-mask .modal {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  /* Sheet drag handle affordance */
+  body.phone-shell #playlist-panel.show::before,
+  body.phone-shell #playlist-panel.peek::before,
+  body.phone-shell #fx-panel.show::before,
+  body.phone-shell #fx-panel.peek::before,
+  body.phone-shell.diy-mode #fx-panel.fx-console.show::before,
+  body.phone-shell.diy-mode #fx-panel.fx-console.peek::before {
+    content: '';
+    display: block;
+    width: 42px;
+    height: 4px;
+    margin: 2px auto 10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .28);
+  }
+}
+
+/* —— Landscape phone (wide + short) —— */
+@media (max-width: 960px) and (max-height: 520px) {
+  body.phone-shell.phone-landscape {
+    --phone-chrome-top: calc(6px + env(safe-area-inset-top, 0px));
+    --phone-chrome-height: 40px;
+    --phone-home-gap: 8px;
+  }
+
+  body.phone-shell.phone-landscape #search-area.peek,
+  body.phone-shell.phone-landscape.simple-mode #search-area.peek,
+  body.phone-shell.phone-landscape.diy-mode #search-area.peek {
+    top: var(--phone-chrome-top);
+    left: max(10px, env(safe-area-inset-left, 0px));
+    right: max(10px, env(safe-area-inset-right, 0px));
+  }
+
+  body.phone-shell.phone-landscape #search-box {
+    height: var(--phone-chrome-height);
+    border-radius: 14px;
+  }
+
+  body.phone-shell.phone-landscape .phone-chrome-more {
+    width: var(--phone-chrome-height);
+    height: var(--phone-chrome-height);
+    border-radius: 14px;
+  }
+
+  body.phone-shell.phone-landscape #search-mode-tabs {
+    display: none;
+  }
+
+  /* Home: side-by-side hero + feed */
+  body.phone-shell.phone-landscape #empty-home,
+  body.phone-shell.phone-landscape.empty-home-active #empty-home,
+  body.phone-shell.phone-landscape.empty-home-active.controls-visible #empty-home {
+    top: calc(var(--phone-chrome-top) + var(--phone-chrome-height) + 8px);
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    left: max(10px, env(safe-area-inset-left, 0px));
+    right: max(10px, env(safe-area-inset-right, 0px));
+    width: auto;
+    transform: none;
+  }
+
+  body.phone-shell.phone-landscape.empty-home-active.controls-visible #empty-home {
+    bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  }
+
+  body.phone-shell.phone-landscape #empty-home .empty-home-shell {
+    display: grid !important;
+    grid-template-columns: minmax(220px, 38vw) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 10px 12px;
+    height: 100%;
+    min-height: 0;
+    padding-bottom: 0;
+    overflow: hidden;
+  }
+
+  body.phone-shell.phone-landscape #empty-home .home-hero {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    order: 0;
+    min-height: 0;
+    height: 100%;
+  }
+
+  body.phone-shell.phone-landscape #empty-home .daily-review-card {
+    min-height: 0;
+    height: 100%;
+    border-radius: 18px;
+  }
+
+  body.phone-shell.phone-landscape #empty-home .daily-review-time {
+    font-size: clamp(28px, 8vh, 42px);
+  }
+
+  body.phone-shell.phone-landscape #empty-home .daily-review-quote {
+    font-size: 12px;
+    max-width: none;
+  }
+
+  body.phone-shell.phone-landscape #home-phone-cta,
+  body.phone-shell.phone-landscape.empty-home-active #home-phone-cta {
+    grid-column: 2;
+    grid-row: 1;
+    order: 0;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    align-self: start;
+  }
+
+  body.phone-shell.phone-landscape .home-phone-cta-btn {
+    min-height: 40px;
+    font-size: 12px;
+    border-radius: 12px;
+  }
+
+  body.phone-shell.phone-landscape #empty-home .home-rail.home-insight-rail {
+    grid-column: 2;
+    grid-row: 2;
+    order: 0;
+    min-height: 0;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  body.phone-shell.phone-landscape #empty-home .home-insight-dock {
+    gap: 8px;
+  }
+
+  body.phone-shell.phone-landscape #empty-home .home-listen-card,
+  body.phone-shell.phone-landscape.phone-home-guest #empty-home .home-listen-card {
+    display: none !important;
+  }
+
+  body.phone-shell.phone-landscape #empty-home .home-discovery-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  body.phone-shell.phone-landscape #empty-home .home-discovery-song {
+    height: 52px !important;
+    min-height: 52px !important;
+  }
+
+  /* Player: single compact row */
+  body.phone-shell.phone-landscape #bottom-bar,
+  body.phone-shell.phone-landscape #bottom-bar.stage-mode,
+  body.phone-shell.phone-landscape.diy-mode #bottom-bar {
+    bottom: calc(4px + env(safe-area-inset-bottom, 0px));
+    left: 50%;
+    width: calc(100vw - 20px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+    padding: 6px 10px 8px;
+    border-radius: 16px;
+    gap: 4px;
+  }
+
+  body.phone-shell.phone-landscape #bottom-handle {
+    bottom: calc(4px + env(safe-area-inset-bottom, 0px));
+    height: 28px;
+    opacity: .35;
+  }
+
+  body.phone-shell.phone-landscape #progress-bar {
+    height: 5px;
+    margin: 0 0 2px;
+  }
+
+  body.phone-shell.phone-landscape #controls,
+  body.phone-shell.phone-landscape.diy-mode #controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) auto minmax(0, .9fr);
+    grid-template-areas: "track transport modes";
+    gap: 6px 8px;
+    align-items: center;
+  }
+
+  body.phone-shell.phone-landscape .control-cluster.actions,
+  body.phone-shell.phone-landscape .control-cluster.transport,
+  body.phone-shell.phone-landscape .control-cluster.modes {
+    border-top: 0;
+    padding-top: 0;
+    height: auto;
+    min-height: 0;
+  }
+
+  body.phone-shell.phone-landscape .control-cluster.actions {
+    grid-area: track;
+  }
+
+  body.phone-shell.phone-landscape .control-cluster.transport {
+    grid-area: transport;
+  }
+
+  body.phone-shell.phone-landscape .control-cluster.modes {
+    grid-area: modes;
+    justify-content: flex-end;
+    width: auto;
+  }
+
+  body.phone-shell.phone-landscape #bottom-bar #web-diy-btn {
+    min-width: 42px;
+    height: 38px;
+    padding: 0 10px;
+    font-size: 11px;
+  }
+
+  body.phone-shell.phone-landscape .control-cover {
+    width: 36px;
+    height: 36px;
+    border-radius: 9px;
+  }
+
+  body.phone-shell.phone-landscape .ctrl-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  body.phone-shell.phone-landscape #play-btn {
+    width: 46px;
+    height: 46px;
+  }
+
+  body.phone-shell.phone-landscape .control-title {
+    font-size: 12.5px;
+  }
+
+  body.phone-shell.phone-landscape .control-artist {
+    font-size: 10.5px;
+  }
+
+  /* Sheets: side drawer from right in landscape */
+  body.phone-shell.phone-landscape #playlist-panel,
+  body.phone-shell.phone-landscape #fx-panel,
+  body.phone-shell.phone-landscape.diy-mode #fx-panel.fx-console {
+    top: 0 !important;
+    bottom: 0 !important;
+    left: auto !important;
+    right: 0 !important;
+    width: min(420px, 52vw) !important;
+    max-height: none !important;
+    height: 100% !important;
+    border-radius: 18px 0 0 18px !important;
+    transform: translateX(105%) !important;
+    padding: 14px 14px calc(14px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  body.phone-shell.phone-landscape #playlist-panel.show,
+  body.phone-shell.phone-landscape #playlist-panel.peek,
+  body.phone-shell.phone-landscape #fx-panel.show,
+  body.phone-shell.phone-landscape #fx-panel.peek,
+  body.phone-shell.phone-landscape #fx-panel.pinned,
+  body.phone-shell.phone-landscape.diy-mode #fx-panel.fx-console.show,
+  body.phone-shell.phone-landscape.diy-mode #fx-panel.fx-console.peek,
+  body.phone-shell.phone-landscape.diy-mode #fx-panel.fx-console.pinned {
+    transform: translateX(0) !important;
+  }
+
+  body.phone-shell.phone-landscape #playlist-panel.show::before,
+  body.phone-shell.phone-landscape #fx-panel.show::before {
+    display: none;
+  }
+
+  body.phone-shell.phone-landscape #phone-queue-backdrop {
+    background: rgba(0, 0, 0, .4);
+  }
+
+  body.phone-shell.phone-landscape #playlist-panel {
+    z-index: 46;
+  }
+
+  body.phone-shell.phone-landscape #playlist-panel .qi-act {
+    opacity: 1 !important;
+  }
+
+  body.phone-shell.phone-landscape .modal-mask.show {
+    align-items: stretch !important;
+    justify-content: flex-end !important;
+  }
+
+  body.phone-shell.phone-landscape .modal-mask.show .modal,
+  body.phone-shell.phone-landscape .dual-login-modal.login-stage-modal {
+    width: min(460px, 56vw) !important;
+    max-width: min(460px, 56vw) !important;
+    max-height: 100% !important;
+    height: 100% !important;
+    border-radius: 18px 0 0 18px !important;
+    animation: phone-landscape-sheet-in .32s cubic-bezier(.16, 1, .3, 1) both;
+  }
+
+  @keyframes phone-landscape-sheet-in {
+    from {
+      opacity: .5;
+      transform: translateX(24px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  body.phone-shell.phone-landscape #toast {
+    top: calc(8px + env(safe-area-inset-top, 0px));
+    left: auto;
+    right: max(12px, env(safe-area-inset-right, 0px));
+    width: min(320px, 46vw);
+    transform: none;
+  }
+
+  body.phone-shell.phone-landscape #toast.show {
+    transform: none;
+  }
+
+  /* Folia landscape: chrome hugs edges */
+  body.phone-shell.phone-landscape.folia-home-wall #search-area.peek,
+  body.phone-shell.phone-landscape.folia-stage-active #search-area.peek {
+    opacity: .88;
+  }
+
+  body.phone-shell.phone-landscape.folia-stage-active #bottom-bar {
+    width: calc(100vw - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+  }
+
+  body.phone-shell.phone-landscape.folia-stage-active .control-cluster.modes {
+    display: flex !important;
+  }
+
+  body.phone-shell.phone-landscape #fx-fab {
+    right: max(12px, env(safe-area-inset-right, 0px));
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+
+  body.phone-shell.phone-landscape.controls-visible #fx-fab {
+    bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+  }
+}

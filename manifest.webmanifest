@@ -1,0 +1,16 @@
+{
+  "name": "Mineradio — 网页版音乐可视化播放器",
+  "short_name": "Mineradio",
+  "description": "暗色高级音乐可视化播放器。搜索播放、歌单、歌词、3D 歌单架与粒子视觉预设。",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#08090B",
+  "theme_color": "#08090B",
+  "lang": "zh-CN",
+  "icons": [
+    { "src": "/icons/icon48.png", "sizes": "48x48", "type": "image/png" },
+    { "src": "/icons/icon128.png", "sizes": "128x128", "type": "image/png" },
+    { "src": "/icons/icon180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "/icons/icon512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

@@ -1,0 +1,1227 @@
+/* Phone Home + chrome — desktop unchanged outside @media / .phone-shell */
+
+.kicker-phone { display: none; }
+.home-phone-cta,
+.phone-chrome-slot { display: none; }
+
+/* Portrait phone, or landscape phone (short height ≤520, width ≤960) */
+@media (max-width: 720px), (max-height: 520px) and (max-width: 960px) {
+  .kicker-full { display: none !important; }
+  .kicker-phone { display: inline; }
+
+  html.phone-shell-preload #search-area.peek,
+  body.phone-shell #search-area.peek {
+    left: 12px;
+    right: 12px;
+    width: auto;
+    transform: none;
+  }
+
+  body.phone-shell {
+    --phone-chrome-top: calc(12px + env(safe-area-inset-top, 0px));
+    --phone-chrome-height: 48px;
+    --phone-home-gap: 12px;
+  }
+
+  /* —— Top chrome: full-width search + overflow —— */
+  body.phone-shell #search-area,
+  body.phone-shell.simple-mode #search-area,
+  body.phone-shell.diy-mode #search-area {
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-width: none;
+    transform: none;
+    --search-offset: 0;
+    align-items: flex-start;
+    gap: 8px;
+    display: flex;
+    flex-wrap: nowrap;
+  }
+
+  body.phone-shell #search-area.peek,
+  body.phone-shell.simple-mode #search-area.peek,
+  body.phone-shell.diy-mode #search-area.peek {
+    top: var(--phone-chrome-top);
+  }
+
+  body.phone-shell #upload-actions {
+    display: none !important;
+  }
+
+  body.phone-shell #search-stack,
+  body.phone-shell.simple-mode #search-stack,
+  body.phone-shell.diy-mode #search-stack {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+  }
+
+  body.phone-shell #search-box {
+    height: var(--phone-chrome-height);
+    border-radius: 16px;
+    padding: 0 14px;
+  }
+
+  body.phone-shell #search-input {
+    font-size: 16px; /* iOS zoom guard */
+  }
+
+  body.phone-shell #search-mode-tabs {
+    margin-top: 6px;
+    gap: 4px;
+  }
+
+  body.phone-shell #search-mode-tabs button {
+    min-height: 32px;
+    padding: 0 10px;
+    font-size: 11px;
+  }
+
+  body.phone-shell .phone-chrome-slot {
+    display: block;
+    position: relative;
+    flex: 0 0 auto;
+    align-self: flex-start;
+  }
+
+  body.phone-shell .phone-chrome-more {
+    width: var(--phone-chrome-height);
+    height: var(--phone-chrome-height);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, .1);
+    background: rgba(12, 14, 20, .55);
+    color: rgba(255, 255, 255, .78);
+    display: grid;
+    place-items: center;
+    padding: 0;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body.phone-shell .phone-chrome-more:active,
+  body.phone-shell.phone-chrome-open .phone-chrome-more {
+    border-color: rgba(var(--fc-accent-rgb), .42);
+    background: rgba(var(--fc-accent-rgb), .12);
+    color: #fff;
+  }
+
+  body.phone-shell .phone-chrome-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 40;
+    min-width: 168px;
+    padding: 8px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, .1);
+    background: rgba(10, 12, 18, .94);
+    box-shadow: 0 18px 48px rgba(0, 0, 0, .45);
+    backdrop-filter: blur(28px) saturate(1.2);
+    -webkit-backdrop-filter: blur(28px) saturate(1.2);
+    display: grid;
+    gap: 6px;
+  }
+
+  body.phone-shell .phone-chrome-menu[hidden] {
+    display: none !important;
+  }
+
+  body.phone-shell .phone-chrome-menu-actions {
+    display: grid;
+    gap: 6px;
+  }
+
+  body.phone-shell .phone-chrome-menu-actions #home-btn,
+  body.phone-shell .phone-chrome-menu-actions #user-btn {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 44px !important;
+    min-height: 44px;
+    border-radius: 12px !important;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 0 14px !important;
+    font-size: 14px;
+  }
+
+  body.phone-shell .phone-chrome-menu-actions #user-btn .login-word {
+    display: inline;
+  }
+
+  body.phone-shell .phone-chrome-menu-actions #user-btn.logged-in {
+    height: auto !important;
+    min-height: 48px;
+    padding: 8px 12px !important;
+    flex-wrap: wrap;
+  }
+
+  body.phone-shell .phone-chrome-menu-actions #user-btn img,
+  body.phone-shell .phone-chrome-menu-actions #user-btn #user-avatar {
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+
+  body.phone-shell .phone-chrome-menu-actions #user-btn .top-account-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+  }
+
+  body.phone-shell #top-right {
+    /* Host emptied while phone-shell; keep for desktop restore */
+    display: none !important;
+  }
+
+  body.phone-shell #user-capsule-hide-btn {
+    display: none !important;
+  }
+
+  /* —— Home shell —— */
+  body.phone-shell #empty-home,
+  body.phone-shell.empty-home-active #empty-home,
+  body.phone-shell.empty-home-active.controls-visible #empty-home {
+    top: calc(var(--phone-chrome-top) + var(--phone-chrome-height) + 14px);
+    bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+    width: calc(100vw - 24px);
+    left: 50%;
+    transform: translateX(-50%);
+    padding-bottom: 8px;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  body.phone-shell.empty-home-active.controls-visible #empty-home {
+    bottom: calc(118px + env(safe-area-inset-bottom, 0px));
+  }
+
+  body.phone-shell #empty-home .empty-home-shell {
+    display: flex;
+    flex-direction: column;
+    gap: var(--phone-home-gap);
+    min-height: 0;
+    height: auto;
+    padding-bottom: 20px;
+    grid-template-columns: none;
+    grid-template-rows: none;
+  }
+
+  body.phone-shell #empty-home .home-hero {
+    order: 1;
+    min-height: 0;
+    height: auto;
+  }
+
+  body.phone-shell #empty-home .daily-review-card {
+    min-height: min(42vh, 320px);
+    border-radius: 22px;
+  }
+
+  body.phone-shell #empty-home .daily-review-brand {
+    font-size: 13px;
+    letter-spacing: .18em;
+  }
+
+  body.phone-shell #empty-home .daily-review-time {
+    font-size: clamp(42px, 12vw, 56px);
+  }
+
+  body.phone-shell #empty-home .daily-review-quote {
+    font-size: 14px;
+    line-height: 1.45;
+    max-width: 18em;
+  }
+
+  body.phone-shell #empty-home .daily-review-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  body.phone-shell #empty-home .daily-review-actions .daily-review-btn.ghost,
+  body.phone-shell #empty-home #home-dashboard-video-choose,
+  body.phone-shell #empty-home #home-dashboard-video-clear {
+    display: none !important;
+  }
+
+  body.phone-shell #empty-home .daily-review-actions .daily-review-btn.primary {
+    min-height: 40px;
+    padding: 0 16px;
+    font-size: 12px;
+  }
+
+  /* 背景卡 filter + 按钮 backdrop-filter：点「换一条」时 Android 会整块黑闪 */
+  body.phone-shell #empty-home .daily-review-card,
+  body.phone-shell #empty-home .daily-review-card.has-lock-media,
+  body.phone-shell #empty-home .daily-review-card:hover {
+    filter: none !important;
+    transition: none !important;
+    contain: layout style !important;
+  }
+
+  body.phone-shell #empty-home .daily-review-card::before {
+    transition: none !important;
+  }
+
+  body.phone-shell #empty-home .daily-review-actions button,
+  body.phone-shell #empty-home .daily-review-card.has-lock-media .daily-review-actions button,
+  body.phone-shell #empty-home .daily-review-btn {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: rgba(0, 0, 0, .55) !important;
+    transition: background-color .12s ease, border-color .12s ease, color .12s ease !important;
+    transform: none !important;
+  }
+
+  body.phone-shell #empty-home .daily-review-btn.primary {
+    background: rgba(var(--fc-accent-rgb, 244, 210, 138), .38) !important;
+  }
+
+  body.phone-shell #empty-home .home-lock-media-el,
+  body.phone-shell #empty-home .home-dashboard-video {
+    background: transparent !important;
+  }
+
+  /* Primary CTA strip */
+  body.phone-shell.empty-home-active #home-phone-cta {
+    display: grid;
+    order: 2;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  body.phone-shell #home-phone-cta[hidden] {
+    display: none !important;
+  }
+
+  body.phone-shell .home-phone-cta-btn {
+    min-height: 48px;
+    padding: 0 10px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, .1);
+    background: rgba(255, 255, 255, .05);
+    color: rgba(255, 255, 255, .88);
+    font: 650 13px/1.2 inherit;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body.phone-shell .home-phone-cta-btn.primary {
+    border-color: rgba(var(--fc-accent-rgb), .4);
+    background: rgba(var(--fc-accent-rgb), .16);
+    color: #fff;
+  }
+
+  body.phone-shell .home-phone-cta-btn:active {
+    transform: scale(.98);
+    background: rgba(var(--fc-accent-rgb), .22);
+  }
+
+  body.phone-shell .home-phone-cta-btn[hidden] {
+    display: none !important;
+  }
+
+  /* Phone CTA replaces desktop quick art cards */
+  body.phone-shell #empty-home .home-grid.home-quick-grid {
+    display: none !important;
+  }
+
+  /* Insight: NEXT → listen → rest */
+  body.phone-shell #empty-home .home-rail.home-insight-rail {
+    order: 3;
+    overflow: visible;
+    padding: 0;
+  }
+
+  body.phone-shell #empty-home .home-insight-dock {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow: visible;
+  }
+
+  body.phone-shell #empty-home #home-next-card {
+    order: 1;
+  }
+
+  body.phone-shell #empty-home .home-listen-card {
+    order: 2;
+  }
+
+  body.phone-shell #empty-home .home-discovery-strip {
+    order: 3;
+  }
+
+  body.phone-shell #empty-home .home-ranking-entry:not(.home-radio-entry) {
+    order: 4;
+  }
+
+  body.phone-shell #empty-home .home-radio-entry {
+    order: 5;
+  }
+
+  body.phone-shell #empty-home .home-insight-card,
+  body.phone-shell #empty-home .home-discovery-strip,
+  body.phone-shell #empty-home .home-next-card,
+  body.phone-shell.empty-home-active #empty-home .home-insight-card,
+  body.phone-shell.empty-home-active #empty-home .home-discovery-strip {
+    min-height: 0 !important;
+    height: auto !important;
+    border-radius: 16px;
+    padding: 12px 14px;
+    animation: none !important;
+    contain: none !important;
+    overflow: hidden;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: rgba(14, 16, 22, .82) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06);
+    color: #fff !important;
+    -webkit-text-fill-color: #fff;
+  }
+
+  body.phone-shell #empty-home .home-insight-card::before {
+    opacity: .35;
+  }
+
+  body.phone-shell #empty-home .home-insight-kicker,
+  body.phone-shell #empty-home .home-next-title,
+  body.phone-shell #empty-home .home-next-sub,
+  body.phone-shell #empty-home .home-ranking-entry-title,
+  body.phone-shell #empty-home .home-ranking-entry-sub,
+  body.phone-shell #empty-home .home-discovery-title,
+  body.phone-shell #empty-home .home-listen-value,
+  body.phone-shell #empty-home .home-listen-label,
+  body.phone-shell #empty-home .home-discovery-song-name,
+  body.phone-shell #empty-home .home-discovery-song-artist {
+    color: rgba(255, 255, 255, .92) !important;
+    -webkit-text-fill-color: currentColor !important;
+    background: none !important;
+    background-image: none !important;
+  }
+
+  body.phone-shell #empty-home .home-listen-label,
+  body.phone-shell #empty-home .home-discovery-song-artist,
+  body.phone-shell #empty-home .home-next-sub,
+  body.phone-shell #empty-home .home-ranking-entry-sub,
+  body.phone-shell #empty-home .home-insight-kicker {
+    color: rgba(255, 255, 255, .5) !important;
+  }
+
+  body.phone-shell #empty-home .home-insight-kicker {
+    font-size: 11px;
+    letter-spacing: .04em;
+    color: rgba(255, 255, 255, .5);
+  }
+
+  body.phone-shell #empty-home .home-listen-card {
+    display: flex !important;
+    flex-direction: column;
+    justify-content: flex-start;
+    overflow: hidden;
+  }
+
+  body.phone-shell #empty-home .home-listen-metrics {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 12px;
+    position: relative;
+    z-index: 2;
+  }
+
+  body.phone-shell #empty-home .home-listen-metric {
+    position: relative;
+    z-index: 2;
+    min-width: 0;
+    padding: 10px 12px !important;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, .05) !important;
+    border: 1px solid rgba(255, 255, 255, .08);
+    overflow: hidden;
+  }
+
+  body.phone-shell #empty-home .home-listen-metric-extra {
+    display: none !important;
+  }
+
+  body.phone-shell #empty-home .home-listen-metric + .home-listen-metric {
+    padding-left: 12px !important;
+    border-left: 1px solid rgba(255, 255, 255, .08);
+  }
+
+  body.phone-shell #empty-home .home-listen-value {
+    font-size: 20px;
+  }
+
+  body.phone-shell #empty-home .home-next-card {
+    display: grid !important;
+    grid-template-columns: 48px minmax(0, 1fr) 18px;
+    align-items: center;
+    gap: 12px;
+    min-height: 64px;
+    text-align: left;
+    overflow: hidden;
+  }
+
+  body.phone-shell #empty-home .home-next-cover {
+    width: 48px !important;
+    height: 48px !important;
+    border-radius: 12px;
+    background-size: cover;
+    background-position: center;
+    background-color: rgba(255, 255, 255, .06);
+    overflow: hidden;
+    flex: 0 0 auto;
+  }
+
+  body.phone-shell #empty-home .home-next-title {
+    font-size: 15px;
+  }
+
+  body.phone-shell #empty-home .home-discovery-title {
+    font-size: 14px;
+    text-align: left !important;
+    color: rgba(255, 255, 255, .88) !important;
+    white-space: normal !important;
+  }
+
+  body.phone-shell #empty-home .home-discovery-list {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 8px;
+  }
+
+  body.phone-shell #empty-home .home-discovery-song,
+  body.phone-shell.empty-home-active #empty-home .home-discovery-song {
+    display: grid !important;
+    grid-template-columns: 48px minmax(0, 1fr) !important;
+    align-items: center;
+    gap: 10px;
+    height: 64px !important;
+    min-height: 64px !important;
+    max-height: none !important;
+    padding: 8px !important;
+    border-radius: 14px !important;
+    border: 1px solid rgba(255, 255, 255, .08) !important;
+    background: rgba(255, 255, 255, .05) !important;
+    color: #fff !important;
+    -webkit-appearance: none;
+    appearance: none;
+    text-align: left;
+    overflow: hidden;
+  }
+
+  body.phone-shell #empty-home .home-discovery-cover {
+    width: 48px !important;
+    height: 48px !important;
+    border-radius: 11px !important;
+    background-color: rgba(255, 255, 255, .08);
+    background-size: cover !important;
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+    flex: 0 0 auto;
+    overflow: hidden;
+  }
+
+  body.phone-shell #empty-home .home-discovery-song-copy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  body.phone-shell #empty-home .home-discovery-song-name {
+    font-size: 13px !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  body.phone-shell #empty-home .home-discovery-song-artist {
+    font-size: 11px !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  body.phone-shell #empty-home .home-ranking-entry-art,
+  body.phone-shell #empty-home .home-radio-entry-art {
+    display: none;
+  }
+
+  body.phone-shell #empty-home .home-ranking-entry {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 18px;
+    align-items: center;
+    gap: 8px;
+    min-height: 64px;
+    text-align: left;
+  }
+
+  body.phone-shell #empty-home .home-legacy-rail {
+    display: none !important;
+  }
+
+  /* Guest: cut the empty-stats wall; keep next + entry rows */
+  body.phone-shell.phone-home-guest #empty-home .home-listen-card,
+  body.phone-shell.phone-home-guest #empty-home .home-discovery-strip {
+    display: none !important;
+  }
+
+  /* Folia wall: keep chrome light */
+  body.phone-shell.folia-home-wall #search-area.peek {
+    opacity: .92;
+  }
+
+  /* ========== Playback bar ========== */
+  /*
+   * Android / MIUI 浏览器对 SVG backdrop-filter（色散玻璃）支持很差，
+   * 会把底栏滤成 RGB 重影花屏。手机端统一用实色半透明 + 普通 blur。
+   */
+  html.control-glass-svg-ok body.phone-shell #bottom-bar.visible,
+  html.control-glass-svg-ok body.phone-shell #bottom-bar.visible.stage-mode,
+  body.phone-shell #bottom-bar.visible,
+  body.phone-shell #bottom-bar.visible.stage-mode {
+    background: rgba(8, 10, 14, .9) !important;
+    backdrop-filter: blur(20px) saturate(1.15) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(1.15) !important;
+    box-shadow:
+      0 12px 36px rgba(0, 0, 0, .45),
+      inset 0 1px 0 rgba(255, 255, 255, .08) !important;
+    filter: none !important;
+  }
+
+  html.control-glass-svg-ok body.phone-shell .ctrl-btn,
+  html.control-glass-svg-ok body.phone-shell #play-btn,
+  html.control-glass-svg-ok body.phone-shell #fx-fab,
+  html.control-glass-svg-ok body.phone-shell #web-diy-btn,
+  body.phone-shell .ctrl-btn,
+  body.phone-shell #play-btn,
+  body.phone-shell #fx-fab {
+    backdrop-filter: blur(14px) saturate(1.1) !important;
+    -webkit-backdrop-filter: blur(14px) saturate(1.1) !important;
+  }
+
+  html.control-glass-svg-ok body.phone-shell #fx-panel,
+  html.control-glass-svg-ok body.phone-shell #playlist-panel,
+  body.phone-shell #fx-panel,
+  body.phone-shell #playlist-panel {
+    backdrop-filter: blur(22px) saturate(1.12) !important;
+    -webkit-backdrop-filter: blur(22px) saturate(1.12) !important;
+  }
+
+  /* DIY 控制台打开时收起播放栏，避免与底栏叠层花屏 */
+  body.phone-shell.fx-console-open #bottom-bar,
+  body.phone-shell.fx-console-open #bottom-bar.visible,
+  body.phone-shell.fx-console-open #bottom-handle {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
+    transform: translateX(-50%) translateY(120%) !important;
+  }
+
+  body.phone-shell.fx-console-open #fx-fab {
+    display: none !important;
+  }
+
+  body.phone-shell #bottom-bar,
+  body.phone-shell #bottom-bar.stage-mode,
+  body.phone-shell.simple-mode #bottom-bar,
+  body.phone-shell.diy-mode #bottom-bar,
+  body.phone-shell.diy-mode #bottom-bar.stage-mode {
+    left: 50%;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    width: calc(100vw - 16px);
+    max-width: none;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px) * 0.15);
+    border-radius: 22px;
+    gap: 8px;
+    z-index: 42;
+    isolation: isolate;
+  }
+
+  body.phone-shell #bottom-handle {
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    width: min(280px, 72vw);
+    height: 36px;
+    opacity: .42;
+    z-index: 42;
+  }
+
+  body.phone-shell #bottom-handle span {
+    width: 120px;
+    height: 5px;
+  }
+
+  body.phone-shell.controls-handle-awake #bottom-handle,
+  body.phone-shell #bottom-handle:active {
+    opacity: .9;
+  }
+
+  body.phone-shell #progress-bar {
+    width: 100%;
+    height: 6px;
+    margin: 2px 0 4px;
+    touch-action: none;
+  }
+
+  body.phone-shell #progress-thumb {
+    width: 16px;
+    height: 16px;
+    opacity: .85;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  body.phone-shell #controls,
+  body.phone-shell.simple-mode #controls,
+  body.phone-shell.diy-mode #controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "track transport"
+      "modes modes";
+    gap: 8px 10px;
+    align-items: center;
+  }
+
+  body.phone-shell .control-cluster.actions {
+    grid-area: track;
+    justify-content: flex-start;
+    width: auto;
+    height: auto;
+    min-height: 48px;
+    gap: 8px;
+  }
+
+  body.phone-shell .control-cluster.transport {
+    grid-area: transport;
+    justify-content: flex-end;
+    width: auto;
+    height: auto;
+    gap: 4px;
+  }
+
+  body.phone-shell .control-cluster.modes {
+    grid-area: modes;
+    justify-content: space-between;
+    width: 100%;
+    height: auto;
+    gap: 4px;
+    padding-top: 2px;
+    border-top: 1px solid rgba(255, 255, 255, .06);
+  }
+
+  body.phone-shell .control-track {
+    display: flex !important;
+    flex: 1 1 auto;
+    min-width: 0;
+    gap: 10px;
+  }
+
+  body.phone-shell .control-cover {
+    display: block !important;
+    width: 44px;
+    height: 44px;
+    border-radius: 11px;
+    flex: 0 0 auto;
+  }
+
+  body.phone-shell .control-meta {
+    max-width: none;
+    min-width: 0;
+  }
+
+  body.phone-shell .control-title {
+    font-size: 13.5px;
+  }
+
+  body.phone-shell .control-artist {
+    font-size: 11px;
+  }
+
+  body.phone-shell .ctrl-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+  }
+
+  body.phone-shell .ctrl-btn svg,
+  body.phone-shell .heart-svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  body.phone-shell #play-btn {
+    width: 52px;
+    height: 52px;
+  }
+
+  body.phone-shell #play-btn svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  body.phone-shell #quality-control,
+  body.phone-shell #collect-btn,
+  body.phone-shell #controls-hide-btn,
+  body.phone-shell #immersive-btn,
+  body.phone-shell .fullscreen-toggle-btn,
+  body.phone-shell #time-display {
+    display: none !important;
+  }
+
+  body.phone-shell .control-cluster.actions #heart-btn {
+    display: none;
+  }
+
+  body.phone-shell #bottom-bar #web-diy-btn {
+    order: 0;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    min-width: 48px;
+    height: 44px;
+    padding: 0 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, .1);
+    background: rgba(255, 255, 255, .04);
+    color: rgba(255, 255, 255, .78);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    flex: 0 0 auto;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body.phone-shell #bottom-bar #web-diy-btn:active,
+  body.phone-shell #bottom-bar #web-diy-btn.on {
+    border-color: rgba(var(--fc-accent-rgb), .45);
+    background: rgba(var(--fc-accent-rgb), .14);
+    color: #fff;
+  }
+
+  body.phone-shell .control-cluster.modes .lyrics-toggle-btn {
+    order: 1;
+  }
+
+  body.phone-shell #volume-control {
+    order: 2;
+  }
+
+  body.phone-shell .control-cluster.modes::before {
+    content: none;
+  }
+
+  body.phone-shell .volume-control::before,
+  body.phone-shell .quality-control::before {
+    display: none !important;
+  }
+
+  body.phone-shell .volume-popover,
+  body.phone-shell .quality-popover {
+    bottom: 52px;
+  }
+
+  body.phone-shell .volume-control.open .volume-popover,
+  body.phone-shell .volume-control:focus-within .volume-popover {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* 手机端迷你队列改为底部队列表，隐藏气泡 */
+  body.phone-shell #mini-queue-popover {
+    display: none !important;
+  }
+
+  body.phone-shell #fx-fab {
+    right: 14px;
+    bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+    width: auto;
+    min-width: 52px;
+    height: 48px;
+    padding: 0 14px;
+    gap: 6px;
+    border-radius: 16px;
+    display: none;
+    place-items: center;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .06em;
+  }
+
+  body.phone-shell.diy-mode #fx-fab {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+  }
+
+  body.phone-shell #fx-fab::after {
+    content: 'DIY';
+  }
+
+  body.phone-shell.controls-visible #fx-fab {
+    bottom: calc(148px + env(safe-area-inset-bottom, 0px));
+  }
+
+  body.phone-shell #fx-fab-hide-btn {
+    display: none !important;
+  }
+
+  body.phone-shell:not(.diy-mode) #fx-fab {
+    display: none !important;
+  }
+
+  body.phone-shell #thumb-wrap {
+    left: 12px;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+
+  body.phone-shell.controls-visible #thumb-wrap {
+    bottom: calc(150px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Playlist → phone queue sheet */
+  .phone-queue-close {
+    display: none;
+  }
+
+  body.phone-shell #phone-queue-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 45;
+    background: rgba(0, 0, 0, .48);
+    border: 0;
+    padding: 0;
+    margin: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body.phone-shell #phone-queue-backdrop[hidden] {
+    display: none !important;
+  }
+
+  body.phone-shell #playlist-panel {
+    top: auto !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    max-height: min(86dvh, calc(100dvh - 56px - env(safe-area-inset-top, 0px))) !important;
+    border-radius: 22px 22px 0 0;
+    padding: 10px 12px calc(14px + env(safe-area-inset-bottom, 0px));
+    transform: translateY(110%) !important;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 46;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden !important;
+    background: rgba(10, 12, 18, .94) !important;
+  }
+
+  body.phone-shell #playlist-panel.show,
+  body.phone-shell #playlist-panel.peek {
+    transform: translateY(0) !important;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  body.phone-shell #playlist-panel .queue-head {
+    flex: 0 0 auto;
+    align-items: center;
+    margin-bottom: 8px;
+    padding-top: 8px;
+  }
+
+  body.phone-shell #playlist-panel-sub {
+    font-size: 11px;
+  }
+
+  body.phone-shell #playlist-panel-sub::before {
+    content: '上滑关闭 · 点遮罩关闭';
+    font-size: 11px;
+  }
+
+  body.phone-shell #playlist-panel-sub {
+    font-size: 0 !important;
+    line-height: 1.4;
+  }
+
+  body.phone-shell #playlist-panel-sub::before {
+    font-size: 11px;
+    color: rgba(255, 255, 255, .45);
+  }
+
+  body.phone-shell #playlist-pin-btn {
+    display: none !important;
+  }
+
+  body.phone-shell .phone-queue-close {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    padding: 0;
+    font-size: 22px;
+    line-height: 1;
+    border-radius: 12px;
+  }
+
+  body.phone-shell #playlist-panel .panel-tabs {
+    flex: 0 0 auto;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    margin-bottom: 8px;
+    padding-bottom: 2px;
+  }
+
+  body.phone-shell #playlist-panel .panel-tab {
+    min-height: 40px;
+    padding: 0 14px;
+    font-size: 13px;
+  }
+
+  body.phone-shell #queue-pane,
+  body.phone-shell #pl-pane,
+  body.phone-shell #podcast-pane {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  body.phone-shell #queue-pane[style*="display: none"],
+  body.phone-shell #pl-pane[style*="display: none"],
+  body.phone-shell #podcast-pane[style*="display: none"] {
+    display: none !important;
+  }
+
+  body.phone-shell #playlist-panel .queue-toolbar {
+    flex: 0 0 auto;
+    margin-bottom: 6px;
+  }
+
+  body.phone-shell #playlist-panel .queue-toolbar .fx-mini-btn {
+    min-height: 36px;
+    height: 36px;
+    padding: 0 12px;
+    font-size: 12px;
+  }
+
+  body.phone-shell #queue-list,
+  body.phone-shell #pl-list,
+  body.phone-shell #podcast-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding-bottom: 8px;
+  }
+
+  body.phone-shell #playlist-panel .queue-item {
+    min-height: 60px;
+    gap: 12px;
+    padding: 10px;
+    border-radius: 14px;
+  }
+
+  body.phone-shell #playlist-panel .queue-item img {
+    width: 46px;
+    height: 46px;
+    border-radius: 10px;
+  }
+
+  body.phone-shell #playlist-panel .qi-name {
+    font-size: 14px;
+  }
+
+  body.phone-shell #playlist-panel .qi-sub {
+    font-size: 12px;
+  }
+
+  body.phone-shell #playlist-panel .qi-act {
+    opacity: 1 !important;
+    gap: 6px;
+    flex: 0 0 auto;
+  }
+
+  body.phone-shell #playlist-panel .qi-act button {
+    width: 40px;
+    height: 40px;
+    border-radius: 11px;
+    font-size: 14px;
+  }
+
+  body.phone-shell #playlist-panel .pl-card {
+    min-height: 56px;
+    border-radius: 14px;
+  }
+
+  body.phone-shell #fx-panel,
+  body.phone-shell.diy-mode #fx-panel.fx-console {
+    top: auto !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: auto !important;
+    max-height: min(82vh, calc(100vh - 48px - env(safe-area-inset-top, 0px))) !important;
+    border-radius: 22px 22px 0 0 !important;
+    z-index: 46;
+    transform: translateY(110%) !important;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  body.phone-shell #fx-panel.show,
+  body.phone-shell #fx-panel.peek,
+  body.phone-shell #fx-panel.pinned,
+  body.phone-shell.diy-mode #fx-panel.fx-console.show,
+  body.phone-shell.diy-mode #fx-panel.fx-console.peek,
+  body.phone-shell.diy-mode #fx-panel.fx-console.pinned {
+    transform: translateY(0) !important;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* ========== Folia poster wall ========== */
+  body.phone-shell.folia-home-wall #empty-home {
+    display: none !important;
+  }
+
+  body.phone-shell.folia-home-wall #folia-stage {
+    z-index: 30;
+    inset: 0;
+  }
+
+  body.phone-shell.folia-home-wall #folia-stage-frame {
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  body.phone-shell.folia-home-wall #search-area.peek,
+  body.phone-shell.folia-home-wall .phone-chrome-slot {
+    z-index: 48;
+  }
+
+  body.phone-shell.folia-home-wall #search-area.peek {
+    opacity: .96;
+  }
+
+  body.phone-shell.folia-home-wall #search-box {
+    background: rgba(8, 10, 14, .55);
+  }
+
+  body.phone-shell.folia-home-wall #bottom-handle {
+    z-index: 48;
+    opacity: .55;
+  }
+
+  body.phone-shell.folia-home-wall #bottom-bar {
+    z-index: 48;
+  }
+
+  body.phone-shell.folia-home-wall #fx-fab {
+    display: none !important;
+  }
+
+  /* ========== Folia lyrics stage ========== */
+  body.phone-shell.folia-stage-active #folia-stage {
+    inset: 0;
+  }
+
+  body.phone-shell.folia-stage-active #search-area.peek {
+    z-index: 48;
+    opacity: .9;
+  }
+
+  body.phone-shell.folia-stage-active .phone-chrome-slot {
+    z-index: 48;
+  }
+
+  body.phone-shell.folia-stage-active #bottom-bar,
+  body.phone-shell.folia-stage-active #bottom-handle {
+    z-index: 48;
+  }
+
+  body.phone-shell.folia-stage-active #bottom-bar,
+  body.phone-shell.folia-stage-active #bottom-bar.stage-mode {
+    width: calc(100vw - 12px);
+    padding: 8px 10px 10px;
+    border-radius: 20px;
+    background: rgba(6, 8, 12, .42);
+  }
+
+  body.phone-shell.folia-stage-active #bottom-bar.visible {
+    opacity: .94;
+  }
+
+  body.phone-shell.folia-stage-active:not(.folia-home-wall) .control-cluster.modes {
+    display: flex !important;
+    justify-content: flex-end;
+    width: auto;
+    border-top: 0;
+    padding-top: 0;
+  }
+
+  body.phone-shell.folia-stage-active:not(.folia-home-wall) .control-cluster.modes > *:not(#web-diy-btn) {
+    display: none !important;
+  }
+
+  body.phone-shell.folia-stage-active:not(.folia-home-wall) #controls {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas: "track transport modes";
+  }
+
+  /* DIY 开启后右下角 FAB / 控制台在 Folia 歌词态仍可进 */
+  body.phone-shell.folia-stage-active:not(.diy-mode) #fx-fab {
+    display: none !important;
+  }
+
+  body.phone-shell.folia-stage-active.diy-mode #fx-fab {
+    display: inline-flex !important;
+    z-index: 50;
+  }
+
+  body.phone-shell.folia-stage-active #fx-panel {
+    z-index: 52;
+  }
+
+  body.phone-shell.folia-stage-active #playlist-panel.show,
+  body.phone-shell.folia-stage-active #playlist-panel.peek {
+    z-index: 50;
+  }
+
+  /* Touch: kill hover lift on phone chrome */
+  body.phone-shell .ctrl-btn:hover,
+  body.phone-shell #play-btn:hover {
+    transform: none;
+  }
+
+  body.phone-shell .ctrl-btn:active,
+  body.phone-shell #play-btn:active {
+    transform: scale(.96);
+  }
+}
+
+@media (min-width: 721px) {
+  body:not(.phone-shell) .phone-chrome-slot,
+  body:not(.phone-shell) #home-phone-cta,
+  html:not(.phone-shell) .phone-chrome-slot,
+  html:not(.phone-shell) #home-phone-cta {
+    display: none !important;
+  }
+}

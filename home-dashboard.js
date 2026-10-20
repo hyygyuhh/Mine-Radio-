@@ -1,0 +1,2048 @@
+var homeDashboardReviewOffset = 0;
+var homeDashboardHeroFingerprint = '';
+var homeDashboardQuickFingerprint = '';
+var homeDashboardDiscoveryFingerprint = '';
+var homeDashboardDiscoveryCache = [];
+var homeDashboardRefreshTimer = null;
+var HOME_DASHBOARD_VIDEO_DB_NAME = 'mineradio-home-dashboard-video-v1';
+var HOME_DASHBOARD_VIDEO_STORE = 'media';
+var HOME_DASHBOARD_VIDEO_BLOB_ID = 'home-hero-video';
+var HOME_DASHBOARD_VIDEO_META_KEY = 'mineradio-home-dashboard-video-meta-v1';
+var HOME_DASHBOARD_VIDEO_MAX_BYTES = 300 * 1024 * 1024;
+var HOME_DASHBOARD_IMAGE_MAX_BYTES = 40 * 1024 * 1024;
+var homeDashboardVideoDbPromise = null;
+var homeDashboardVideoObjectUrl = '';
+var homeDashboardVideoLoadToken = 0;
+var homeDashboardVideoAttachBusy = false;
+var homeDashboardVideoDecodeFailed = false;
+var homeDashboardVideoPowerObserver = null;
+var homeDashboardVideoControlsBound = false;
+var homeDashboardHeroThemeCanvas = null;
+var homeDashboardHeroThemeRaf = 0;
+var homeDashboardHeroThemeLast = '';
+var homePlatformRecommendationControlsBound = false;
+var homePlatformRecommendationDailyRenderRaf = 0;
+var HOME_PLATFORM_DAILY_ROW_HEIGHT = 84;
+var HOME_PLATFORM_DAILY_OVERSCAN_ROWS = 3;
+var HOME_PLATFORM_DAILY_MAX_RENDERED_CARDS = 24;
+var homePlatformRecommendationState = {
+  open: false,
+  source: 'netease',
+  previousFocus: null,
+  neteaseLoading: false,
+  feeds: {
+    qishui: { loading: false, loaded: false, songs: [], error: '', message: '', mode: '', source: '', fallback: false, provenance: '' },
+    kugou: { loading: false, loaded: false, songs: [], error: '', message: '', mode: '', source: '', fallback: false, provenance: '' },
+    spotify: { loading: false, loaded: false, songs: [], error: '', message: '', mode: '', source: '', fallback: false, provenance: '' },
+  },
+};
+
+var HOME_DASHBOARD_REVIEW_DEFAULTS = [
+  { text: '有些歌不是突然好听，而是终于听懂了。', source: '每日热评' },
+  { text: '慢一点没关系，重要的是一直在向喜欢的生活靠近。', source: '每日热评' },
+  { text: '错过落日余晖，还会有满天星辰。', source: '每日热评' },
+  { text: '保持热爱，奔赴下一场山海。', source: '每日热评' },
+  { text: '答案在路上，自由在风里。', source: '每日热评' },
+  { text: '让今天的声音，从你喜欢的地方开始。', source: 'Mineradio' },
+];
+
+function homeDashboardSvgText(text) {
+  return String(text || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function homeDashboardCoverInitials(text) {
+  var raw = String(text || '音乐').replace(/\s+/g, '').trim();
+  var chars = Array.from(raw || '音乐');
+  return chars.slice(0, Math.min(2, chars.length)).join('');
+}
+
+function homeDashboardGeneratedCover(title, label, tone) {
+  var palettes = {
+    search: ['#9db8cf', '#f8f4ee', '#00f5d4'],
+    playlist: ['#9db8cf', '#00f5d4', '#2442ff'],
+    library: ['#00f5d4', '#f8f4ee', '#2442ff'],
+    mix: ['#f8f4ee', '#00f5d4', '#2442ff'],
+  };
+  var palette = palettes[tone] || palettes.playlist;
+  var letters = homeDashboardSvgText(homeDashboardCoverInitials(title || label));
+  var sub = homeDashboardSvgText(String(label || 'MINERADIO').toUpperCase().slice(0, 14));
+  var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320">' +
+    '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">' +
+    '<stop offset="0" stop-color="' + palette[0] + '"/><stop offset=".52" stop-color="' + palette[1] + '"/>' +
+    '<stop offset="1" stop-color="' + palette[2] + '"/></linearGradient>' +
+    '<radialGradient id="r" cx="34%" cy="24%" r="72%"><stop offset="0" stop-color="#fff" stop-opacity=".55"/>' +
+    '<stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient></defs>' +
+    '<rect width="320" height="320" rx="54" fill="#080a10"/>' +
+    '<rect width="320" height="320" rx="54" fill="url(#g)" opacity=".84"/>' +
+    '<circle cx="242" cy="66" r="98" fill="url(#r)"/>' +
+    '<circle cx="112" cy="214" r="84" fill="#05060a" opacity=".34"/>' +
+    '<circle cx="112" cy="214" r="52" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="2"/>' +
+    '<circle cx="112" cy="214" r="22" fill="#fff" opacity=".18"/>' +
+    '<path d="M222 118v98c0 19-16 34-39 34-20 0-35-11-35-27 0-17 16-29 38-29 7 0 14 1 20 4v-90l72-18v30z" fill="#fff" opacity=".32"/>' +
+    '<text x="28" y="72" fill="#fff" opacity=".72" font-size="18" font-family="Arial,Microsoft YaHei,sans-serif" font-weight="800" letter-spacing="2">' + sub + '</text>' +
+    '<text x="28" y="148" fill="#fff" font-size="58" font-family="Arial,Microsoft YaHei,sans-serif" font-weight="900">' + letters + '</text>' +
+    '<rect x="0" y="0" width="320" height="320" rx="54" fill="none" stroke="#fff" stroke-opacity=".20"/>' +
+    '</svg>';
+  return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg);
+}
+
+function homeDashboardReadReviews() {
+  try {
+    var saved = JSON.parse(localStorage.getItem('mineradio-daily-review-quotes-v1') || '[]');
+    if (Array.isArray(saved) && saved.length) {
+      var normalized = saved.map(function (item) {
+        if (typeof item === 'string') return { text: item.trim(), source: '我的热评' };
+        return {
+          text: String(item && item.text || '').trim(),
+          source: String(item && item.source || '我的热评').trim(),
+        };
+      }).filter(function (item) { return item.text; });
+      if (normalized.length) return normalized;
+    }
+  } catch (_error) { }
+  return HOME_DASHBOARD_REVIEW_DEFAULTS.slice();
+}
+
+function homeDashboardDayNumber() {
+  var now = new Date();
+  return Math.floor(new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() / 86400000);
+}
+
+function homeDashboardSelectedReview() {
+  var reviews = homeDashboardReadReviews();
+  if (!reviews.length) return { text: '让今天的声音，从你喜欢的地方开始。', source: 'Mineradio' };
+  var index = ((homeDashboardDayNumber() + homeDashboardReviewOffset) % reviews.length + reviews.length) % reviews.length;
+  return reviews[index];
+}
+
+function homeDashboardUpdateClock() {
+  var time = document.getElementById('daily-review-time');
+  var date = document.getElementById('daily-review-date');
+  if (!time || !date) return;
+  var now = new Date();
+  time.textContent = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+  date.textContent = now.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    weekday: 'long',
+  });
+}
+
+function homeDashboardNotify(message) {
+  if (typeof showToast === 'function') showToast(message);
+  else console.info('[HomeDashboard]', message);
+}
+
+function homeDashboardOpenVideoDb() {
+  if (homeDashboardVideoDbPromise) return homeDashboardVideoDbPromise;
+  homeDashboardVideoDbPromise = new Promise(function (resolve, reject) {
+    if (!window.indexedDB) {
+      reject(new Error('INDEXEDDB_UNAVAILABLE'));
+      return;
+    }
+    var request = window.indexedDB.open(HOME_DASHBOARD_VIDEO_DB_NAME, 1);
+    request.onupgradeneeded = function () {
+      var db = request.result;
+      if (!db.objectStoreNames.contains(HOME_DASHBOARD_VIDEO_STORE)) {
+        db.createObjectStore(HOME_DASHBOARD_VIDEO_STORE, { keyPath: 'id' });
+      }
+    };
+    request.onsuccess = function () { resolve(request.result); };
+    request.onerror = function () {
+      homeDashboardVideoDbPromise = null;
+      reject(request.error || new Error('HOME_VIDEO_DB_OPEN_FAILED'));
+    };
+  });
+  return homeDashboardVideoDbPromise;
+}
+
+async function homeDashboardPutVideoBlob(blob, meta) {
+  var db = await homeDashboardOpenVideoDb();
+  return new Promise(function (resolve, reject) {
+    var transaction = db.transaction(HOME_DASHBOARD_VIDEO_STORE, 'readwrite');
+    transaction.objectStore(HOME_DASHBOARD_VIDEO_STORE).put({
+      id: HOME_DASHBOARD_VIDEO_BLOB_ID,
+      blob: blob,
+      meta: meta,
+    });
+    transaction.oncomplete = function () { resolve(); };
+    transaction.onerror = function () { reject(transaction.error || new Error('HOME_VIDEO_SAVE_FAILED')); };
+    transaction.onabort = function () { reject(transaction.error || new Error('HOME_VIDEO_SAVE_ABORTED')); };
+  });
+}
+
+async function homeDashboardGetVideoBlob() {
+  var db = await homeDashboardOpenVideoDb();
+  return new Promise(function (resolve, reject) {
+    var transaction = db.transaction(HOME_DASHBOARD_VIDEO_STORE, 'readonly');
+    var request = transaction.objectStore(HOME_DASHBOARD_VIDEO_STORE).get(HOME_DASHBOARD_VIDEO_BLOB_ID);
+    request.onsuccess = function () { resolve(request.result || null); };
+    request.onerror = function () { reject(request.error || new Error('HOME_VIDEO_READ_FAILED')); };
+  });
+}
+
+async function homeDashboardDeleteVideoBlob() {
+  var db = await homeDashboardOpenVideoDb();
+  return new Promise(function (resolve, reject) {
+    var transaction = db.transaction(HOME_DASHBOARD_VIDEO_STORE, 'readwrite');
+    transaction.objectStore(HOME_DASHBOARD_VIDEO_STORE).delete(HOME_DASHBOARD_VIDEO_BLOB_ID);
+    transaction.oncomplete = function () { resolve(); };
+    transaction.onerror = function () { reject(transaction.error || new Error('HOME_VIDEO_DELETE_FAILED')); };
+    transaction.onabort = function () { reject(transaction.error || new Error('HOME_VIDEO_DELETE_ABORTED')); };
+  });
+}
+
+function homeDashboardReadVideoMeta() {
+  try {
+    var meta = JSON.parse(localStorage.getItem(HOME_DASHBOARD_VIDEO_META_KEY) || 'null');
+    if (!meta) return null;
+    var kind = homeDashboardMediaKind(meta);
+    if (!kind) return null;
+    if (!meta.kind) meta.kind = kind;
+    if (!meta.version) meta.version = kind === 'image' ? 2 : 1;
+    return meta;
+  } catch (_error) {
+    return null;
+  }
+}
+
+function homeDashboardMediaKind(metaOrFile) {
+  var name = String((metaOrFile && metaOrFile.name) || '');
+  var type = String((metaOrFile && metaOrFile.type) || '').toLowerCase();
+  if (/^image\//.test(type) || /\.(jpe?g|png|webp|gif|bmp|avif)$/i.test(name)) return 'image';
+  if (/^video\//.test(type) || /\.(mp4|webm|mov|m4v)$/i.test(name)) return 'video';
+  if (metaOrFile && metaOrFile.kind === 'image') return 'image';
+  if (metaOrFile && metaOrFile.kind === 'video') return 'video';
+  return '';
+}
+
+function homeDashboardVideoShouldPlay() {
+  return !document.hidden
+    && typeof emptyHomeActive !== 'undefined'
+    && !!emptyHomeActive
+    && !!document.body
+    && document.body.classList.contains('empty-home-active');
+}
+
+function homeDashboardEnsureContentLayer(card) {
+  if (!card) return;
+  var content = card.querySelector('.daily-review-content');
+  if (!content) {
+    var wrap = document.createElement('div');
+    wrap.className = 'daily-review-content';
+    Array.prototype.slice.call(card.children).forEach(function (child) {
+      if (!child || !child.classList) return;
+      if (child.classList.contains('home-lock-media-stack')) return;
+      if (child.classList.contains('home-dashboard-video')) return;
+      if (child.classList.contains('daily-review-actions')) return;
+      wrap.appendChild(child);
+    });
+    var actionsNode = card.querySelector('.daily-review-actions');
+    if (actionsNode) card.insertBefore(wrap, actionsNode);
+    else card.appendChild(wrap);
+    content = wrap;
+  }
+  var nestedActions = content.querySelector('.daily-review-actions');
+  if (nestedActions) card.appendChild(nestedActions);
+}
+
+function homeDashboardEnsureActionsOnTop(card) {
+  if (!card) return;
+  var actions = card.querySelector('.daily-review-actions');
+  if (!actions) return;
+  var content = card.querySelector('.daily-review-content');
+  if (content && content.contains(actions)) card.appendChild(actions);
+  else if (actions.parentNode === card) card.appendChild(actions);
+}
+
+function homeDashboardRemoveLegacyDepthNodes(card) {
+  if (!card) return;
+  Array.prototype.slice.call(card.querySelectorAll('.home-lock-media-front, .home-lock-ui-dock')).forEach(function (node) {
+    if (node.parentNode) node.parentNode.removeChild(node);
+  });
+}
+
+function homeDashboardEnsureMediaShell(card) {
+  if (!card) return null;
+  homeDashboardEnsureContentLayer(card);
+  homeDashboardRemoveLegacyDepthNodes(card);
+  var stack = card.querySelector('.home-lock-media-stack');
+  if (!stack) {
+    stack = document.createElement('div');
+    stack.className = 'home-lock-media-stack';
+    stack.setAttribute('aria-hidden', 'true');
+    stack.innerHTML = '<div class="home-lock-media-back"></div><div class="home-lock-media-scrim"></div>';
+    card.insertBefore(stack, card.firstChild);
+  }
+  homeDashboardEnsureActionsOnTop(card);
+  return {
+    stack: stack,
+    back: stack.querySelector('.home-lock-media-back'),
+  };
+}
+
+function homeDashboardClearMediaNodes(card) {
+  if (!card) return;
+  card.classList.remove('has-lock-media', 'lock-media-image', 'lock-media-video');
+  homeDashboardResetHeroTheme();
+  var stack = card.querySelector('.home-lock-media-stack');
+  if (stack) {
+    var back = stack.querySelector('.home-lock-media-back');
+    if (back) back.innerHTML = '';
+  }
+  homeDashboardRemoveLegacyDepthNodes(card);
+  Array.prototype.slice.call(card.querySelectorAll('.home-dashboard-video')).forEach(function (node) {
+    try { node.pause(); } catch (_error) { }
+    if (node.parentNode) node.parentNode.removeChild(node);
+  });
+}
+
+function homeDashboardReleaseVideoSource(removeElement) {
+  homeDashboardVideoLoadToken += 1;
+  var card = document.querySelector('#empty-home .daily-review-card');
+  var videos = document.querySelectorAll('#empty-home .home-lock-media-el, #empty-home .home-dashboard-video');
+  Array.prototype.forEach.call(videos, function (video) {
+    if (!video) return;
+    if (video.tagName === 'VIDEO') {
+      try { video.pause(); } catch (_error) { }
+      try {
+        video.removeAttribute('src');
+        video.load();
+      } catch (_error) { }
+    }
+    if (removeElement !== false && video.parentNode) video.parentNode.removeChild(video);
+  });
+  if (removeElement !== false && card) homeDashboardClearMediaNodes(card);
+  if (homeDashboardVideoObjectUrl) {
+    try { URL.revokeObjectURL(homeDashboardVideoObjectUrl); } catch (_error) { }
+    homeDashboardVideoObjectUrl = '';
+  }
+}
+
+function homeDashboardClamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function homeDashboardThemeHelpersReady() {
+  return typeof rgbToHsl === 'function'
+    && typeof hslToRgb === 'function'
+    && typeof rgbToHexColor === 'function'
+    && typeof normalizeHexColor === 'function'
+    && typeof hexToRgb === 'function';
+}
+
+function homeDashboardHeroAccentAutoEnabled() {
+  return typeof fx !== 'undefined' && fx && fx.homeAccentMode !== 'custom';
+}
+
+function homeDashboardThemeSampleCanvas() {
+  if (!homeDashboardHeroThemeCanvas) {
+    homeDashboardHeroThemeCanvas = document.createElement('canvas');
+  }
+  return homeDashboardHeroThemeCanvas;
+}
+
+function homeDashboardDrawMediaSample(mediaEl, canvas) {
+  if (!mediaEl || !canvas) return false;
+  var w = mediaEl.videoWidth || mediaEl.naturalWidth || mediaEl.width || 0;
+  var h = mediaEl.videoHeight || mediaEl.naturalHeight || mediaEl.height || 0;
+  if (!w || !h) return false;
+  var maxSide = 128;
+  var scale = Math.min(1, maxSide / Math.max(w, h));
+  var cw = Math.max(12, Math.round(w * scale));
+  var ch = Math.max(12, Math.round(h * scale));
+  canvas.width = cw;
+  canvas.height = ch;
+  var ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return false;
+  ctx.clearRect(0, 0, cw, ch);
+  ctx.drawImage(mediaEl, 0, 0, cw, ch);
+  return true;
+}
+
+function homeDashboardExtractAccentFromImageData(data, width, height) {
+  var best = { score: -1, r: 0, g: 245, b: 212 };
+  var sumR = 0, sumG = 0, sumB = 0, count = 0;
+  for (var y = 0; y < height; y += 4) {
+    for (var x = 0; x < width; x += 4) {
+      var di = (y * width + x) * 4;
+      var r = data[di];
+      var g = data[di + 1];
+      var b = data[di + 2];
+      var a = data[di + 3] / 255;
+      if (a < 0.45) continue;
+      var lum = (r * 0.299 + g * 0.587 + b * 0.114) / 255;
+      var maxC = Math.max(r, g, b);
+      var minC = Math.min(r, g, b);
+      var chroma = (maxC - minC) / 255;
+      var edgePenalty = Math.abs(lum - 0.5);
+      var score = chroma * 1.65 + (0.5 - edgePenalty) * 0.42;
+      sumR += r;
+      sumG += g;
+      sumB += b;
+      count++;
+      if (lum > 0.08 && lum < 0.94 && score > best.score) {
+        best = { score: score, r: r, g: g, b: b };
+      }
+    }
+  }
+  if (!count || !homeDashboardThemeHelpersReady()) return '#00f5d4';
+  var avgL = (sumR / count * 0.299 + sumG / count * 0.587 + sumB / count * 0.114) / 255;
+  if (avgL < 0.14 || best.score < 0.05) {
+    var hslAvg = rgbToHsl(Math.round(sumR / count), Math.round(sumG / count), Math.round(sumB / count));
+    hslAvg.s = homeDashboardClamp(hslAvg.s + 0.18, 0.34, 0.72);
+    hslAvg.l = homeDashboardClamp(hslAvg.l + 0.22, 0.52, 0.68);
+    var soft = hslToRgb(hslAvg.h, hslAvg.s, hslAvg.l);
+    return normalizeHexColor(rgbToHexColor(soft.r, soft.g, soft.b), '#00f5d4');
+  }
+  var hsl = rgbToHsl(best.r, best.g, best.b);
+  hsl.s = homeDashboardClamp(Math.max(hsl.s, 0.44), 0.44, 0.84);
+  hsl.l = homeDashboardClamp(hsl.l, 0.50, 0.72);
+  if (hsl.l < 0.50) hsl.l = 0.54;
+  if (hsl.l > 0.72) hsl.l = 0.66;
+  var tuned = hslToRgb(hsl.h, hsl.s, hsl.l);
+  return normalizeHexColor(rgbToHexColor(tuned.r, tuned.g, tuned.b), '#00f5d4');
+}
+
+function homeDashboardExtractAccentFromMedia(mediaEl) {
+  if (!mediaEl || !homeDashboardThemeHelpersReady()) return '';
+  var canvas = homeDashboardThemeSampleCanvas();
+  if (!homeDashboardDrawMediaSample(mediaEl, canvas)) return '';
+  try {
+    var ctx = canvas.getContext('2d', { willReadFrequently: true });
+    var pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    return homeDashboardExtractAccentFromImageData(pixels.data, canvas.width, canvas.height);
+  } catch (error) {
+    console.warn('[HomeDashboardTheme]', error);
+    return '';
+  }
+}
+
+function homeDashboardResetHeroTheme() {
+  var shell = document.getElementById('empty-home');
+  if (!shell) return;
+  shell.classList.remove('has-hero-theme');
+  shell.style.removeProperty('--fc-accent');
+  shell.style.removeProperty('--fc-accent-hov');
+  shell.style.removeProperty('--fc-accent-rgb');
+  shell.style.removeProperty('--home-accent');
+  shell.style.removeProperty('--home-accent-rgb');
+  homeDashboardHeroThemeLast = '';
+}
+
+function homeDashboardApplyHeroThemeColor(color) {
+  if (!homeDashboardHeroAccentAutoEnabled()) return;
+  var hex = normalizeHexColor(color || '', '');
+  if (!/^#[0-9a-f]{6}$/i.test(hex)) return;
+  if (hex === homeDashboardHeroThemeLast) return;
+  var shell = document.getElementById('empty-home');
+  if (!shell) return;
+  var rgb = hexToRgb(hex);
+  shell.classList.add('has-hero-theme');
+  shell.style.setProperty('--fc-accent', hex);
+  shell.style.setProperty('--home-accent', hex);
+  shell.style.setProperty('--fc-accent-rgb', rgb.r + ',' + rgb.g + ',' + rgb.b);
+  shell.style.setProperty('--home-accent-rgb', rgb.r + ',' + rgb.g + ',' + rgb.b);
+  var hoverHsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+  hoverHsl.l = homeDashboardClamp(hoverHsl.l - 0.06, 0.34, 0.82);
+  var hoverRgb = hslToRgb(hoverHsl.h, hoverHsl.s, hoverHsl.l);
+  shell.style.setProperty('--fc-accent-hov', rgbToHexColor(hoverRgb.r, hoverRgb.g, hoverRgb.b));
+  homeDashboardHeroThemeLast = hex;
+  if (typeof fx !== 'undefined' && fx) {
+    fx.homeAccentColor = hex;
+    if (typeof updateHomeAccentControls === 'function') updateHomeAccentControls();
+  }
+}
+
+function homeDashboardUpdateHeroTheme(mediaEl) {
+  if (!mediaEl || !homeDashboardHeroAccentAutoEnabled()) return;
+  var card = document.querySelector('#empty-home .daily-review-card');
+  if (!card || !card.classList.contains('has-lock-media')) return;
+  var accent = homeDashboardExtractAccentFromMedia(mediaEl);
+  if (accent) homeDashboardApplyHeroThemeColor(accent);
+}
+
+function homeDashboardScheduleHeroThemeUpdate(mediaEl) {
+  if (!mediaEl || !homeDashboardHeroAccentAutoEnabled()) return;
+  if (homeDashboardHeroThemeRaf) cancelAnimationFrame(homeDashboardHeroThemeRaf);
+  homeDashboardHeroThemeRaf = requestAnimationFrame(function () {
+    homeDashboardHeroThemeRaf = 0;
+    homeDashboardUpdateHeroTheme(mediaEl);
+  });
+}
+
+function homeDashboardRefreshHeroTheme() {
+  if (!homeDashboardHeroAccentAutoEnabled()) return;
+  var mediaEl = document.querySelector('#empty-home .home-lock-media-back .home-lock-media-el');
+  if (mediaEl) homeDashboardScheduleHeroThemeUpdate(mediaEl);
+}
+
+function homeDashboardBindHeroThemeMedia(mediaEl, kind) {
+  if (!mediaEl) return;
+  var run = function () { homeDashboardScheduleHeroThemeUpdate(mediaEl); };
+  if (kind === 'image') {
+    if (mediaEl.complete) run();
+    else mediaEl.addEventListener('load', run, { once: true });
+    return;
+  }
+  if (mediaEl.readyState >= 2) run();
+  else mediaEl.addEventListener('loadeddata', run, { once: true });
+}
+
+function homeDashboardCreateMediaElement(kind, objectUrl) {
+  if (kind === 'image') {
+    var img = document.createElement('img');
+    img.className = 'home-lock-media-el';
+    img.alt = '';
+    img.draggable = false;
+    img.decoding = 'async';
+    img.src = objectUrl;
+    return img;
+  }
+  var video = document.createElement('video');
+  video.className = 'home-lock-media-el';
+  video.setAttribute('aria-hidden', 'true');
+  video.muted = true;
+  video.defaultMuted = true;
+  video.loop = true;
+  video.playsInline = true;
+  video.setAttribute('playsinline', '');
+  video.preload = 'auto';
+  video.src = objectUrl;
+  return video;
+}
+
+async function homeDashboardAttachVideo() {
+  var meta = homeDashboardReadVideoMeta();
+  if (!meta || !homeDashboardVideoShouldPlay() || homeDashboardVideoDecodeFailed) {
+    homeDashboardReleaseVideoSource(true);
+    return;
+  }
+  var card = document.querySelector('#empty-home .daily-review-card');
+  if (!card) return;
+  var shell = homeDashboardEnsureMediaShell(card);
+  if (!shell || !shell.back) return;
+
+  var existing = shell.back.querySelector('.home-lock-media-el');
+  if (existing && homeDashboardVideoObjectUrl) {
+    if (existing.tagName === 'VIDEO') existing.play().catch(function () { });
+    card.classList.add('has-lock-media');
+    card.classList.toggle('lock-media-image', meta.kind === 'image');
+    card.classList.toggle('lock-media-video', meta.kind === 'video');
+    homeDashboardBindHeroThemeMedia(existing, meta.kind === 'image' ? 'image' : 'video');
+    return;
+  }
+  if (homeDashboardVideoAttachBusy) return;
+
+  homeDashboardVideoAttachBusy = true;
+  homeDashboardReleaseVideoSource(true);
+  var token = homeDashboardVideoLoadToken;
+  var shouldRetry = false;
+  try {
+    card = document.querySelector('#empty-home .daily-review-card');
+    shell = homeDashboardEnsureMediaShell(card);
+    var record = await homeDashboardGetVideoBlob();
+    if (token !== homeDashboardVideoLoadToken || !homeDashboardVideoShouldPlay()) {
+      shouldRetry = homeDashboardVideoShouldPlay();
+      return;
+    }
+    var blob = record && record.blob;
+    if (!blob) {
+      localStorage.removeItem(HOME_DASHBOARD_VIDEO_META_KEY);
+      homeDashboardRenderVideoActions();
+      return;
+    }
+    var objectUrl = URL.createObjectURL(blob);
+    if (token !== homeDashboardVideoLoadToken || !homeDashboardVideoShouldPlay()) {
+      URL.revokeObjectURL(objectUrl);
+      shouldRetry = homeDashboardVideoShouldPlay();
+      return;
+    }
+    var kind = meta.kind || homeDashboardMediaKind(meta) || 'video';
+    var mediaEl = homeDashboardCreateMediaElement(kind, objectUrl);
+    mediaEl.addEventListener('error', function () {
+      if (token !== homeDashboardVideoLoadToken) return;
+      homeDashboardVideoDecodeFailed = true;
+      homeDashboardReleaseVideoSource(true);
+      homeDashboardNotify(kind === 'image' ? '这张图片无法显示，请换一张' : '这个视频无法解码，请换成常见编码格式');
+    }, { once: true });
+    homeDashboardVideoObjectUrl = objectUrl;
+    shell.back.innerHTML = '';
+    shell.back.appendChild(mediaEl);
+    card.classList.add('has-lock-media');
+    card.classList.toggle('lock-media-image', kind === 'image');
+    card.classList.toggle('lock-media-video', kind === 'video');
+    if (kind === 'video') mediaEl.play().catch(function () { });
+    homeDashboardBindHeroThemeMedia(mediaEl, kind);
+  } catch (error) {
+    console.warn('[HomeDashboardMedia]', error);
+    homeDashboardReleaseVideoSource(true);
+    homeDashboardNotify('锁屏背景读取失败，请重新选择');
+  } finally {
+    homeDashboardVideoAttachBusy = false;
+    if (shouldRetry && !homeDashboardVideoDecodeFailed) {
+      setTimeout(function () { homeDashboardUpdateVideoPower(); }, 0);
+    }
+  }
+}
+
+function homeDashboardRenderVideoActions() {
+  var meta = homeDashboardReadVideoMeta();
+  var hasCustom = !!meta;
+  var hasDefault = !hasCustom && !!document.querySelector('#empty-home .home-lock-media-el.is-default-lock');
+  var choose = document.getElementById('home-dashboard-video-choose');
+  var clear = document.getElementById('home-dashboard-video-clear');
+  if (choose) choose.textContent = hasCustom || hasDefault ? '更换背景' : '锁屏背景';
+  if (clear) {
+    clear.hidden = !hasCustom;
+    clear.textContent = '恢复默认';
+  }
+}
+
+var HOME_LOCK_DEFAULT_SRC = 'assets/home-lock-default.png';
+
+function homeDashboardAttachDefaultLock() {
+  if (!homeDashboardVideoShouldPlay() || homeDashboardReadVideoMeta()) return;
+  var card = document.querySelector('#empty-home .daily-review-card');
+  if (!card) return;
+  var shell = homeDashboardEnsureMediaShell(card);
+  if (!shell || !shell.back) return;
+  var existing = shell.back.querySelector('.home-lock-media-el.is-default-lock');
+  if (existing) {
+    card.classList.add('has-lock-media', 'lock-media-image');
+    card.classList.remove('lock-media-video');
+    homeDashboardRenderVideoActions();
+    return;
+  }
+  var img = homeDashboardCreateMediaElement('image', HOME_LOCK_DEFAULT_SRC);
+  img.classList.add('is-default-lock');
+  shell.back.innerHTML = '';
+  shell.back.appendChild(img);
+  card.classList.add('has-lock-media', 'lock-media-image');
+  card.classList.remove('lock-media-video');
+  homeDashboardBindHeroThemeMedia(img, 'image');
+  homeDashboardRenderVideoActions();
+}
+
+function homeDashboardUpdateVideoPower() {
+  if (!homeDashboardVideoShouldPlay()) {
+    homeDashboardReleaseVideoSource(true);
+    return;
+  }
+  if (!homeDashboardReadVideoMeta()) {
+    if (homeDashboardVideoObjectUrl) homeDashboardReleaseVideoSource(true);
+    homeDashboardAttachDefaultLock();
+    return;
+  }
+  var backVideo = document.querySelector('#empty-home .home-lock-media-back .home-lock-media-el');
+  if (backVideo && homeDashboardVideoObjectUrl) {
+    if (backVideo.tagName === 'VIDEO') backVideo.play().catch(function () { });
+    return;
+  }
+  homeDashboardAttachVideo();
+}
+
+function openHomeDashboardVideoPicker() {
+  var input = document.getElementById('home-dashboard-video-input');
+  if (input) input.click();
+}
+
+async function handleHomeDashboardVideoFile(file) {
+  var kind = homeDashboardMediaKind(file);
+  if (!kind) {
+    homeDashboardNotify('请选择图片或视频（JPG / PNG / WEBP / MP4 / WEBM）');
+    return;
+  }
+  var maxBytes = kind === 'image' ? HOME_DASHBOARD_IMAGE_MAX_BYTES : HOME_DASHBOARD_VIDEO_MAX_BYTES;
+  if (Number(file.size) > maxBytes) {
+    homeDashboardNotify(kind === 'image' ? '图片不能超过 40 MB' : '视频不能超过 300 MB');
+    return;
+  }
+  var meta = {
+    version: 2,
+    kind: kind,
+    name: String(file.name || (kind === 'image' ? 'home.jpg' : 'home.mp4')),
+    type: String(file.type || (kind === 'image' ? 'image/jpeg' : 'video/mp4')),
+    size: Number(file.size) || 0,
+    savedAt: Date.now(),
+  };
+  try {
+    await homeDashboardPutVideoBlob(file, meta);
+    localStorage.setItem(HOME_DASHBOARD_VIDEO_META_KEY, JSON.stringify(meta));
+    homeDashboardVideoDecodeFailed = false;
+    homeDashboardReleaseVideoSource(true);
+    homeDashboardRenderVideoActions();
+    homeDashboardUpdateVideoPower();
+    homeDashboardNotify(kind === 'image' ? '锁屏图片已保存' : '锁屏视频已保存');
+  } catch (error) {
+    console.warn('[HomeDashboardMediaSave]', error);
+    homeDashboardNotify('锁屏背景保存失败');
+  }
+}
+
+async function clearHomeDashboardVideo() {
+  localStorage.removeItem(HOME_DASHBOARD_VIDEO_META_KEY);
+  homeDashboardVideoDecodeFailed = false;
+  homeDashboardReleaseVideoSource(true);
+  homeDashboardResetHeroTheme();
+  homeDashboardRenderVideoActions();
+  try {
+    await homeDashboardDeleteVideoBlob();
+  } catch (error) {
+    console.warn('[HomeDashboardMediaDelete]', error);
+  }
+  homeDashboardNotify('已恢复默认锁屏背景');
+  if (homeDashboardVideoShouldPlay()) homeDashboardAttachDefaultLock();
+}
+
+function bindHomeDashboardVideoControls() {
+  if (homeDashboardVideoControlsBound) return;
+  homeDashboardVideoControlsBound = true;
+  var input = document.getElementById('home-dashboard-video-input');
+  if (input) {
+    input.setAttribute('accept', 'image/*,video/mp4,video/webm,.jpg,.jpeg,.png,.webp,.gif,.mp4,.webm');
+    input.addEventListener('change', function () {
+      var file = input.files && input.files[0];
+      input.value = '';
+      if (file) handleHomeDashboardVideoFile(file);
+    });
+  }
+  if (window.MutationObserver && document.body) {
+    homeDashboardVideoPowerObserver = new MutationObserver(function () {
+      homeDashboardUpdateVideoPower();
+    });
+    homeDashboardVideoPowerObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  }
+  window.addEventListener('pagehide', function () { homeDashboardReleaseVideoSource(true); });
+  window.addEventListener('visibilitychange', function () {
+    if (!document.hidden) homeDashboardUpdateVideoPower();
+  });
+  try { localStorage.removeItem('mineradio-home-lock-depth-v1'); } catch (_error) { }
+}
+function renderHomeDashboardHero() {
+  var hero = document.querySelector('#empty-home .home-hero');
+  if (!hero) return;
+  var review = homeDashboardSelectedReview();
+  var fingerprint = homeDashboardDayNumber() + '|' + homeDashboardReviewOffset + '|' + review.text + '|' + review.source;
+  if (!hero.querySelector('.daily-review-card')) {
+    hero.innerHTML = '<div class="daily-review-card">' +
+      '<div class="daily-review-content">' +
+      '<div class="daily-review-brand">MINERADIO</div>' +
+      '<div id="daily-review-date" class="daily-review-date"></div>' +
+      '<div id="daily-review-time" class="daily-review-time">--:--</div>' +
+      '<div class="daily-review-quote"></div>' +
+      '<div class="daily-review-source"></div>' +
+      '</div>' +
+      '<div class="daily-review-actions">' +
+      '<button type="button" class="daily-review-btn primary" onclick="homeDashboardNextReview()">换一条</button>' +
+      '<button id="home-dashboard-video-choose" type="button" class="daily-review-btn" onclick="openHomeDashboardVideoPicker()">更换背景</button>' +
+      '<button id="home-dashboard-video-clear" type="button" class="daily-review-btn ghost" onclick="clearHomeDashboardVideo()" hidden>恢复默认</button>' +
+      '<button type="button" class="daily-review-btn ghost" onclick="openHomePlayerConsole()">播放控制台</button>' +
+      '</div></div>' +
+      '<input id="home-dashboard-video-input" type="file" accept="image/*,video/mp4,video/webm,.jpg,.jpeg,.png,.webp,.gif,.mp4,.webm" hidden aria-hidden="true">';
+    homeDashboardVideoControlsBound = false;
+    bindHomeDashboardVideoControls();
+  } else {
+    var existingCard = hero.querySelector('.daily-review-card');
+    homeDashboardEnsureContentLayer(existingCard);
+    homeDashboardEnsureActionsOnTop(existingCard);
+    homeDashboardRemoveLegacyDepthNodes(existingCard);
+    var oldDepthBtn = document.getElementById('home-dashboard-depth-btn');
+    if (oldDepthBtn && oldDepthBtn.parentNode) oldDepthBtn.parentNode.removeChild(oldDepthBtn);
+    if (!hero.querySelector('.daily-review-brand')) {
+      var content = hero.querySelector('.daily-review-content') || hero.querySelector('.daily-review-card');
+      var brand = document.createElement('div');
+      brand.className = 'daily-review-brand';
+      brand.textContent = 'MINERADIO';
+      if (content && content.firstChild) content.insertBefore(brand, content.firstChild);
+      else if (content) content.appendChild(brand);
+    }
+  }
+  if (fingerprint !== homeDashboardHeroFingerprint) {
+    homeDashboardHeroFingerprint = fingerprint;
+    var quote = hero.querySelector('.daily-review-quote');
+    var source = hero.querySelector('.daily-review-source');
+    if (quote) quote.textContent = '“' + review.text + '”';
+    if (source) source.textContent = '今日乐评 · ' + (review.source || '随心换一首心情');
+  }
+  homeDashboardRenderVideoActions();
+  homeDashboardUpdateVideoPower();
+  homeDashboardUpdateClock();
+}
+
+function homeDashboardNextReview() {
+  homeDashboardReviewOffset += 1;
+  // 只换文案，别整卡重绘/碰视频层——手机上会让背景黑闪
+  var hero = document.querySelector('#empty-home .home-hero');
+  if (!hero || !hero.querySelector('.daily-review-card')) {
+    renderHomeDashboardHero();
+    return;
+  }
+  var review = homeDashboardSelectedReview();
+  var fingerprint = homeDashboardDayNumber() + '|' + homeDashboardReviewOffset + '|' + review.text + '|' + review.source;
+  homeDashboardHeroFingerprint = fingerprint;
+  var quote = hero.querySelector('.daily-review-quote');
+  var source = hero.querySelector('.daily-review-source');
+  if (quote) quote.textContent = '“' + review.text + '”';
+  if (source) source.textContent = '今日乐评 · ' + (review.source || '随心换一首心情');
+}
+
+function homeDashboardCurrentSong() {
+  try {
+    return typeof currentCoverSong === 'function' ? currentCoverSong() : null;
+  } catch (_error) {
+    return null;
+  }
+}
+
+function homeDashboardSubtitle(song) {
+  if (!song) return '';
+  try {
+    return song.artist || song.singer || song.album || songSourceLabel(song) || '';
+  } catch (_error) {
+    return song.artist || song.singer || song.source || '';
+  }
+}
+
+function homeDashboardSongCover(song, size) {
+  if (!song) return '';
+  try {
+    return songCoverSrc(song, size || 320) || song.cover || song.picUrl || '';
+  } catch (_error) {
+    return song.cover || song.picUrl || '';
+  }
+}
+
+function homeDashboardLocalSongs() {
+  var pool = [];
+  if (Array.isArray(playQueue)) pool = pool.concat(playQueue);
+  if (Array.isArray(playlist)) pool = pool.concat(playlist);
+  if (Array.isArray(userPlaylists)) {
+    userPlaylists.forEach(function (item) {
+      if (item && Array.isArray(item.songs)) pool = pool.concat(item.songs);
+    });
+  }
+  var seen = Object.create(null);
+  return pool.filter(function (song) {
+    if (!song || song.type !== 'local') return false;
+    var key = '';
+    try { key = queueItemKey(song); } catch (_error) { }
+    key = key || song.localPath || song.id || ((song.name || song.title || '') + '|' + (song.artist || ''));
+    if (!key || seen[key]) return false;
+    seen[key] = true;
+    return true;
+  });
+}
+
+function homeDashboardSetStableBackgroundImage(element, src) {
+  if (!element) return;
+  src = String(src || '');
+  if (element.__homeDashboardRequestedBackground === src) return;
+  element.__homeDashboardRequestedBackground = src;
+  if (!src) {
+    element.__homeDashboardBackground = '';
+    element.style.backgroundImage = '';
+    return;
+  }
+  var image = new Image();
+  image.decoding = 'async';
+  function commit() {
+    if (!element.isConnected || element.__homeDashboardRequestedBackground !== src) return;
+    element.__homeDashboardBackground = src;
+    element.style.backgroundImage = 'url("' + cssImageUrl(src) + '")';
+  }
+  image.onload = function () {
+    if (typeof image.decode === 'function') image.decode().catch(function () { }).then(commit);
+    else commit();
+  };
+  image.onerror = function () { };
+  image.src = src;
+}
+
+function homeDashboardCardHtml(card) {
+  var cover = card.cover || homeDashboardGeneratedCover(card.title, card.label, card.tone);
+  var artStyle = cover ? ' style="background-image:url(&quot;' + escHtml(cssImageUrl(cover)) + '&quot;)"' : '';
+  return '<button class="home-card ' + escHtml(card.className || '') + '" data-home-tone="' + escHtml(card.tone || 'playlist') + '"' +
+    ' type="button" onclick="' + card.action + '">' +
+    '<div class="home-card-label">' + escHtml(card.label || '') + '</div>' +
+    '<div class="home-card-title">' + escHtml(card.title || '') + '</div>' +
+    '<div class="home-card-sub">' + escHtml(card.sub || '') + '</div>' +
+    '<div class="home-card-art has-cover"' + artStyle + '></div>' +
+    '</button>';
+}
+
+function homeDashboardPatchCard(button, card) {
+  if (!button || !card) return;
+  var className = 'home-card' + (card.className ? ' ' + card.className : '');
+  var displayCover = card.cover || homeDashboardGeneratedCover(card.title, card.label, card.tone);
+  if (button.className !== className) button.className = className;
+  if (button.getAttribute('data-home-tone') !== card.tone) button.setAttribute('data-home-tone', card.tone);
+  if (button.getAttribute('onclick') !== card.action) button.setAttribute('onclick', card.action);
+  var label = button.querySelector('.home-card-label');
+  var title = button.querySelector('.home-card-title');
+  var sub = button.querySelector('.home-card-sub');
+  var art = button.querySelector('.home-card-art');
+  if (label && label.textContent !== card.label) label.textContent = card.label;
+  if (title && title.textContent !== card.title) title.textContent = card.title;
+  if (sub && sub.textContent !== card.sub) sub.textContent = card.sub;
+  if (art) {
+    art.className = 'home-card-art' + (displayCover ? ' has-cover' : '');
+    homeDashboardSetStableBackgroundImage(art, displayCover);
+  }
+}
+
+function renderHomeDashboardQuickCards() {
+  var grid = document.querySelector('#empty-home .home-grid');
+  if (!grid) return;
+  var summary = typeof homeListenSummary === 'function' ? homeListenSummary() : {};
+  var recent = summary && summary.recent || null;
+  var current = homeDashboardCurrentSong();
+  var daily = homeDiscoverState && homeDiscoverState.songs && homeDiscoverState.songs[0] || null;
+  var continueItem = current || recent;
+  var localSongs = homeDashboardLocalSongs();
+  var localCount = localSongs.length;
+  var accountPlaylistCount = homeDiscoverState && Array.isArray(homeDiscoverState.playlists) ? homeDiscoverState.playlists.length : 0;
+  var ownPlaylistCount = Array.isArray(userPlaylists) ? userPlaylists.length : 0;
+  var libraryCount = localCount + accountPlaylistCount + ownPlaylistCount;
+  var cards = [
+    {
+      label: 'CONTINUE',
+      title: continueItem && (continueItem.name || continueItem.title) || '开始听歌',
+      sub: continueItem ? (homeDashboardSubtitle(continueItem) || recent && (recent.artist || recent.source) || '继续当前队列') : '从音乐库或每日推荐开始',
+      cover: homeDashboardSongCover(current, 360) || recent && recent.cover || '',
+      action: 'resumeHomeDashboardPlayback()',
+      tone: 'search',
+      className: 'home-card-featured',
+    },
+    {
+      label: 'LIBRARY',
+      title: '音乐库',
+      sub: libraryCount ? (libraryCount + ' 项内容 · 本地音乐与歌单') : '歌单、本地音乐和已登录平台',
+      cover: localSongs[0] ? homeDashboardSongCover(localSongs[0], 260) : '',
+      action: 'openHomeDashboardLibrary()',
+      tone: 'library',
+      className: 'home-card-quick',
+    },
+    {
+      label: 'DAILY MIX',
+      title: '每日推荐',
+      sub: daily ? ((daily.name || daily.title || '今日歌曲') + (homeDashboardSubtitle(daily) ? ' · ' + homeDashboardSubtitle(daily) : '')) : '使用当前 Mineradio 推荐数据',
+      cover: homeDashboardSongCover(daily, 260),
+      action: 'playHomeDaily()',
+      tone: 'mix',
+      className: 'home-card-quick',
+    },
+    {
+      label: 'RECENT',
+      title: '最近播放',
+      sub: recent ? ((recent.name || '最近一首') + (recent.artist ? ' · ' + recent.artist : '')) : '播放过的歌曲会出现在这里',
+      cover: recent && recent.cover || '',
+      action: 'playHomeRecent()',
+      tone: 'playlist',
+      className: 'home-card-quick',
+    },
+  ];
+  var fingerprint = cards.map(function (card) {
+    return [card.title, card.sub, card.cover, card.action].join('|');
+  }).join('||');
+  if (fingerprint === homeDashboardQuickFingerprint && grid.classList.contains('home-quick-grid')) return;
+  homeDashboardQuickFingerprint = fingerprint;
+  grid.classList.add('home-quick-grid');
+  var existingCards = Array.prototype.slice.call(grid.children).filter(function (node) {
+    return node && node.classList && node.classList.contains('home-card');
+  });
+  if (existingCards.length !== cards.length) {
+    grid.innerHTML = cards.map(homeDashboardCardHtml).join('');
+    existingCards = Array.prototype.slice.call(grid.querySelectorAll('.home-card'));
+  }
+  cards.forEach(function (card, index) {
+    homeDashboardPatchCard(existingCards[index], card);
+  });
+}
+
+function resumeHomeDashboardPlayback() {
+  homeForcedOpen = false;
+  homeSuppressed = false;
+  if (typeof setHomeControlsLocked === 'function') setHomeControlsLocked(false);
+  if (playQueue && playQueue.length && currentIdx >= 0 && playQueue[currentIdx]) {
+    if (typeof forcePlaybackControlsInteractive === 'function') forcePlaybackControlsInteractive();
+    if (typeof updateEmptyHomeVisibility === 'function') updateEmptyHomeVisibility();
+    if (playing || audio && !audio.paused) return;
+    if (typeof togglePlay === 'function') {
+      Promise.resolve(togglePlay()).catch(function (error) { console.warn('[HomeDashboardResume]', error); });
+    }
+    return;
+  }
+  var recent = typeof homeListenSummary === 'function' ? homeListenSummary().recent : null;
+  if (recent && typeof playHomeRecent === 'function') {
+    Promise.resolve(playHomeRecent(recent)).catch(function (error) { console.warn('[HomeDashboardRecent]', error); });
+    return;
+  }
+  if (typeof playHomeDaily === 'function') playHomeDaily();
+}
+
+function homeDashboardDayKey(timestamp) {
+  var date = new Date(Number(timestamp) || Date.now());
+  return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+}
+
+function homeDashboardTodayListenMetrics() {
+  var now = Date.now();
+  var today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+  var todayStart = today.getTime();
+  var history = listenStatsState && Array.isArray(listenStatsState.history) ? listenStatsState.history : [];
+  var records = history.filter(function (record) {
+    return record && Number(record.playedAt) >= todayStart;
+  });
+  var keys = Object.create(null);
+  var artists = Object.create(null);
+  var listenMs = 0;
+  records.forEach(function (record) {
+    var key = String(record.key || record.id || (record.name || '') + '|' + (record.artist || ''));
+    if (key) keys[key] = true;
+    listenMs += Math.max(0, Number(record.listenMs) || 0);
+    String(record.artist || '').split(/\s*\/\s*|\s*,\s*|、|&/).forEach(function (name) {
+      name = name.trim();
+      if (!name) return;
+      artists[name] = (artists[name] || 0) + Math.max(1, Number(record.listenMs) || 1);
+    });
+  });
+  if (listenSession && Number(listenSession.startedAt) >= todayStart) {
+    listenMs += Math.max(0, Number(listenSession.listenMs) || 0);
+    if (listenSession.key) keys[listenSession.key] = true;
+  }
+  var topArtist = Object.keys(artists).sort(function (a, b) { return artists[b] - artists[a]; })[0] || '';
+  var dayMap = Object.create(null);
+  history.forEach(function (record) {
+    if (record && record.playedAt) dayMap[homeDashboardDayKey(record.playedAt)] = true;
+  });
+  if (records.length || listenSession) dayMap[homeDashboardDayKey(now)] = true;
+  var streak = 0;
+  var cursor = new Date(todayStart);
+  if (!dayMap[homeDashboardDayKey(cursor.getTime())]) cursor.setDate(cursor.getDate() - 1);
+  while (dayMap[homeDashboardDayKey(cursor.getTime())]) {
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return {
+    listenMs: listenMs,
+    songCount: Object.keys(keys).length,
+    topArtist: topArtist,
+    streak: streak,
+  };
+}
+
+function homeDashboardListenDurationText(milliseconds) {
+  var minutes = Math.floor(Math.max(0, Number(milliseconds) || 0) / 60000);
+  if (minutes < 60) return minutes + ' 分钟';
+  var hours = Math.floor(minutes / 60);
+  var rest = minutes % 60;
+  return hours + ' 小时' + (rest ? rest + ' 分' : '');
+}
+
+function homeDashboardNextQueueInfo() {
+  if (playQueue && playQueue.length) {
+    var index = currentIdx >= 0 ? (currentIdx + 1) % playQueue.length : 0;
+    return { song: playQueue[index], index: index, queued: true };
+  }
+  var discoverSong = homeDiscoverState && homeDiscoverState.songs && homeDiscoverState.songs[0] || null;
+  var localSong = homeDashboardLocalSongs()[0] || null;
+  return { song: discoverSong || localSong || null, index: 0, queued: false };
+}
+
+function homeDashboardSongKey(song) {
+  if (!song) return '';
+  try {
+    var queueKey = typeof queueItemKey === 'function' ? queueItemKey(song) : '';
+    if (queueKey) return String(queueKey);
+  } catch (_error) { }
+  var provider = song.provider || song.source || song.type || '';
+  var id = song.id || song.mid || song.songmid || song.mediaMid || song.localPath || song.url || '';
+  if (id) return provider + '|' + id;
+  return provider + '|' + (song.name || song.title || '') + '|' + homeDashboardSubtitle(song);
+}
+
+function homeDashboardDiscoverySongs() {
+  var candidates = [];
+  var seen = Object.create(null);
+  function addSongs(songs) {
+    (Array.isArray(songs) ? songs : []).forEach(function (song) {
+      if (!song) return;
+      var key = homeDashboardSongKey(song);
+      if (!key || seen[key]) return;
+      seen[key] = true;
+      candidates.push(song);
+    });
+  }
+
+  addSongs(homeDiscoverState && homeDiscoverState.songs);
+  addSongs(playQueue);
+  if (Array.isArray(userPlaylists)) {
+    userPlaylists.forEach(function (item) { addSongs(item && item.songs); });
+  }
+  addSongs(playlist);
+  addSongs(homeDashboardLocalSongs());
+
+  if (candidates.length <= 3) return candidates.slice();
+  var day = homeDashboardDayNumber();
+  var step = Math.max(1, Math.floor(candidates.length / 3));
+  var picked = [];
+  var pickedKeys = Object.create(null);
+  for (var index = 0; index < candidates.length && picked.length < 3; index += 1) {
+    var candidate = candidates[(day * 17 + index * step + index * 7) % candidates.length];
+    var candidateKey = homeDashboardSongKey(candidate);
+    if (!candidateKey || pickedKeys[candidateKey]) continue;
+    pickedKeys[candidateKey] = true;
+    picked.push(candidate);
+  }
+  return picked;
+}
+
+function renderHomeDashboardDiscovery() {
+  var root = document.getElementById('home-discovery-list');
+  if (!root) return;
+  homeDashboardDiscoveryCache = homeDashboardDiscoverySongs();
+  var fingerprint = homeDashboardDiscoveryCache.map(function (song) {
+    return [homeDashboardSongKey(song), song.name || song.title || '', homeDashboardSubtitle(song), homeDashboardSongCover(song, 180)].join('|');
+  }).join('||');
+  if (!fingerprint) fingerprint = 'empty';
+  if (fingerprint === homeDashboardDiscoveryFingerprint) return;
+  homeDashboardDiscoveryFingerprint = fingerprint;
+  root.classList.toggle('is-empty', !homeDashboardDiscoveryCache.length);
+  if (!homeDashboardDiscoveryCache.length) {
+    root.innerHTML = '<button class="home-discovery-empty" type="button" onclick="openHomeDashboardLibrary()">' +
+      '<strong>等待你的音乐</strong><span>登录平台或导入本地音乐后生成推荐</span></button>';
+    return;
+  }
+  root.innerHTML = homeDashboardDiscoveryCache.map(function (song, index) {
+    var cover = homeDashboardSongCover(song, 180);
+    var coverStyle = cover ? ' style="background-image:url(&quot;' + escHtml(cssImageUrl(cover)) + '&quot;)"' : '';
+    return '<button class="home-discovery-song" type="button" onclick="playHomeDashboardDiscoverySong(' + index + ')">' +
+      '<span class="home-discovery-cover"' + coverStyle + '></span>' +
+      '<span class="home-discovery-song-copy"><span class="home-discovery-song-name">' + escHtml(song.name || song.title || '未知歌曲') + '</span>' +
+      '<span class="home-discovery-song-artist">' + escHtml(homeDashboardSubtitle(song) || 'Mineradio 推荐') + '</span></span></button>';
+  }).join('');
+}
+
+function playHomeDashboardDiscoverySong(index) {
+  if (!homeDashboardDiscoveryCache.length) homeDashboardDiscoveryCache = homeDashboardDiscoverySongs();
+  if (!homeDashboardDiscoveryCache.length) {
+    openHomeDashboardLibrary();
+    return;
+  }
+  playQueue = homeDashboardDiscoveryCache.map(function (song) { return cloneSong(song); });
+  currentIdx = Math.max(0, Math.min(playQueue.length - 1, Number(index) || 0));
+  homeForcedOpen = false;
+  homeSuppressed = false;
+  if (typeof setHomeControlsLocked === 'function') setHomeControlsLocked(false);
+  if (typeof safeRenderQueuePanel === 'function') safeRenderQueuePanel('home-dashboard-discovery', { scrollCurrent: true });
+  if (typeof safeShelfRebuild === 'function') safeShelfRebuild('home-dashboard-discovery', true);
+  if (typeof forcePlaybackControlsInteractive === 'function') forcePlaybackControlsInteractive();
+  Promise.resolve(playQueueAt(currentIdx, {
+    manual: true,
+    context: { type: 'home-discovery', playlistName: '为你挑选' },
+  })).catch(function (error) { console.warn('[HomeDashboardDiscovery]', error); });
+}
+
+function renderHomeInsightDock() {
+  if (!document.getElementById('home-insight-dock')) return;
+  var metrics = homeDashboardTodayListenMetrics();
+  var time = document.getElementById('home-today-time');
+  var count = document.getElementById('home-today-count');
+  var artist = document.getElementById('home-today-artist');
+  var streak = document.getElementById('home-today-streak');
+  if (time) time.textContent = homeDashboardListenDurationText(metrics.listenMs);
+  if (count) count.textContent = metrics.songCount + ' 首';
+  if (artist) artist.textContent = metrics.topArtist || '等待记录';
+  if (streak) streak.textContent = metrics.streak ? ('连续聆听 ' + metrics.streak + ' 天') : '开始播放后生成';
+
+  var next = homeDashboardNextQueueInfo();
+  var song = next.song;
+  var title = document.getElementById('home-next-title');
+  var sub = document.getElementById('home-next-sub');
+  var cover = document.getElementById('home-next-cover');
+  var card = document.getElementById('home-next-card');
+  if (title) title.textContent = song ? (song.name || song.title || '未知歌曲') : '队列里还没有歌曲';
+  if (sub) sub.textContent = song ? (homeDashboardSubtitle(song) || '点击播放') : '点击打开音乐库';
+  var coverUrl = homeDashboardSongCover(song, 220);
+  if (cover) homeDashboardSetStableBackgroundImage(cover, coverUrl);
+  if (card) card.setAttribute('aria-label', song ? ('播放下一首：' + (song.name || song.title || '未知歌曲')) : '打开音乐库');
+  renderHomeDashboardDiscovery();
+}
+
+function playHomeNextFromDock() {
+  var next = homeDashboardNextQueueInfo();
+  if (next.song && next.queued) {
+    homeForcedOpen = false;
+    homeSuppressed = false;
+    if (typeof setHomeControlsLocked === 'function') setHomeControlsLocked(false);
+    if (typeof forcePlaybackControlsInteractive === 'function') forcePlaybackControlsInteractive();
+    Promise.resolve(playQueueAt(next.index, {
+      manual: true,
+      context: { type: 'home-next', playlistName: '接下来播放' },
+    })).catch(function (error) { console.warn('[HomeDashboardNext]', error); });
+    return;
+  }
+  if (next.song) {
+    playQueue = [cloneSong(next.song)];
+    currentIdx = 0;
+    if (typeof safeRenderQueuePanel === 'function') safeRenderQueuePanel('home-dashboard-next');
+    if (typeof safeShelfRebuild === 'function') safeShelfRebuild('home-dashboard-next', true);
+    if (typeof forcePlaybackControlsInteractive === 'function') forcePlaybackControlsInteractive();
+    Promise.resolve(playQueueAt(0, {
+      manual: true,
+      context: { type: 'home-next', playlistName: '首页推荐' },
+    })).catch(function (error) { console.warn('[HomeDashboardStart]', error); });
+    return;
+  }
+  openHomeDashboardLibrary();
+}
+
+function openHomeDashboardLibrary() {
+  var loggedIn = typeof hasAnyPlatformLogin === 'function' && hasAnyPlatformLogin()
+    || homeDiscoverState && homeDiscoverState.loggedIn;
+  if (loggedIn && typeof openHomeLibrary === 'function') {
+    openHomeLibrary();
+    return;
+  }
+  homeForcedOpen = false;
+  homeSuppressed = false;
+  if (typeof setHomeControlsLocked === 'function') setHomeControlsLocked(false);
+  if (typeof updateEmptyHomeVisibility === 'function') updateEmptyHomeVisibility();
+  if (typeof openUploadPanel === 'function') openUploadPanel();
+}
+
+function openHomeDashboardCharts() {
+  openHomePlatformRecommendations('netease');
+}
+
+function homePlatformRecommendationSourceLabel(source) {
+  return {
+    netease: '网易云',
+    qishui: '汽水',
+    qq: 'QQ 音乐',
+    kugou: '酷狗音乐',
+    spotify: 'Spotify',
+  }[source] || '当前平台';
+}
+
+function homePlatformRecommendationFeedConfig(source) {
+  return {
+    qishui: {
+      endpoint: '/api/qishui/feed?limit=12',
+      sectionTitle: '推荐 Feed',
+      cardLabel: '汽水推荐 Feed',
+      readyText: '来自汽水推荐 Feed',
+      playlistName: '汽水推荐 Feed',
+    },
+    kugou: {
+      endpoint: '/api/kugou/recommendations?limit=12',
+      sectionTitle: '推荐 FM',
+      cardLabel: '酷狗推荐 FM',
+      readyText: '来自酷狗 FM 推荐',
+      playlistName: '酷狗推荐 FM',
+    },
+    spotify: {
+      endpoint: '/api/spotify/recommendations?limit=12',
+      sectionTitle: '个性化推荐',
+      cardLabel: 'Spotify 推荐',
+      readyText: '来自 Spotify 个性化推荐',
+      playlistName: 'Spotify 个性化推荐',
+    },
+  }[source] || null;
+}
+
+function homePlatformRecommendationCard(kind, index, item, label) {
+  item = item || {};
+  var title = item.name || item.title || '未命名内容';
+  var sub = '';
+  if (kind === 'netease-playlist') sub = (item.trackCount ? item.trackCount + ' 首' : '推荐歌单') + (item.playCount ? ' · ' + compactHomeCount(item.playCount) + ' 播放' : '');
+  else sub = homeDashboardSubtitle(item) || label;
+  var cover = item.cover || item.picUrl || homeDashboardSongCover(item, 180) || '';
+  var coverStyle = cover ? ' style="background-image:url(&quot;' + escHtml(cssImageUrl(cover)) + '&quot;)"' : '';
+  return '<button class="home-platform-recommend-card" type="button" data-home-recommend-kind="' + kind + '" data-home-recommend-index="' + index + '">' +
+    '<span class="home-platform-recommend-cover"' + coverStyle + '></span>' +
+    '<span class="home-platform-recommend-copy"><span class="home-platform-recommend-label">' + escHtml(label) + '</span>' +
+    '<strong>' + escHtml(title) + '</strong><small>' + escHtml(sub) + '</small></span>' +
+    '<span class="home-platform-recommend-arrow" aria-hidden="true">›</span></button>';
+}
+
+function homePlatformRecommendationDailyRange(total, columns, scrollTop, viewportHeight, gridOffsetTop) {
+  total = Math.max(0, Number(total) || 0);
+  columns = Math.max(1, Number(columns) || 1);
+  var totalRows = Math.ceil(total / columns);
+  if (!totalRows) return { start: 0, end: 0, topRows: 0, bottomRows: 0 };
+  var localScrollTop = Math.max(0, (Number(scrollTop) || 0) - (Number(gridOffsetTop) || 0));
+  var firstVisibleRow = Math.floor(localScrollTop / HOME_PLATFORM_DAILY_ROW_HEIGHT);
+  var visibleRows = Math.max(1, Math.ceil((Number(viewportHeight) || 500) / HOME_PLATFORM_DAILY_ROW_HEIGHT));
+  var maxRows = Math.max(1, Math.floor(HOME_PLATFORM_DAILY_MAX_RENDERED_CARDS / columns));
+  var startRow = Math.max(0, firstVisibleRow - HOME_PLATFORM_DAILY_OVERSCAN_ROWS);
+  var renderRows = Math.min(maxRows, visibleRows + HOME_PLATFORM_DAILY_OVERSCAN_ROWS * 2);
+  var endRow = Math.min(totalRows, startRow + renderRows);
+  if (endRow === totalRows) startRow = Math.max(0, endRow - renderRows);
+  return {
+    start: startRow * columns,
+    end: Math.min(total, endRow * columns),
+    topRows: startRow,
+    bottomRows: Math.max(0, totalRows - endRow),
+  };
+}
+
+function homePlatformRecommendationGridColumns(grid) {
+  if (!grid) return 1;
+  try {
+    var template = window.getComputedStyle(grid).gridTemplateColumns;
+    var columns = String(template || '').trim().split(/\s+/).filter(Boolean).length;
+    if (columns > 0) return columns;
+  } catch (_error) { }
+  return grid.clientWidth > 560 ? 2 : 1;
+}
+
+function homePlatformRecommendationSpacer(rows, position) {
+  if (!rows) return '';
+  var height = Math.max(0, rows * HOME_PLATFORM_DAILY_ROW_HEIGHT - 8);
+  return '<span class="home-platform-recommend-spacer" data-home-recommend-spacer="' + position +
+    '" aria-hidden="true" style="grid-column:1/-1;height:' + height + 'px"></span>';
+}
+
+function renderHomePlatformDailyWindow(force) {
+  if (homePlatformRecommendationState.source !== 'netease') return;
+  var list = document.getElementById('home-platform-recommend-list');
+  var grid = document.getElementById('home-platform-daily-grid');
+  if (!list || !grid) return;
+  var songs = Array.isArray(homeDiscoverState.songs) ? homeDiscoverState.songs : [];
+  var columns = homePlatformRecommendationGridColumns(grid);
+  var range = homePlatformRecommendationDailyRange(
+    songs.length,
+    columns,
+    list.scrollTop,
+    list.clientHeight,
+    grid.offsetTop
+  );
+  var signature = songs.length + '|' + columns + '|' + range.start + '|' + range.end;
+  if (!force && grid.getAttribute('data-render-window') === signature) return;
+  var html = [homePlatformRecommendationSpacer(range.topRows, 'top')];
+  for (var index = range.start; index < range.end; index += 1) {
+    html.push(homePlatformRecommendationCard('netease-song', index, songs[index], '网易云每日推荐'));
+  }
+  html.push(homePlatformRecommendationSpacer(range.bottomRows, 'bottom'));
+  grid.innerHTML = html.join('');
+  grid.setAttribute('data-render-window', signature);
+  grid.setAttribute('aria-label', '全部每日推荐，共 ' + songs.length + ' 首');
+  var count = document.getElementById('home-platform-daily-count');
+  if (count) {
+    count.textContent = songs.length
+      ? ' · ' + (range.start + 1) + '–' + range.end + ' / ' + songs.length
+      : '';
+  }
+}
+
+function scheduleHomePlatformDailyWindowRender() {
+  if (homePlatformRecommendationDailyRenderRaf) return;
+  var run = function () {
+    homePlatformRecommendationDailyRenderRaf = 0;
+    renderHomePlatformDailyWindow(false);
+  };
+  if (typeof requestAnimationFrame === 'function') {
+    homePlatformRecommendationDailyRenderRaf = requestAnimationFrame(run);
+  } else {
+    homePlatformRecommendationDailyRenderRaf = setTimeout(run, 16);
+  }
+}
+
+function homePlatformRecommendationEmptyHtml(source, message) {
+  return '<div class="home-platform-recommend-empty"><strong>' + escHtml(homePlatformRecommendationSourceLabel(source)) + ' 暂无可用推荐</strong>' +
+    '<span>' + escHtml(message || '当前版本没有可验证的平台推荐接口，未使用关键词搜索替代。') + '</span></div>';
+}
+
+function renderHomePlatformRecommendations() {
+  var mask = document.getElementById('home-platform-recommend-mask');
+  var list = document.getElementById('home-platform-recommend-list');
+  var status = document.getElementById('home-platform-recommend-status');
+  if (!mask || !list || !status) return;
+  var source = homePlatformRecommendationState.source;
+  var tabs = document.querySelectorAll('[data-home-recommend-source]');
+  Array.prototype.forEach.call(tabs, function (tab) {
+    var selected = tab.getAttribute('data-home-recommend-source') === source;
+    tab.setAttribute('aria-selected', selected ? 'true' : 'false');
+    tab.classList.toggle('active', selected);
+  });
+  status.classList.remove('is-error');
+
+  if (source === 'netease') {
+    if (homeDiscoverState.loading || homePlatformRecommendationState.neteaseLoading) {
+      status.textContent = '正在读取网易云平台推荐…';
+      list.innerHTML = '<div class="home-platform-recommend-loading">正在同步推荐内容</div>';
+      return;
+    }
+    var sections = [];
+    var playlists = Array.isArray(homeDiscoverState.playlists) ? homeDiscoverState.playlists.slice(0, 6) : [];
+    var songs = Array.isArray(homeDiscoverState.songs) ? homeDiscoverState.songs : [];
+    if (playlists.length) {
+      sections.push('<section><h3>推荐歌单</h3><div class="home-platform-recommend-grid">' + playlists.map(function (item, index) {
+        return homePlatformRecommendationCard('netease-playlist', index, item, '网易云推荐歌单');
+      }).join('') + '</div></section>');
+    }
+    if (songs.length) {
+      sections.push('<section><h3>每日推荐<span id="home-platform-daily-count"></span></h3>' +
+        '<div id="home-platform-daily-grid" class="home-platform-recommend-grid" role="list" aria-label="全部每日推荐"></div></section>');
+    }
+    if (sections.length) {
+      status.textContent = songs.length
+        ? '已读取全部 ' + songs.length + ' 首每日推荐；滚动时仅渲染视窗附近歌曲'
+        : '来自网易云推荐歌单';
+      list.innerHTML = sections.join('');
+      if (songs.length) renderHomePlatformDailyWindow(true);
+    } else {
+      status.textContent = homeDiscoverState.error ? '网易云推荐读取失败' : '网易云暂未返回推荐内容';
+      status.classList.toggle('is-error', !!homeDiscoverState.error);
+      list.innerHTML = homePlatformRecommendationEmptyHtml('netease', homeDiscoverState.loggedIn
+        ? '平台本次没有返回推荐内容，未使用搜索结果补位。'
+        : '登录网易云后可读取推荐歌单与每日推荐，未使用关键词搜索替代。');
+    }
+    return;
+  }
+
+  var feedConfig = homePlatformRecommendationFeedConfig(source);
+  var feedState = homePlatformRecommendationState.feeds[source];
+  if (feedConfig && feedState) {
+    var sourceLabel = homePlatformRecommendationSourceLabel(source);
+    if (feedState.loading) {
+      status.textContent = '正在读取' + sourceLabel + '平台推荐…';
+      list.innerHTML = '<div class="home-platform-recommend-loading">正在同步推荐内容</div>';
+      return;
+    }
+    if (feedState.songs.length) {
+      var sectionTitle = feedConfig.sectionTitle;
+      var cardLabel = feedConfig.cardLabel;
+      var readyText = feedConfig.readyText;
+      if (source === 'qishui' && feedState.fallback) {
+        sectionTitle = '你的音乐';
+        cardLabel = '汽水喜欢 / 最近播放';
+        readyText = '汽水推荐 Feed 暂不可用，当前显示你的喜欢与最近播放';
+      } else if (source === 'spotify' && feedState.mode === 'liked-affinity') {
+        sectionTitle = '你的喜欢';
+        cardLabel = 'Spotify 喜欢的歌曲';
+        readyText = '来自 Spotify Web API 的喜欢歌曲';
+      } else if (source === 'spotify' && feedState.mode === 'personal-top') {
+        sectionTitle = '你的常听';
+        cardLabel = 'Spotify 常听歌曲';
+        readyText = '来自 Spotify Web API 的个人常听';
+      }
+      status.textContent = readyText;
+      list.innerHTML = '<section><h3>' + escHtml(sectionTitle) + '</h3><div class="home-platform-recommend-grid">' + feedState.songs.map(function (item, index) {
+        return homePlatformRecommendationCard(source + '-song', index, item, cardLabel);
+      }).join('') + '</div></section>';
+    } else {
+      var authRequired = /(?:AUTH|LOGIN)_REQUIRED|NOT_CONFIGURED/i.test(feedState.error);
+      var feedFailed = !!feedState.error && !authRequired;
+      status.textContent = feedFailed ? sourceLabel + '推荐读取失败' : sourceLabel + '暂未返回推荐内容';
+      status.classList.toggle('is-error', feedFailed);
+      list.innerHTML = homePlatformRecommendationEmptyHtml(source, feedState.message || (feedFailed
+        ? '推荐接口当前不可用，未使用关键词搜索补位。'
+        : '连接' + sourceLabel + '后可读取平台推荐，未使用关键词搜索替代。'));
+    }
+    return;
+  }
+
+  status.textContent = homePlatformRecommendationSourceLabel(source) + ' 暂无平台推荐接口';
+  list.innerHTML = homePlatformRecommendationEmptyHtml(source);
+}
+
+async function loadHomePlatformNeteaseRecommendations(force) {
+  if (homePlatformRecommendationState.neteaseLoading) return;
+  homePlatformRecommendationState.neteaseLoading = true;
+  renderHomePlatformRecommendations();
+  try {
+    if (homeDiscoverState.loading && typeof waitForHomeDiscoverIdle === 'function') await waitForHomeDiscoverIdle(2600);
+    if (force || !homeDiscoverState.loaded) await loadHomeDiscover(!!force);
+    if (homeDiscoverState.loading && typeof waitForHomeDiscoverIdle === 'function') await waitForHomeDiscoverIdle(2600);
+    if (force || !Array.isArray(homeDiscoverState.podcasts) || !homeDiscoverState.podcasts.length) {
+      var podcastData = await apiJson('/api/podcast/hot?limit=8&t=' + Date.now(), { timeoutMs: 12000 });
+      var hotPodcasts = podcastData && Array.isArray(podcastData.podcasts) ? podcastData.podcasts : [];
+      if (hotPodcasts.length) homeDiscoverState.podcasts = hotPodcasts;
+    }
+  } catch (error) {
+    console.warn('[HomePlatformNetease]', error);
+  } finally {
+    homePlatformRecommendationState.neteaseLoading = false;
+    renderHomePlatformRecommendations();
+  }
+}
+
+async function loadHomePlatformQishuiRecommendations(force) {
+  return loadHomePlatformFeedRecommendations('qishui', force);
+}
+
+async function loadHomePlatformFeedRecommendations(source, force) {
+  var config = homePlatformRecommendationFeedConfig(source);
+  var feedState = homePlatformRecommendationState.feeds[source];
+  if (!config || !feedState || feedState.loading) return;
+  if (feedState.loaded && !force) return;
+  feedState.loading = true;
+  feedState.error = '';
+  feedState.message = '';
+  renderHomePlatformRecommendations();
+  try {
+    var separator = config.endpoint.indexOf('?') >= 0 ? '&' : '?';
+    var data = await apiJson(config.endpoint + separator + 't=' + Date.now(), { timeoutMs: 14000 });
+    var rawSongs = data && (data.songs || data.tracks || data.items || data.recommendations);
+    feedState.songs = (Array.isArray(rawSongs) ? rawSongs : []).map(cloneSong);
+    feedState.error = data && data.error ? String(data.error) : '';
+    feedState.message = data && data.message ? String(data.message) : '';
+    feedState.mode = data && data.mode ? String(data.mode) : '';
+    feedState.source = data && data.source ? String(data.source) : '';
+    feedState.fallback = !!(data && data.fallback);
+    feedState.provenance = data && data.provenance ? String(data.provenance) : '';
+    feedState.loaded = true;
+  } catch (error) {
+    console.warn('[HomePlatformFeed:' + source + ']', error);
+    feedState.songs = [];
+    feedState.error = String(error && error.message || 'PLATFORM_FEED_FAILED');
+    feedState.message = '';
+    feedState.loaded = true;
+  } finally {
+    feedState.loading = false;
+    renderHomePlatformRecommendations();
+  }
+}
+
+async function loadHomePlatformRecommendations(source, force) {
+  homePlatformRecommendationState.source = source || 'netease';
+  renderHomePlatformRecommendations();
+  try {
+    if (homePlatformRecommendationState.source === 'netease') {
+      await loadHomePlatformNeteaseRecommendations(force);
+    } else if (homePlatformRecommendationFeedConfig(homePlatformRecommendationState.source)) {
+      await loadHomePlatformFeedRecommendations(homePlatformRecommendationState.source, force);
+    }
+  } catch (error) {
+    console.warn('[HomePlatformRecommendations]', error);
+  }
+  renderHomePlatformRecommendations();
+}
+
+function playHomePlatformFeedSong(source, index) {
+  var config = homePlatformRecommendationFeedConfig(source);
+  var feedState = homePlatformRecommendationState.feeds[source];
+  var songs = feedState && feedState.songs || [];
+  if (!config || !songs.length) return;
+  playQueue = songs.map(cloneSong);
+  currentIdx = Math.max(0, Math.min(playQueue.length - 1, Number(index) || 0));
+  homeForcedOpen = false;
+  homeSuppressed = false;
+  if (typeof setHomeControlsLocked === 'function') setHomeControlsLocked(false);
+  if (typeof safeRenderQueuePanel === 'function') safeRenderQueuePanel('home-platform-' + source, { scrollCurrent: true });
+  if (typeof safeShelfRebuild === 'function') safeShelfRebuild('home-platform-' + source, true);
+  if (typeof forcePlaybackControlsInteractive === 'function') forcePlaybackControlsInteractive();
+  Promise.resolve(playQueueAt(currentIdx, {
+    manual: true,
+    context: { type: 'home-platform-recommendation', playlistName: config.playlistName },
+  })).catch(function (error) { console.warn('[HomePlatformFeedPlay:' + source + ']', error); });
+}
+
+function closeHomePlatformRecommendations() {
+  var mask = document.getElementById('home-platform-recommend-mask');
+  if (!mask) return;
+  mask.classList.remove('show');
+  mask.setAttribute('aria-hidden', 'true');
+  homePlatformRecommendationState.open = false;
+  var focusTarget = homePlatformRecommendationState.previousFocus;
+  homePlatformRecommendationState.previousFocus = null;
+  if (focusTarget && typeof focusTarget.focus === 'function') {
+    setTimeout(function () { focusTarget.focus(); }, 0);
+  }
+}
+
+function bindHomePlatformRecommendationControls() {
+  if (homePlatformRecommendationControlsBound) return;
+  homePlatformRecommendationControlsBound = true;
+  var mask = document.getElementById('home-platform-recommend-mask');
+  var tabs = document.getElementById('home-platform-recommend-tabs');
+  var list = document.getElementById('home-platform-recommend-list');
+  var close = document.getElementById('home-platform-recommend-close');
+  var done = document.getElementById('home-platform-recommend-done');
+  var refresh = document.getElementById('home-platform-recommend-refresh');
+  if (tabs) tabs.addEventListener('click', function (event) {
+    var tab = event.target.closest('[data-home-recommend-source]');
+    if (!tab || !tabs.contains(tab)) return;
+    loadHomePlatformRecommendations(tab.getAttribute('data-home-recommend-source'), false);
+  });
+  if (list) list.addEventListener('click', function (event) {
+    var card = event.target.closest('[data-home-recommend-kind]');
+    if (!card || !list.contains(card)) return;
+    var kind = card.getAttribute('data-home-recommend-kind');
+    var index = Number(card.getAttribute('data-home-recommend-index')) || 0;
+    closeHomePlatformRecommendations();
+    if (kind === 'netease-playlist' && typeof openHomePlaylist === 'function') openHomePlaylist(index);
+    else if (kind === 'netease-song' && typeof playHomeSong === 'function') playHomeSong(index);
+    else if (/^(qishui|kugou|spotify)-song$/.test(kind)) playHomePlatformFeedSong(kind.replace(/-song$/, ''), index);
+  });
+  if (list) list.addEventListener('scroll', scheduleHomePlatformDailyWindowRender, { passive: true });
+  window.addEventListener('resize', scheduleHomePlatformDailyWindowRender, { passive: true });
+  if (close) close.addEventListener('click', closeHomePlatformRecommendations);
+  if (done) done.addEventListener('click', closeHomePlatformRecommendations);
+  if (refresh) refresh.addEventListener('click', function () {
+    loadHomePlatformRecommendations(homePlatformRecommendationState.source, true);
+  });
+  if (mask) mask.addEventListener('click', function (event) {
+    if (event.target === mask) closeHomePlatformRecommendations();
+  });
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape' && homePlatformRecommendationState.open) closeHomePlatformRecommendations();
+  });
+}
+
+function openHomePlatformRecommendations(preferredSource) {
+  bindHomePlatformRecommendationControls();
+  var mask = document.getElementById('home-platform-recommend-mask');
+  if (!mask) return;
+  homePlatformRecommendationState.previousFocus = document.activeElement;
+  homePlatformRecommendationState.open = true;
+  mask.classList.add('show');
+  mask.setAttribute('aria-hidden', 'false');
+  var defaultSource = loginStatus && loginStatus.loggedIn
+    ? 'netease'
+    : (qishuiLoginStatus && (qishuiLoginStatus.loggedIn || qishuiLoginStatus.configured)
+      ? 'qishui'
+      : (kugouLoginStatus && kugouLoginStatus.loggedIn
+        ? 'kugou'
+        : (spotifyLoginStatus && (spotifyLoginStatus.loggedIn || spotifyLoginStatus.configured) ? 'spotify' : 'netease')));
+  var source = /^(netease|qishui|qq|kugou|spotify)$/.test(String(preferredSource || '')) ? preferredSource : defaultSource;
+  loadHomePlatformRecommendations(source, false);
+  setTimeout(function () {
+    var activeTab = mask.querySelector('[data-home-recommend-source="' + source + '"]');
+    if (activeTab) activeTab.focus();
+  }, 0);
+}
+
+function openHomeDashboardRadio() {
+  openHomePlatformRecommendations();
+}
+
+function scheduleHomeDashboardRefresh() {
+  if (homeDashboardRefreshTimer) {
+    clearTimeout(homeDashboardRefreshTimer);
+    homeDashboardRefreshTimer = null;
+  }
+  if (!emptyHomeActive || document.hidden) return;
+  homeDashboardRefreshTimer = setTimeout(function () {
+    homeDashboardRefreshTimer = null;
+    if (!emptyHomeActive || document.hidden) return;
+    homeDashboardUpdateClock();
+    renderHomeInsightDock();
+    scheduleHomeDashboardRefresh();
+  }, 15000);
+}
+
+function renderHomeDashboard() {
+  renderHomeDashboardHero();
+  renderHomeDashboardQuickCards();
+  renderHomeInsightDock();
+  scheduleHomeDashboardRefresh();
+}
+
+var homeDashboardBaseRenderHomeDiscover = typeof renderHomeDiscover === 'function' ? renderHomeDiscover : null;
+if (homeDashboardBaseRenderHomeDiscover) {
+  renderHomeDiscover = function () {
+    var result = homeDashboardBaseRenderHomeDiscover.apply(this, arguments);
+    renderHomeDashboard();
+    return result;
+  };
+}
+
+document.addEventListener('visibilitychange', function () {
+  if (!document.hidden && emptyHomeActive) renderHomeDashboard();
+  else scheduleHomeDashboardRefresh();
+  homeDashboardUpdateVideoPower();
+});
+
+bindHomeDashboardVideoControls();
+bindHomePlatformRecommendationControls();
+renderHomeDashboard();
+
+/* —— Phone chrome + Home CTA —— */
+/* Portrait ≤720, or landscape phone (short height, not iPad). */
+var PHONE_SHELL_MQ = '(max-width: 720px), (max-height: 520px) and (max-width: 960px)';
+/* 不要用 max-height 判断横屏：地址栏伸缩会反复进出条件导致整页闪动 */
+var PHONE_LANDSCAPE_MQ = '(orientation: landscape) and (max-width: 960px)';
+var lastPhoneShellKey = '';
+var phoneShellSyncTimer = 0;
+var phoneBootTimer = 0;
+var phoneBootOnceDone = false;
+var phoneShellMedia = null;
+var phoneLandscapeMedia = null;
+var phoneChromeMoved = false;
+var phoneChromeMenuBound = false;
+var phoneSheetGestureBound = false;
+
+function isPhoneShellViewport() {
+  try {
+    if (!phoneShellMedia) phoneShellMedia = window.matchMedia(PHONE_SHELL_MQ);
+    return !!phoneShellMedia.matches;
+  } catch (_e) {
+    return window.innerWidth <= 720 || (window.innerHeight <= 520 && window.innerWidth <= 960);
+  }
+}
+
+function isPhoneLandscapeViewport() {
+  try {
+    if (!phoneLandscapeMedia) phoneLandscapeMedia = window.matchMedia(PHONE_LANDSCAPE_MQ);
+    if (phoneLandscapeMedia.matches) return true;
+  } catch (_e) {}
+  return isPhoneShellViewport() && window.innerWidth > window.innerHeight;
+}
+
+function focusHomePhoneSearch() {
+  togglePhoneChromeMenu(false);
+  var area = document.getElementById('search-area');
+  var input = document.getElementById('search-input');
+  if (typeof setPeek === 'function') setPeek(area, true, 'search');
+  else if (area) area.classList.add('peek');
+  if (input) {
+    try { input.focus({ preventScroll: true }); } catch (_err) { input.focus(); }
+  }
+}
+
+function syncHomePhoneCta() {
+  var nav = document.getElementById('home-phone-cta');
+  if (!nav) return;
+  var phone = document.body.classList.contains('phone-shell');
+  var homeOpen = !!emptyHomeActive || !!document.body.classList.contains('empty-home-active');
+  if (!phone || !homeOpen) {
+    nav.hidden = true;
+    document.body.classList.remove('phone-home-guest');
+    return;
+  }
+  nav.hidden = false;
+  var loggedIn = typeof hasAnyPlatformLogin === 'function' && hasAnyPlatformLogin();
+  var guest = !loggedIn;
+  document.body.classList.toggle('phone-home-guest', guest);
+  var map = {
+    login: guest,
+    search: guest,
+    local: guest,
+    continue: !guest,
+    library: !guest,
+    daily: !guest
+  };
+  Array.prototype.forEach.call(nav.querySelectorAll('[data-phone-cta]'), function (btn) {
+    var key = btn.getAttribute('data-phone-cta');
+    btn.hidden = !map[key];
+  });
+}
+
+function togglePhoneChromeMenu(force) {
+  var menu = document.getElementById('phone-chrome-menu');
+  var btn = document.getElementById('phone-chrome-more');
+  if (!menu) return;
+  var open = force == null ? menu.hidden : !!force;
+  menu.hidden = !open;
+  document.body.classList.toggle('phone-chrome-open', open);
+  if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function movePhoneChromeActions(toPhone) {
+  var host = document.getElementById('top-right');
+  var slot = document.getElementById('phone-chrome-menu-actions');
+  var modes = document.querySelector('#controls .control-cluster.modes');
+  var diy = document.getElementById('web-diy-btn');
+  var home = document.getElementById('home-btn');
+  var user = document.getElementById('user-btn');
+  if (!host || !slot || !diy || !home || !user) return;
+  if (toPhone && !phoneChromeMoved) {
+    // DIY 放进播放控制栏，Home / 账号留在顶部更多菜单
+    if (modes) {
+      var lyrics = modes.querySelector('.lyrics-toggle-btn');
+      if (lyrics) modes.insertBefore(diy, lyrics);
+      else modes.insertBefore(diy, modes.firstChild);
+    } else {
+      slot.appendChild(diy);
+    }
+    slot.appendChild(home);
+    slot.appendChild(user);
+    phoneChromeMoved = true;
+  } else if (!toPhone && phoneChromeMoved) {
+    var hideBtn = document.getElementById('user-capsule-hide-btn');
+    var anchor = hideBtn && hideBtn.parentNode === host ? hideBtn.nextSibling : host.firstChild;
+    host.insertBefore(diy, anchor);
+    host.insertBefore(home, diy.nextSibling);
+    host.insertBefore(user, home.nextSibling);
+    phoneChromeMoved = false;
+    togglePhoneChromeMenu(false);
+  }
+}
+
+function syncPhoneShellLayout(force) {
+  var phone = isPhoneShellViewport();
+  var landscape = phone && isPhoneLandscapeViewport();
+  var key = (phone ? '1' : '0') + ':' + (landscape ? 'L' : 'P');
+  if (!force && key === lastPhoneShellKey) {
+    syncHomePhoneCta();
+    return;
+  }
+  lastPhoneShellKey = key;
+  document.documentElement.classList.toggle('phone-shell', phone);
+  document.documentElement.classList.toggle('phone-shell-preload', phone);
+  document.documentElement.classList.toggle('phone-landscape', landscape);
+  document.body.classList.toggle('phone-shell', phone);
+  document.body.classList.toggle('phone-landscape', landscape);
+  // 手机端禁用 SVG 色散玻璃（MIUI/部分 Android WebView 会花屏）
+  if (phone) {
+    if (document.documentElement.classList.contains('control-glass-svg-ok')) {
+      window.__mineradioControlGlassSvgOk = true;
+    }
+    document.documentElement.classList.remove('control-glass-svg-ok');
+    // 只静默一次；反复开关 phone-booting 会让全页 animation 重启=闪动
+    if (!phoneBootOnceDone) {
+      phoneBootOnceDone = true;
+      document.body.classList.add('phone-booting');
+      clearTimeout(phoneBootTimer);
+      phoneBootTimer = setTimeout(function () {
+        document.body.classList.remove('phone-booting');
+      }, 220);
+    }
+  } else if (window.__mineradioControlGlassSvgOk) {
+    document.documentElement.classList.add('control-glass-svg-ok');
+    document.body.classList.remove('phone-booting');
+  }
+  var slot = document.getElementById('phone-chrome-slot');
+  if (slot) slot.hidden = !phone;
+  movePhoneChromeActions(phone);
+  if (!phone) {
+    togglePhoneChromeMenu(false);
+    document.body.classList.remove('phone-home-guest', 'phone-landscape', 'phone-queue-open', 'phone-booting');
+    document.documentElement.classList.remove('phone-landscape');
+    var bd = document.getElementById('phone-queue-backdrop');
+    if (bd) { bd.hidden = true; bd.setAttribute('aria-hidden', 'true'); }
+  }
+  syncHomePhoneCta();
+  if (typeof syncPhoneQueueBtn === 'function') syncPhoneQueueBtn();
+}
+
+function phoneStageTapTarget(el) {
+  if (!el || !el.closest) return false;
+  if (el.closest('#bottom-bar, #bottom-handle, #search-area, #phone-chrome-slot, #top-right, #fx-fab, #fx-panel, #playlist-panel, #phone-queue-backdrop, .modal-mask, #toast, button, a, input, textarea, select')) return false;
+  if (document.body.classList.contains('folia-home-wall')) return false;
+  if (el.closest('#canvas-container, #folia-stage, #album-bg, #custom-bg')) return true;
+  return false;
+}
+
+function closePhoneSheet(el) {
+  if (!el) return;
+  if (el.id === 'playlist-panel') {
+    if (typeof closePhonePlaylistPanel === 'function') closePhonePlaylistPanel();
+    else if (typeof togglePlaylistPanel === 'function') togglePlaylistPanel(false);
+    else {
+      el.classList.remove('show', 'peek');
+      if (typeof setPeek === 'function') setPeek(el, false, 'pl');
+    }
+    return;
+  }
+  if (el.id === 'fx-panel') {
+    if (typeof toggleFxPanel === 'function') toggleFxPanel(false);
+    else el.classList.remove('show', 'peek', 'pinned');
+    return;
+  }
+  if (el.classList && el.classList.contains('modal-mask')) {
+    el.classList.remove('show');
+    el.setAttribute('aria-hidden', 'true');
+  }
+}
+
+function bindPhoneSheetGestures() {
+  if (phoneSheetGestureBound) return;
+  phoneSheetGestureBound = true;
+  var drag = null;
+
+  function sheetFromTarget(target) {
+    if (!target || !target.closest) return null;
+    var panel = target.closest('#playlist-panel.show, #playlist-panel.peek, #fx-panel.show, #fx-panel.peek, #fx-panel.pinned');
+    if (panel) return panel;
+    var mask = target.closest('.modal-mask.show');
+    if (mask) {
+      var modal = mask.querySelector('.modal');
+      return modal || mask;
+    }
+    return null;
+  }
+
+  function isScrollableDrag(target, sheet) {
+    var scroller = target && target.closest ? target.closest('#playlist-panel, #fx-panel, .modal, .fx-console-pages, #track-detail-body, .login-stage-grid') : null;
+    if (!scroller || !sheet) return false;
+    return scroller.scrollTop > 4;
+  }
+
+  document.addEventListener('pointerdown', function (e) {
+    if (!document.body.classList.contains('phone-shell')) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    var sheet = sheetFromTarget(e.target);
+    if (!sheet) return;
+    if (isScrollableDrag(e.target, sheet)) return;
+    var landscape = document.body.classList.contains('phone-landscape');
+    var rect = sheet.getBoundingClientRect();
+    var edge = landscape
+      ? (e.clientX - rect.left < 48)
+      : (e.clientY - rect.top < 56);
+    if (!edge && !sheet.classList.contains('modal')) {
+      /* allow drag from top/left strip only for panels */
+      if (!landscape && e.clientY - rect.top > 72) return;
+      if (landscape && e.clientX - rect.left > 56) return;
+    }
+    drag = {
+      sheet: sheet,
+      mask: sheet.closest ? sheet.closest('.modal-mask') : null,
+      x: e.clientX,
+      y: e.clientY,
+      landscape: landscape,
+      moved: false
+    };
+    try { sheet.setPointerCapture(e.pointerId); } catch (_err) {}
+  }, true);
+
+  document.addEventListener('pointermove', function (e) {
+    if (!drag || !drag.sheet) return;
+    var dx = e.clientX - drag.x;
+    var dy = e.clientY - drag.y;
+    if (drag.landscape) {
+      if (dx < 0) dx = 0;
+      if (dx > 8) drag.moved = true;
+      drag.sheet.style.transition = 'none';
+      drag.sheet.style.transform = 'translateX(' + dx + 'px)';
+    } else {
+      if (dy < 0) dy = 0;
+      if (dy > 8) drag.moved = true;
+      drag.sheet.style.transition = 'none';
+      drag.sheet.style.transform = 'translateY(' + dy + 'px)';
+    }
+  }, true);
+
+  function endSheetDrag(e) {
+    if (!drag || !drag.sheet) return;
+    var sheet = drag.sheet;
+    var landscape = drag.landscape;
+    var dx = e ? (e.clientX - drag.x) : 0;
+    var dy = e ? (e.clientY - drag.y) : 0;
+    var dismiss = landscape ? dx > 96 : dy > 110;
+    sheet.style.transition = '';
+    sheet.style.transform = '';
+    var mask = drag.mask;
+    drag = null;
+    if (!dismiss) return;
+    if (mask) closePhoneSheet(mask);
+    else closePhoneSheet(sheet);
+  }
+
+  document.addEventListener('pointerup', endSheetDrag, true);
+  document.addEventListener('pointercancel', endSheetDrag, true);
+}
+
+function bindPhoneShellChrome() {
+  if (phoneChromeMenuBound) return;
+  phoneChromeMenuBound = true;
+  document.addEventListener('pointerdown', function (e) {
+    if (!document.body.classList.contains('phone-chrome-open')) return;
+    var slot = document.getElementById('phone-chrome-slot');
+    if (slot && e.target && slot.contains(e.target)) return;
+    togglePhoneChromeMenu(false);
+  }, true);
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') togglePhoneChromeMenu(false);
+  });
+  var menu = document.getElementById('phone-chrome-menu-actions');
+  if (menu) {
+    menu.addEventListener('click', function () {
+      setTimeout(function () { togglePhoneChromeMenu(false); }, 0);
+    });
+  }
+  var tapStart = null;
+  document.addEventListener('pointerdown', function (e) {
+    if (!document.body.classList.contains('phone-shell')) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (!phoneStageTapTarget(e.target)) {
+      tapStart = null;
+      return;
+    }
+    tapStart = { x: e.clientX, y: e.clientY, t: Date.now() };
+  }, true);
+  document.addEventListener('pointerup', function (e) {
+    if (!tapStart || !document.body.classList.contains('phone-shell')) return;
+    var start = tapStart;
+    tapStart = null;
+    if (Date.now() - start.t > 420) return;
+    if (Math.abs(e.clientX - start.x) > 14 || Math.abs(e.clientY - start.y) > 14) return;
+    if (document.body.classList.contains('home-controls-locked') || emptyHomeActive) return;
+    var bar = document.getElementById('bottom-bar');
+    var visible = bar && bar.classList.contains('visible') && !bar.classList.contains('soft-hidden');
+    if (visible && typeof setControlsHidden === 'function') {
+      if (typeof scheduleControlsHide === 'function') scheduleControlsHide(0);
+      else setControlsHidden(true);
+    } else if (typeof revealBottomControls === 'function') {
+      revealBottomControls(2400);
+    }
+  }, true);
+  bindPhoneSheetGestures();
+}
+
+function initPhoneShell() {
+  bindPhoneShellChrome();
+  syncPhoneShellLayout(true);
+  var onChange = function () { syncPhoneShellLayout(false); };
+  var onChangeDebounced = function () {
+    clearTimeout(phoneShellSyncTimer);
+    phoneShellSyncTimer = setTimeout(onChange, 120);
+  };
+  try {
+    if (!phoneShellMedia) phoneShellMedia = window.matchMedia(PHONE_SHELL_MQ);
+    if (phoneShellMedia.addEventListener) phoneShellMedia.addEventListener('change', onChange);
+    else if (phoneShellMedia.addListener) phoneShellMedia.addListener(onChange);
+  } catch (_e) {}
+  try {
+    if (!phoneLandscapeMedia) phoneLandscapeMedia = window.matchMedia(PHONE_LANDSCAPE_MQ);
+    if (phoneLandscapeMedia.addEventListener) phoneLandscapeMedia.addEventListener('change', onChange);
+    else if (phoneLandscapeMedia.addListener) phoneLandscapeMedia.addListener(onChange);
+  } catch (_e2) {}
+  window.addEventListener('orientationchange', function () {
+    setTimeout(onChange, 160);
+  });
+  // 不用裸 resize：手机地址栏伸缩会狂触发，导致按钮/页面闪动
+  window.addEventListener('resize', onChangeDebounced, { passive: true });
+}
+
+window.togglePhoneChromeMenu = togglePhoneChromeMenu;
+window.focusHomePhoneSearch = focusHomePhoneSearch;
+window.syncHomePhoneCta = syncHomePhoneCta;
+
+var homeDashboardBaseUpdateEmptyHomeVisibility = typeof updateEmptyHomeVisibility === 'function' ? updateEmptyHomeVisibility : null;
+if (homeDashboardBaseUpdateEmptyHomeVisibility) {
+  updateEmptyHomeVisibility = function () {
+    var result = homeDashboardBaseUpdateEmptyHomeVisibility.apply(this, arguments);
+    syncHomePhoneCta();
+    return result;
+  };
+}
+
+if (typeof renderHomeDashboard === 'function') {
+  var homeDashboardBaseRenderHomeDashboard = renderHomeDashboard;
+  renderHomeDashboard = function () {
+    var result = homeDashboardBaseRenderHomeDashboard.apply(this, arguments);
+    syncHomePhoneCta();
+    return result;
+  };
+}
+
+if (typeof renderUserBtn === 'function') {
+  var homeDashboardBaseRenderUserBtn = renderUserBtn;
+  renderUserBtn = function () {
+    var result = homeDashboardBaseRenderUserBtn.apply(this, arguments);
+    syncHomePhoneCta();
+    return result;
+  };
+}
+
+initPhoneShell();

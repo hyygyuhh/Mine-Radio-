@@ -1,0 +1,255 @@
+/* App theme shell + picker */
+
+html,
+body {
+  background: var(--fc-bg, #000);
+  color: var(--fc-ink, #fff);
+  transition: background-color .42s ease, color .42s ease;
+}
+
+.app-theme-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.app-theme-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+  min-height: 74px;
+  padding: 10px 11px 9px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, .08);
+  background: linear-gradient(145deg, rgba(255, 255, 255, .045), rgba(255, 255, 255, .018));
+  color: rgba(255, 255, 255, .82);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  transition: border-color .2s ease, background .2s ease, transform .2s ease, box-shadow .2s ease;
+}
+
+.app-theme-card:hover {
+  border-color: rgba(var(--fc-accent-rgb), .28);
+  background: rgba(var(--fc-accent-rgb), .05);
+  transform: translateY(-1px);
+}
+
+.app-theme-card.active {
+  border-color: rgba(var(--fc-accent-rgb), .42);
+  background: rgba(var(--fc-accent-rgb), .09);
+  box-shadow: 0 0 0 1px rgba(var(--fc-accent-rgb), .12), 0 12px 28px rgba(0, 0, 0, .22);
+  color: #fff;
+}
+
+.app-theme-swatches {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.app-theme-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, .18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12);
+}
+
+.app-theme-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.app-theme-name {
+  font-size: 12px;
+  font-weight: 760;
+  letter-spacing: .02em;
+}
+
+.app-theme-desc {
+  font-size: 10px;
+  color: rgba(255, 255, 255, .48);
+  letter-spacing: .04em;
+}
+
+.app-theme-card.active .app-theme-desc {
+  color: rgba(255, 255, 255, .62);
+}
+
+.app-theme-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, .16);
+  background: rgba(0, 0, 0, .18);
+  opacity: 0;
+  transform: scale(.82);
+  transition: opacity .18s ease, transform .18s ease, background .18s ease, border-color .18s ease;
+}
+
+.app-theme-check::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: inherit;
+  background: var(--fc-accent);
+  box-shadow: 0 0 10px rgba(var(--fc-accent-rgb), .42);
+}
+
+.app-theme-card.active .app-theme-check {
+  opacity: 1;
+  transform: scale(1);
+  border-color: rgba(var(--fc-accent-rgb), .42);
+}
+
+.ai-theme-card {
+  margin: 0 0 14px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, .09);
+  background:
+    radial-gradient(120% 80% at 100% 0%, rgba(var(--fc-accent-rgb), .10), transparent 55%),
+    linear-gradient(155deg, rgba(255, 255, 255, .06), rgba(255, 255, 255, .018));
+}
+
+.ai-theme-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.ai-theme-title {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.ai-theme-head strong {
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: .02em;
+}
+
+.ai-theme-head small {
+  color: rgba(255, 255, 255, .48);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.ai-theme-generate {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.ai-theme-preview {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 8px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, .18);
+  border: 1px solid rgba(255, 255, 255, .05);
+}
+
+.ai-theme-preview:empty {
+  display: none;
+}
+
+.ai-theme-swatch {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.ai-theme-swatch i {
+  display: block;
+  height: 30px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, .1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14);
+}
+
+.ai-theme-swatch em {
+  font-style: normal;
+  font-size: 10px;
+  color: rgba(255, 255, 255, .5);
+  letter-spacing: .02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.ai-theme-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.ai-theme-actions .fx-mini-btn {
+  flex: 1;
+}
+
+.ai-theme-import {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, .07);
+  display: grid;
+  gap: 8px;
+}
+
+.ai-theme-import[hidden] {
+  display: none !important;
+}
+
+.ai-theme-import-label {
+  font-size: 11px;
+  color: rgba(255, 255, 255, .48);
+}
+
+.ai-theme-card textarea {
+  width: 100%;
+  min-height: 88px;
+  resize: vertical;
+  box-sizing: border-box;
+  border-radius: 11px;
+  border: 1px solid rgba(255, 255, 255, .08);
+  background: rgba(0, 0, 0, .3);
+  color: rgba(255, 255, 255, .88);
+  font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  padding: 9px 11px;
+}
+
+.ai-theme-card textarea:focus {
+  outline: none;
+  border-color: rgba(var(--fc-accent-rgb), .42);
+  box-shadow: 0 0 0 2px rgba(var(--fc-accent-rgb), .12);
+}
+
+.ai-theme-apply {
+  width: 100%;
+  justify-content: center;
+}
+
+#folia-home-seg {
+  margin-bottom: 16px;
+}
+
+@media (max-width: 520px) {
+  .app-theme-grid {
+    grid-template-columns: 1fr;
+  }
+}
