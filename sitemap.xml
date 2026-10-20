@@ -1,9 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>https://mineradio.art/</loc>
-    <lastmod>2026-10-15</lastmod>
-    <changefreq>weekly</changefreq>
+    <lastmod>2026-10-20</lastmod>
+    <changefreq>daily</changefreq>
     <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://mineradio.art/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://mineradio.art/"/>
+    <image:image>
+      <image:loc>https://mineradio.art/icons/icon512.png</image:loc>
+      <image:title>Mineradio 网页版在线音乐可视化播放器</image:title>
+    </image:image>
   </url>
 </urlset>

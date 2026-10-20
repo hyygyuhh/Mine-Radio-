@@ -1,4 +1,17 @@
 User-agent: *
 Allow: /
+Disallow: /downloads/
+Disallow: /vendor/
+Disallow: /scripts/
+
+User-agent: Baiduspider
+Allow: /
+Disallow: /downloads/
+Disallow: /vendor/
+Disallow: /scripts/
+
+User-agent: Googlebot
+Allow: /
 
 Sitemap: https://mineradio.art/sitemap.xml
+Host: https://mineradio.art

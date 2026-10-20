@@ -1,16 +1,22 @@
 {
-  "name": "Mineradio — 网页版音乐可视化播放器",
+  "name": "Mineradio — 免费网页版在线听歌",
   "short_name": "Mineradio",
-  "description": "暗色高级音乐可视化播放器。搜索播放、歌单、歌词、3D 歌单架与粒子视觉预设。",
+  "description": "免费网页版在线音乐可视化播放器。网易云/QQ/酷狗、逐字歌词、沉浸歌词、3D 歌单架与粒子可视化。",
   "start_url": "/",
+  "scope": "/",
+  "id": "/",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#08090B",
   "theme_color": "#08090B",
   "lang": "zh-CN",
+  "dir": "ltr",
+  "categories": ["music", "entertainment"],
   "icons": [
     { "src": "/icons/icon48.png", "sizes": "48x48", "type": "image/png" },
     { "src": "/icons/icon128.png", "sizes": "128x128", "type": "image/png" },
     { "src": "/icons/icon180.png", "sizes": "180x180", "type": "image/png" },
-    { "src": "/icons/icon512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+    { "src": "/icons/icon512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }

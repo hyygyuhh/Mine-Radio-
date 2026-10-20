@@ -1,0 +1,22 @@
+# Mineradio
+
+> 免费网页版在线音乐可视化播放器（mineradio.art）：浏览器打开即可听歌，免安装。
+
+官网客户端下载：https://mineradio.cn/
+
+## 产品
+
+- 网页版：https://mineradio.art/
+- 客户端（Windows / macOS / iOS / Android）：https://mineradio.cn/
+
+## 功能
+
+- 网易云音乐、QQ 音乐、酷狗登录与歌单同步
+- 逐字歌词、沉浸式歌词动效（流光、云阶、倾诉、心象）
+- 粒子音乐可视化、3D 歌单架
+- 手机浏览器适配
+- Mineradio Bridge 浏览器扩展（网页版在线音源）
+
+## 关键词
+
+免费在线听歌、网页版音乐播放器、音乐可视化、洛雪音乐平替、Folia 平替、YesPlayMusic 在线版、免安装音乐播放器
