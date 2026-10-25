@@ -176,6 +176,7 @@ window.markDonateQrFailed = window.markDonateQrFailed || function () {
 <link rel="stylesheet" href="styles/account-stage.css" media="print" onload="this.media='all'">
 <link rel="stylesheet" href="styles/diy-console.css" media="print" onload="this.media='all'">
 <link rel="stylesheet" href="styles/folia-stage.css" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="styles/listening-pet.css" media="print" onload="this.media='all'">
 <noscript>
 <link rel="stylesheet" href="styles/home-dashboard-diy.css">
 <link rel="stylesheet" href="styles/mobile-home.css">
@@ -185,6 +186,7 @@ window.markDonateQrFailed = window.markDonateQrFailed || function () {
 <link rel="stylesheet" href="styles/account-stage.css">
 <link rel="stylesheet" href="styles/diy-console.css">
 <link rel="stylesheet" href="styles/folia-stage.css">
+<link rel="stylesheet" href="styles/listening-pet.css">
 </noscript>
 <script>
 var _hmt = _hmt || [];
@@ -242,7 +244,7 @@ var _hmt = _hmt || [];
   "operatingSystem": "Web Browser",
   "inLanguage": "zh-CN",
   "browserRequirements": "Requires JavaScript. Requires HTML5 audio.",
-  "dateModified": "2026-10-20",
+  "dateModified": "2026-10-23",
   "description": "Mineradio 免费网页版在线音乐可视化播放器：浏览器打开即可听歌，免安装。支持网易云/QQ/酷狗登录与歌单同步、逐字歌词、沉浸式歌词动效、粒子可视化与 3D 歌单架。",
   "featureList": [
     "免安装网页版在线听歌",
@@ -509,7 +511,6 @@ var _hmt = _hmt || [];
     <div class="desktop-app-title" aria-hidden="true"></div>
   </div>
   <div class="desktop-window-controls">
-    <button id="visual-guide-btn" class="icon-btn" type="button" onclick="startVisualGuide({ manual: true })" title="查看使用引导" aria-label="查看使用引导">?</button>
     <button id="update-entry" class="update-entry" type="button" onclick="openUpdatePanel()" title="发现新版本" aria-label="发现新版本">
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <circle class="update-ring" cx="12" cy="12" r="8.8"></circle>
@@ -872,6 +873,13 @@ var _hmt = _hmt || [];
 
   <div class="fx-section-label">界面主题</div>
   <div class="app-theme-grid" id="app-theme-grid" role="listbox" aria-label="界面主题"></div>
+  <div class="fx-section-label">播放栏挂件</div>
+  <div class="fx-toggle-grid">
+    <div class="fx-toggle active" id="t-listeningPet" onclick="toggleListeningPet()" title="听歌宠物：沿进度爬行，点击互动，双击看亲密度"><span>听歌宠物</span><span class="dot"></span></div>
+  </div>
+  <div class="fx-section-label">宠物形象</div>
+  <div class="fx-seg" id="listening-pet-skin-seg" aria-label="宠物形象"></div>
+  <div class="folia-bg-hint">像素爪爪 / 熊猫 / 橘猫 / 金毛 / 赤狐 / 褐兔会沿播放进度在控制栏上爬。素材见 licenses/ListeningPet-NOTICE.txt</div>
   <div class="ai-theme-card" id="ai-theme-card">
     <div class="ai-theme-head">
       <div class="ai-theme-title">
@@ -1386,6 +1394,11 @@ var _hmt = _hmt || [];
 </svg>
 <button id="bottom-handle" type="button" aria-label="展开播放器控制台" title="播放器控制台"><span></span></button>
 <div id="bottom-bar">
+  <button type="button" id="listening-pet" class="listening-pet is-idle mood-chill" hidden aria-label="听歌宠物" title="点我互动 · 沿进度爬行">
+    <span class="pet-fx" aria-hidden="true"></span>
+    <span class="pet-skin-host" aria-hidden="true"></span>
+    <span class="pet-bubble" hidden></span>
+  </button>
   <div id="mini-queue-popover" class="mini-queue-popover" onclick="event.stopPropagation()">
     <div class="mini-queue-head">
       <div>
@@ -1780,7 +1793,7 @@ var _hmt = _hmt || [];
   </div>
 </div>
 
-<div id="toast"></div>
+<div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 <div id="bridge-extension-notice" aria-live="polite" data-mode="">
   <div class="source-fallback-head">
     <div id="bridge-extension-notice-title" class="source-fallback-title">Bridge 扩展可更新</div>
@@ -1811,22 +1824,6 @@ var _hmt = _hmt || [];
   <div id="source-fallback-body" class="source-fallback-body"></div>
 </div>
 
-<div id="visual-guide" aria-live="polite" aria-hidden="true">
-  <div class="visual-guide-scrim"></div>
-  <div id="visual-guide-ring" class="visual-guide-ring"></div>
-  <div id="visual-guide-card" class="visual-guide-card">
-    <div id="visual-guide-kicker" class="visual-guide-kicker">Guide</div>
-    <div id="visual-guide-title" class="visual-guide-title"></div>
-    <div id="visual-guide-body" class="visual-guide-body"></div>
-    <div id="visual-guide-hint" class="visual-guide-hint">点击空白处也可以继续</div>
-    <div class="visual-guide-actions">
-      <button type="button" onclick="closeVisualGuide(true)">跳过</button>
-      <div id="visual-guide-progress" class="visual-guide-progress"></div>
-      <button id="visual-guide-next" class="primary" type="button" onclick="nextVisualGuideStep()">下一步</button>
-    </div>
-  </div>
-</div>
-
 </div>
 
 <script src="vendor/three.r128.min.js" defer></script>
@@ -1837,6 +1834,8 @@ var _hmt = _hmt || [];
 <script src="app.js" defer></script>
 <script src="app-playback.js" defer></script>
 <script src="app-shell.js" defer></script>
+<script src="listening-pet-skins.js" defer></script>
+<script src="listening-pet.js" defer></script>
 <script src="home-dashboard.js" defer></script>
 <script src="web-diy-bridge.js" defer></script>
 <script>

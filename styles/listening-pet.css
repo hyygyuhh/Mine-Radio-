@@ -1,0 +1,313 @@
+/* Listening pets — crawl along #bottom-bar by playback progress */
+
+#bottom-bar {
+  overflow: visible;
+}
+
+#listening-pet {
+  --pet-beat: 0;
+  --pet-bass: 0;
+  --pet-progress: 0;
+  --pet-face: 1;
+  --pet-face-base: 1;
+  --pet-ink: #e8f7ff;
+  position: absolute;
+  left: calc(2% + var(--pet-progress) * 88%);
+  right: auto;
+  top: -58px;
+  z-index: 4;
+  width: 68px;
+  height: 68px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--pet-ink);
+  cursor: pointer;
+  pointer-events: auto;
+  transform-origin: 50% 90%;
+  transform:
+    translateX(-50%)
+    translateY(calc(var(--pet-bass) * -7px))
+    scale(calc(1 + var(--pet-beat) * 0.09));
+  transition:
+    left 0.18s linear,
+    opacity 0.28s ease,
+    filter 0.28s ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+#listening-pet[hidden] {
+  display: none !important;
+}
+
+#listening-pet .pet-skin-host {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  transform: scaleX(calc(var(--pet-face) * var(--pet-face-base, 1)));
+  transform-origin: 50% 100%;
+  transition: transform 0.22s ease;
+}
+
+#listening-pet .pet-asset {
+  display: block;
+  pointer-events: none;
+  filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.4));
+  user-select: none;
+}
+
+#listening-pet .pet-asset-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+#listening-pet .pet-sheet-view {
+  position: relative;
+  overflow: hidden;
+  flex: 0 0 auto;
+  border-radius: 8px;
+}
+
+#listening-pet .pet-sheet-view::before {
+  /* Soft plate so black-keyline sprites stay visible on dark chrome */
+  content: '';
+  position: absolute;
+  inset: 8% 6% 4%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0) 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+#listening-pet .pet-sheet-img {
+  position: relative;
+  z-index: 1;
+  display: block;
+  max-width: none !important;
+  width: auto;
+  height: auto;
+  image-rendering: auto;
+}
+
+#listening-pet .pet-sheet-view.is-pixel .pet-sheet-img {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* Sheet frame position is driven by JS (listening-pet.js → paintSheetFrame) */
+#listening-pet .pet-sheet-img {
+  will-change: transform;
+}
+
+/* Shared bob / bounce so every skin reads as “alive” while music plays */
+#listening-pet.is-listening .pet-skin-host,
+#listening-pet.is-moving .pet-skin-host,
+#listening-pet.is-beat .pet-skin-host {
+  animation: pet-crawl-bob 0.42s ease-in-out infinite;
+}
+
+#listening-pet.is-idle .pet-skin-host {
+  animation: pet-idle-breathe 2.6s ease-in-out infinite;
+}
+
+#listening-pet.is-beat .pet-skin-host {
+  animation: pet-beat-squash 0.16s ease-out;
+}
+
+#listening-pet.is-react .pet-skin-host {
+  animation: pet-react-hop 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+#listening-pet.skin-img.is-listening .pet-asset-img,
+#listening-pet.skin-img.is-moving .pet-asset-img {
+  animation: pet-clawd-wiggle 0.5s ease-in-out infinite;
+}
+
+@keyframes pet-crawl-bob {
+  0%, 100% {
+    transform: scaleX(calc(var(--pet-face) * var(--pet-face-base, 1))) translateY(0) rotate(-2deg);
+  }
+  50% {
+    transform: scaleX(calc(var(--pet-face) * var(--pet-face-base, 1))) translateY(-5px) rotate(2deg);
+  }
+}
+
+@keyframes pet-idle-breathe {
+  0%, 100% {
+    transform: scaleX(calc(var(--pet-face) * var(--pet-face-base, 1))) translateY(0) scale(1, 1);
+  }
+  50% {
+    transform: scaleX(calc(var(--pet-face) * var(--pet-face-base, 1))) translateY(-2px) scale(1.03, 0.97);
+  }
+}
+
+@keyframes pet-beat-squash {
+  0% {
+    transform: scaleX(calc(var(--pet-face) * var(--pet-face-base, 1))) translateY(0) scale(1, 1);
+  }
+  40% {
+    transform: scaleX(calc(var(--pet-face) * var(--pet-face-base, 1))) translateY(-8px) scale(1.08, 0.9);
+  }
+  100% {
+    transform: scaleX(calc(var(--pet-face) * var(--pet-face-base, 1))) translateY(0) scale(1, 1);
+  }
+}
+
+@keyframes pet-react-hop {
+  0% {
+    transform: scaleX(calc(var(--pet-face) * var(--pet-face-base, 1))) translateY(0) scale(1, 1);
+  }
+  35% {
+    transform: scaleX(calc(var(--pet-face) * var(--pet-face-base, 1))) translateY(-14px) scale(1.06, 0.94);
+  }
+  100% {
+    transform: scaleX(calc(var(--pet-face) * var(--pet-face-base, 1))) translateY(0) scale(1, 1);
+  }
+}
+
+@keyframes pet-clawd-wiggle {
+  0%, 100% { transform: rotate(-4deg) translateY(0); }
+  50% { transform: rotate(4deg) translateY(-3px); }
+}
+
+#listening-pet.skin-sheet {
+  width: 78px;
+  height: 78px;
+  top: -66px;
+}
+
+#listening-pet[data-pet-skin="panda"].skin-sheet,
+#listening-pet[data-pet-skin="cat"].skin-sheet,
+#listening-pet[data-pet-skin="dog"].skin-sheet,
+#listening-pet[data-pet-skin="rabbit"].skin-sheet {
+  width: 72px;
+  height: 72px;
+  top: -58px;
+}
+
+#listening-pet[data-pet-skin="fox"].skin-sheet {
+  width: 110px;
+  height: 72px;
+  top: -62px;
+}
+
+#listening-pet .pet-bubble {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% - 6px);
+  transform: translateX(-50%);
+  max-width: 160px;
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: rgba(8, 12, 16, 0.88);
+  color: #f4f8fb;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+#listening-pet .pet-bubble:not([hidden]) {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-4px);
+}
+
+#listening-pet .pet-bubble::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  margin-left: -5px;
+  border: 5px solid transparent;
+  border-top-color: rgba(8, 12, 16, 0.88);
+}
+
+#listening-pet .pet-fx {
+  position: absolute;
+  inset: -8px;
+  pointer-events: none;
+  border-radius: 50%;
+  opacity: 0;
+}
+
+#listening-pet.is-react .pet-fx {
+  animation: pet-ring 0.7s ease-out;
+}
+
+#listening-pet.is-react .pet-asset-img {
+  animation: pet-hop 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes pet-hop {
+  0% { transform: translateY(0) scale(1, 1); }
+  35% { transform: translateY(-12px) scale(1.06, 0.94); }
+  70% { transform: translateY(-2px) scale(0.98, 1.04); }
+  100% { transform: translateY(0) scale(1, 1); }
+}
+
+@keyframes pet-ring {
+  0% { opacity: 0.55; box-shadow: 0 0 0 0 rgba(92, 225, 214, 0.45); }
+  100% { opacity: 0; box-shadow: 0 0 0 18px rgba(92, 225, 214, 0); }
+}
+
+#bottom-bar:not(.visible) #listening-pet,
+#bottom-bar.soft-hidden #listening-pet {
+  pointer-events: none;
+}
+
+body.home-controls-locked #listening-pet {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+body.folia-stage-active #listening-pet {
+  z-index: 5;
+}
+
+body.phone-shell #bottom-bar {
+  overflow: visible;
+}
+
+body.phone-shell #listening-pet {
+  top: -48px;
+  width: 56px;
+  height: 56px;
+}
+
+@media (max-width: 620px) {
+  #listening-pet {
+    top: -46px;
+    width: 54px;
+    height: 54px;
+  }
+
+  #listening-pet .pet-bubble {
+    max-width: 120px;
+    font-size: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #listening-pet,
+  #listening-pet .pet-fx,
+  #listening-pet .pet-asset-img {
+    animation: none !important;
+    transition: none !important;
+  }
+  #listening-pet {
+    transform: translateX(-50%);
+  }
+}

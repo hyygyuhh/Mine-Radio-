@@ -1,0 +1,31 @@
+Mine-Radio Listening Pets — third-party assets
+==============================================
+
+Files under assets/pets/ are vendored open assets. Keep this notice when redistributing.
+
+1) Clawd Pets (clawd-happy.svg, clawd-dancing.svg, clawd-love.svg, clawd-coding.svg)
+   Source: https://github.com/abderrahimghazali/clawd-pet
+   License: MIT
+   Used as the default “像素爪爪” skin.
+
+2) Panda Character 32×32 (panda-walk.png → panda-crawl.png strip)
+   Source: https://opengameart.org/content/panda-character-32x32
+   Author: danielmahon (@danielmahon)
+   License: CC-BY-SA 3.0
+   Attribution required. Side-walk frames cropped into panda-crawl.png for “爬行熊猫”.
+
+3) LPC Cats and Dogs (cat-walk.png, dog-walk.png)
+   Source: https://opengameart.org/content/lpc-cats-and-dogs
+   Artist: bluecarrot16
+   License: CC-BY 3.0 / GPL 3.0 / GPL 2.0 / OGA-BY 3.0
+   Side-walk strips cropped from the LPC sheets for “橘猫” and “金毛”.
+
+4) Animated Wild Animals — Fox & Rabbit
+   (fox-walk.png, fox-idle.png, rabbit-run.png, rabbit-idle.png)
+   Source: https://opengameart.org/content/animated-wild-animals
+   Author: ScratchIO
+   License: CC0
+   Walk/run + idle strips used for “赤狐” and “褐兔”.
+
+Design notes: pets follow #bottom-bar left→right using audio currentTime/duration,
+with sprite-sheet step animation while playing so side-facing frames look like crawling.

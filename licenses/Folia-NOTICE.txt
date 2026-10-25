@@ -5,6 +5,8 @@ Upstream: https://github.com/chthollyphile/folia-major
 License: GNU Affero General Public License v3.0 (AGPL-3.0)
 
 Mineradio ships a built full-screen embed at vendor/folia/ (built from
-folia-major via `npm run build:mineradio-embed`). The page loads that static
-bundle; users do not install Folia separately. Preserve Folia's copyright
-notices and provide corresponding source when redistributing combined builds.
+folia-major via `npm run build:mineradio-embed` / scripts/build-folia-embed.ps1).
+Current vendor bundle targets Folia Realeco v0.7.22 (tag v0.7.22). The page
+loads that static bundle; users do not install Folia separately. Preserve
+Folia's copyright notices and provide corresponding source when redistributing
+combined builds.

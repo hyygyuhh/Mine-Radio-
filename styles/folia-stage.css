@@ -69,10 +69,12 @@ body.folia-stage-active.empty-home-active #empty-home {
   z-index: 32;
 }
 
+/* Folia lyrics paint in the iframe (z=28). Keep the Three.js plate under it and
+   fully clear so a lazy style chunk never leaves a black hole over the stage. */
 html.folia-stage-live #canvas-container {
-  z-index: 30;
-  opacity: 1;
-  pointer-events: auto;
+  z-index: 20;
+  opacity: 0;
+  pointer-events: none;
 }
 
 body.folia-home-wall #canvas-container {
@@ -80,12 +82,31 @@ body.folia-home-wall #canvas-container {
   pointer-events: none;
 }
 
-html.folia-stage-live #album-bg,
-html.folia-stage-live #album-bg-next,
+/* Keep album cover as a safety underlay under the Folia iframe. When a lyric
+   style chunk suspends, the iframe can go blank — cover art must still show. */
+html.folia-stage-live body.folia-lyrics-on:not(.folia-home-wall) #album-bg,
+html.folia-stage-live body.folia-lyrics-on:not(.folia-home-wall) #album-bg-next {
+  opacity: 1;
+  z-index: 15;
+  pointer-events: none;
+}
+
 html.folia-stage-live #custom-bg,
-html.folia-stage-live #idle-guide-canvas {
+html.folia-stage-live #idle-guide-canvas,
+html.folia-stage-live body.folia-home-wall #album-bg,
+html.folia-stage-live body.folia-home-wall #album-bg-next {
   opacity: 0;
   pointer-events: none;
+}
+
+html.folia-stage-live body.folia-lyrics-on {
+  background: #070707;
+}
+
+/* Lyrics stage above the cover underlay */
+html.folia-stage-live body.folia-lyrics-on:not(.folia-home-wall) #folia-stage {
+  z-index: 28;
+  background: transparent;
 }
 
 .folia-mode-seg {

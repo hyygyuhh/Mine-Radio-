@@ -1,6 +1,6 @@
 # Mineradio
 
-> 免费网页版在线音乐可视化播放器（mineradio.art）：浏览器打开即可听歌，免安装。
+> 免费网页版在线听歌播放器（mineradio.art）：浏览器打开即可听歌，免安装。
 
 官网客户端下载：https://mineradio.cn/
 

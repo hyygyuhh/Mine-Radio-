@@ -1,14 +1,11 @@
 (function (global) {
   'use strict';
-
   // Full-screen Folia lyric stage host for Mine-Radio.
   // Folia runs in an iframe covering the viewport (like Folia's own player),
   // not as a tweak to the existing Three.js page lyrics.
-
   var HOST_SOURCE = 'mineradio-host';
   var EMBED_SOURCE = 'folia-embed';
   var STORE_KEY = 'mineradio-folia-stage-v1';
-
   var FOLIA_MODES = [
     { id: 'off', label: '关闭', desc: '使用页面歌词' },
     { id: 'classic', label: '流光', desc: '逐字呼吸与漂浮' },
@@ -24,9 +21,9 @@
     { id: 'sonnet', label: '商籁', desc: '镜头与装饰字' },
     { id: 'tempera', label: '凝彩', desc: '色块与字形动势' },
     { id: 'pendolo', label: '时计', desc: '钟摆弧线歌词' },
+    { id: 'hanabi', label: '火花', desc: '烟花 PV 歌词舞台' },
     { id: 'still', label: '静止', desc: '静帧字幕' }
   ];
-
   var FOLIA_BACKGROUNDS = ['common', 'monet', 'nomand', 'latent', 'sora', 'url'];
   var FOLIA_BG_META = {
     common: { label: '通用', desc: '封面色与几何' },
@@ -36,7 +33,6 @@
     sora: { label: '空', desc: '极简空场' },
     url: { label: '自定义', desc: '地址或本地导入' }
   };
-
   var FOLIA_TUNING_DEFAULTS = {
     classic: { enableWordRotation: true, breathingFloatMultiplier: 1, useLegacyLayout: false, wordSpacing: 0.7 },
     cadenza: { fontScale: 1.12, widthRatio: 0.72, motionAmount: 1, glowIntensity: 1, beamIntensity: 0 },
@@ -50,9 +46,9 @@
     lumiere: { lightIntensity: 1, audioResponse: 1, fogDensity: 1, darkField: 0.75, moteAmount: 1, bloom: 1, textBloom: 1, unlitOpacity: 0.22, windowNeighbors: 2, decay: 1, echo: 1, fogOctaves: 5, lineArt: true, frontBokeh: true, trails: true, hideTrails: false, seamlessTransitions: true, overlayFrame: true, textOnly: false, keywordColors: true, themeIcons: true, themeColorMix: 0.3, renderQuality: 'full' },
     sonnet: { cameraIntensity: 1, typographyMotion: 1, mgDensity: 1, showOnlyText: false, showGuide: true, showBackgroundMg: true, showFixedGeo: true, showGiantDecorativeText: true, showBackgroundDecor: true, enableTransitions: true, outerFrameMode: 'full', textureResolution: 1.5, postProcessEnabled: false, postProcessGrain: 0.2, postProcessContrast: 0, postProcessRgbShift: 0, postProcessHalftone: 0, postProcessVignette: 0.85, postProcessLensDistortion: 0.3, postProcessLensDispersion: 0.6 },
     tempera: { cameraIntensity: 1, glyphMotion: 1, wholeLineLyrics: false, glyphSettleStretch: 0.5, colorMode: 'duo', showBlocks: true, showDecor: true, showCornerMarks: true, textInversion: true, enableTransitions: true, textureResolution: 1.5, postProcessEnabled: true, postProcessGrain: 0.2, postProcessContrast: 0, postProcessRgbShift: 0, postProcessVignette: 0.85, postProcessLensDistortion: 0.3, layerImages: [], layerImageDepth: 'back', layerImageFrequency: 0.6 },
-    pendolo: { arcRadius: 0.42, arcAngleDeg: 100, wheelCenterX: 0, wheelCenterY: 0.5, tickSnappiness: 2, activeScale: 1.25, showGearDecor: 'subtle', showCenterGradient: true, showCoverOnWatchFace: false, enableLineGlow: false }
+    pendolo: { arcRadius: 0.42, arcAngleDeg: 100, wheelCenterX: 0, wheelCenterY: 0.5, tickSnappiness: 2, activeScale: 1.25, showGearDecor: 'subtle', showCenterGradient: true, showCoverOnWatchFace: false, enableLineGlow: false },
+    hanabi: { colorMode: 'mixed', sparkAmount: 1, ornamentAmount: 1, textMotion: 1, blockOpacity: 1, riseSpeed: 1, spin: 1, ambient: 1, glow: 1, bloom: 0.8, chorusBloom: 1.3, launches: true, overlayFrame: true, textOnly: false, sky: 0.85, collage: 1, renderQuality: 'full' }
   };
-
   function rangeField(key, label, min, max, step) {
     return { key: key, label: label, type: 'range', min: min, max: max, step: step };
   }
@@ -62,7 +58,6 @@
   function choiceField(key, label, options) {
     return { key: key, label: label, type: 'choice', options: options };
   }
-
   var FOLIA_TUNING_FIELDS = {
     classic: [
       boolField('enableWordRotation', '逐字旋转'),
@@ -225,9 +220,27 @@
       rangeField('arcAngleDeg', '弧度角度', 40, 180, 1),
       rangeField('tickSnappiness', '擒纵力度', 0.2, 4, 0.05),
       rangeField('activeScale', '聚焦缩放', 1, 1.8, 0.01)
-    ]
+    ],
+    hanabi: [
+      rangeField('sparkAmount', '火花数量', 0, 2, 0.05),
+      rangeField('glow', '烟花辉光', 0, 2, 0.05),
+      rangeField('chorusBloom', '副歌辉光', 0, 2, 0.05),
+      rangeField('bloom', '整体辉光', 0, 2, 0.05),
+      boolField('launches', '升空尾迹'),
+      rangeField('sky', '夜空', 0, 1, 0.01),
+      rangeField('riseSpeed', '上升', 0, 2, 0.05),
+      rangeField('spin', '旋转', 0, 2, 0.05),
+      rangeField('ambient', '环境火星', 0, 2, 0.05),
+      boolField('overlayFrame', '画框'),
+      boolField('textOnly', '仅显示歌词'),
+      rangeField('textMotion', '文字动作', 0, 2, 0.05),
+      rangeField('blockOpacity', '字底色块', 0, 1, 0.01),
+      rangeField('collage', 'PV 拼贴', 0, 2, 0.05),
+      rangeField('ornamentAmount', 'MG 装饰件', 0, 2, 0.05),
+      choiceField('colorMode', '配色', [{ v: 'mixed', l: '混合' }, { v: 'vivid', l: '鲜艳' }, { v: 'theme', l: '主题' }]),
+      choiceField('renderQuality', '画质', [{ v: 'full', l: '全分辨率' }, { v: 'balanced', l: '均衡' }, { v: 'low', l: '省电' }])
+    ],
   };
-
   var state = {
     enabled: false,
     mode: 'classic',
@@ -242,15 +255,17 @@
     },
     homeStyle: 'mr',
     wallOpen: false,
+    lastWallItems: [],
+    lastWallPlaylistId: '',
     tunings: {},
     assets: { avatars: [], emojis: [], tempera: [], backgrounds: [] },
     ready: false,
     lastLinesSig: '',
+    lastHomeSig: '',
     raf: 0,
     importDisplayUrl: '',
     importDisplayKey: ''
   };
-
   function readStore() {
     try {
       var raw = JSON.parse(localStorage.getItem(STORE_KEY) || '{}') || {};
@@ -272,7 +287,6 @@
       if (raw.tunings && typeof raw.tunings === 'object') state.tunings = raw.tunings;
     } catch (_) {}
   }
-
   function writeStore() {
     try {
       var url = String(state.backgroundUrl || '');
@@ -289,17 +303,17 @@
       }));
     } catch (_) {}
   }
-
   function withEmbedFlag(url) {
     try {
       var parsed = new URL(url, window.location.href);
       if (parsed.searchParams.get('mineradio') !== '1') parsed.searchParams.set('mineradio', '1');
+      // Bust iframe cache when vendor/folia embed is rebuilt.
+      if (parsed.searchParams.get('v') !== '20261025a') parsed.searchParams.set('v', '20261025a');
       return parsed.href;
     } catch (_) {
       return String(url || '');
     }
   }
-
   function defaultEmbedUrl() {
     var url = '';
     try {
@@ -315,15 +329,12 @@
     // Folia skips its main-app video layer only when this flag is present.
     return withEmbedFlag(url);
   }
-
   function stageEl() {
     return document.getElementById('folia-stage');
   }
-
   function frameEl() {
     return document.getElementById('folia-stage-frame');
   }
-
   function post(type, payload) {
     var frame = frameEl();
     if (!frame || !frame.contentWindow) return;
@@ -331,7 +342,6 @@
       frame.contentWindow.postMessage(Object.assign({ source: HOST_SOURCE, type: type }, payload || {}), '*');
     } catch (_) {}
   }
-
   function ensureFrame() {
     var stage = stageEl();
     var frame = frameEl();
@@ -355,7 +365,6 @@
     }
     return frame;
   }
-
   function setStageVisible(on) {
     var stage = stageEl();
     if (!stage) return;
@@ -367,50 +376,211 @@
     document.body.classList.toggle('folia-stage-active', !!on);
     document.body.classList.toggle('folia-stage-live', live);
   }
-
-  function collectWallItems() {
-    var songs = [];
+  // Poster-wall: match Folia library wall — playlists first, ~300px covers, theme on open.
+  var WALL_COVER_SIZE = 300;
+  var WALL_ITEM_LIMIT = 80;
+  var WALL_PREFETCH_FIRST = 36;
+  var WALL_PREFETCH_CONCURRENCY = 8;
+  var wallCoverPrefetchToken = 0;
+  var wallCoverPrefetchSeen = Object.create(null);
+  var wallTickCounter = 0;
+  function wallSongList() {
     try {
-      if (Array.isArray(playQueue) && playQueue.length) songs = playQueue;
-      else if (Array.isArray(playlist) && playlist.length) songs = playlist;
+      if (Array.isArray(playQueue) && playQueue.length) return playQueue;
+      if (Array.isArray(playlist) && playlist.length) return playlist;
     } catch (_) {}
-    var playing = -1;
-    try { if (typeof currentIdx === 'number') playing = currentIdx; } catch (_) {}
+    return [];
+  }
+  function wallPlaylistList() {
+    try {
+      if (typeof userPlaylists === 'undefined' || !Array.isArray(userPlaylists) || !userPlaylists.length) return [];
+      var mine = [];
+      var fav = [];
+      userPlaylists.forEach(function (pl) {
+        if (!pl) return;
+        (pl.subscribed ? fav : mine).push(pl);
+      });
+      return mine.concat(fav);
+    } catch (_) {
+      return [];
+    }
+  }
+  function wallPlayingIndex() {
+    try { if (typeof currentIdx === 'number') return currentIdx; } catch (_) {}
+    return -1;
+  }
+  function wallSongKey(song, index) {
+    if (!song) return String(index);
+    return String(song.id || song.mid || song.hash || song.name || index);
+  }
+  function wallPlaylistId(pl) {
+    if (!pl) return '';
+    try {
+      var provider = pl.provider === 'qq' ? 'qq' : (pl.provider === 'kg' ? 'kg' : 'netease');
+      if (typeof playlistPanelProviderId === 'function') return String(playlistPanelProviderId(provider, pl.id) || '');
+    } catch (_) {}
+    return String(pl.id || '');
+  }
+  function wallHomeSig(showing) {
+    if (!showing) return 'mr';
+    var playlists = wallPlaylistList();
+    if (playlists.length) {
+      var plLimit = Math.min(playlists.length, WALL_ITEM_LIMIT);
+      var plFirst = plLimit ? wallPlaylistId(playlists[0]) : '';
+      var plMid = plLimit > 1 ? wallPlaylistId(playlists[Math.floor(plLimit / 2)]) : '';
+      var plLast = plLimit > 1 ? wallPlaylistId(playlists[plLimit - 1]) : '';
+      return 'wall:pl:' + plLimit + ':' + plFirst + ':' + plMid + ':' + plLast;
+    }
+    var songs = wallSongList();
+    var playing = wallPlayingIndex();
+    var limit = Math.min(songs.length, WALL_ITEM_LIMIT);
+    var first = limit ? wallSongKey(songs[0], 0) : '';
+    var mid = limit > 1 ? wallSongKey(songs[Math.min(limit - 1, Math.floor(limit / 2))], Math.floor(limit / 2)) : '';
+    var last = limit > 1 ? wallSongKey(songs[limit - 1], limit - 1) : '';
+    return 'wall:q:' + playing + ':' + limit + ':' + first + ':' + mid + ':' + last;
+  }
+  function resolveWallCoverUrl(song) {
+    if (!song) return '';
+    try {
+      if (typeof resolveSongCoverUrl === 'function') return resolveSongCoverUrl(song, WALL_COVER_SIZE) || '';
+      return song.cover || song.pic || (song.al && song.al.picUrl) || '';
+    } catch (_) {
+      return '';
+    }
+  }
+  function resolveWallPlaylistCover(pl) {
+    if (!pl) return '';
+    var raw = '';
+    try {
+      if (typeof normalizeShelfCoverUrl === 'function') raw = normalizeShelfCoverUrl(pl.cover) || pl.cover || '';
+      else raw = pl.cover || '';
+    } catch (_) {
+      raw = pl.cover || '';
+    }
+    if (!raw) return '';
+    try {
+      if (typeof coverUrlWithSize === 'function') return coverUrlWithSize(raw, WALL_COVER_SIZE) || raw;
+    } catch (_) {}
+    return raw;
+  }
+  function collectWallItems() {
     var out = [];
-    for (var i = 0; i < songs.length && out.length < 160; i++) {
-      var song = songs[i];
-      if (!song) continue;
-      var cover = '';
+    var songs = wallSongList();
+    var playing = wallPlayingIndex();
+
+    // Lattice mode: queue songs first so the wall can expand / play / show lyrics.
+    if (songs.length) {
+      for (var j = 0; j < songs.length && out.length < WALL_ITEM_LIMIT; j++) {
+        var song = songs[j];
+        if (!song) continue;
+        var songCover = resolveWallCoverUrl(song);
+        var artist = '';
+        try {
+          if (typeof song.artist === 'string') artist = song.artist;
+          else if (Array.isArray(song.ar)) artist = song.ar.map(function (a) { return a && a.name; }).filter(Boolean).join(' / ');
+        } catch (_) {}
+        var durRaw = Number(song.duration || song.durationMs || song.dt || 0) || 0;
+        if (durRaw > 1000) durRaw = durRaw / 1000;
+        out.push({
+          id: 'q:' + j + ':' + wallSongKey(song, j),
+          index: out.length,
+          name: String(song.name || song.title || '未命名'),
+          coverUrl: songCover || undefined,
+          description: String(artist || ''),
+          current: j === playing,
+          type: 'song',
+          queueIndex: j,
+          duration: durRaw
+        });
+      }
+      state.lastWallItems = out;
+      return out;
+    }
+
+    var playlists = wallPlaylistList();
+    for (var i = 0; i < playlists.length && out.length < WALL_ITEM_LIMIT; i++) {
+      var pl = playlists[i];
+      var provider = pl.provider === 'qq' ? 'qq' : (pl.provider === 'kg' ? 'kg' : 'netease');
+      var sourceLabel = provider === 'qq' ? 'QQ' : (provider === 'kg' ? 'KG' : 'NE');
+      var count = Number(pl.trackCount) || 0;
+      var desc = sourceLabel + (count ? (' · ' + count + ' 首') : '');
       try {
-        if (typeof resolveSongCoverUrl === 'function') cover = resolveSongCoverUrl(song, 300) || '';
-        else cover = song.cover || song.pic || (song.al && song.al.picUrl) || '';
+        if (pl.playCount && typeof compactCount === 'function') {
+          desc += ' · 播放 ' + compactCount(pl.playCount);
+        }
       } catch (_) {}
-      var key = song.id || song.mid || song.hash || song.name || i;
+      var cover = resolveWallPlaylistCover(pl);
+      var pid = wallPlaylistId(pl);
       out.push({
-        id: i + ':' + key,
-        index: i,
-        name: String(song.name || song.title || '未命名'),
+        id: 'pl:' + pid,
+        index: out.length,
+        name: String(pl.name || '未命名歌单'),
         coverUrl: cover || undefined,
-        description: String(song.artist || ''),
-        current: i === playing,
-        type: 'song'
+        description: desc,
+        current: !!(state.lastWallPlaylistId && pid && pid === state.lastWallPlaylistId),
+        type: 'playlist',
+        playlistId: pid
       });
     }
+    state.lastWallItems = out;
     return out;
   }
-
+  function prefetchWallCoverUrls(urls) {
+    var list = (urls || []).filter(function (u) {
+      return u && /^https?:\/\//i.test(u) && !wallCoverPrefetchSeen[u];
+    });
+    if (!list.length) return;
+    var token = ++wallCoverPrefetchToken;
+    var cursor = 0;
+    var active = 0;
+    function pump() {
+      if (token !== wallCoverPrefetchToken) return;
+      while (active < WALL_PREFETCH_CONCURRENCY && cursor < list.length) {
+        (function (url) {
+          wallCoverPrefetchSeen[url] = 1;
+          active++;
+          var img = new Image();
+          var done = function () {
+            active--;
+            img.onload = img.onerror = null;
+            pump();
+          };
+          img.decoding = 'async';
+          img.onload = done;
+          img.onerror = done;
+          img.src = url;
+        })(list[cursor++]);
+      }
+    }
+    pump();
+  }
+  function scheduleWallCoverPrefetch(items) {
+    if (!items || !items.length) return;
+    var ranked = items.slice();
+    ranked.sort(function (a, b) {
+      var ca = (a && a.current) ? 0 : 1;
+      var cb = (b && b.current) ? 0 : 1;
+      if (ca !== cb) return ca - cb;
+      return ((a && a.index) || 0) - ((b && b.index) || 0);
+    });
+    var urls = [];
+    for (var i = 0; i < ranked.length && urls.length < WALL_PREFETCH_FIRST; i++) {
+      if (ranked[i] && ranked[i].coverUrl) urls.push(ranked[i].coverUrl);
+    }
+    prefetchWallCoverUrls(urls);
+  }
   function pushHome(force) {
     if (!state.ready) return;
     var showing = state.homeStyle === 'wall' && state.wallOpen;
-    var items = showing ? collectWallItems() : [];
-    var playing = -1;
-    try { if (typeof currentIdx === 'number') playing = currentIdx; } catch (_) {}
-    var sig = (showing ? 'wall' : 'mr') + ':' + playing + ':' + items.length + ':' + (items[0] && items[0].id || '');
+    var sig = wallHomeSig(showing);
     if (!force && sig === state.lastHomeSig) return;
+    // Cheap path: avoid rebuilding 80 cover URLs every animation frame.
     state.lastHomeSig = sig;
+    var items = showing ? collectWallItems() : [];
+    if (!showing) state.lastWallItems = [];
     post('FOLIA_SET_HOME', { home: showing ? 'wall' : 'mr', items: items });
+    if (showing) scheduleWallCoverPrefetch(items);
   }
-
   function applyWallVisibility() {
     var showing = state.homeStyle === 'wall' && state.wallOpen;
     document.body.classList.toggle('folia-home-wall', showing);
@@ -422,21 +592,44 @@
       setStageVisible(false);
       stopTick();
     }
+    if (showing) {
+      // Warm CDN covers as soon as the wall opens, even before FOLIA_READY.
+      try { scheduleWallCoverPrefetch(collectWallItems()); } catch (_) {}
+    } else {
+      wallCoverPrefetchToken++;
+    }
     if (state.ready) pushPlaybackSnapshot();
     else if (showing || state.enabled) post('FOLIA_PING');
   }
-
   function pushPlaybackSnapshot() {
     if (!state.ready) return;
-    if (state.homeStyle === 'wall' && state.wallOpen) {
+    var wallShowing = state.homeStyle === 'wall' && state.wallOpen;
+    if (wallShowing) {
       ensureFrame();
       setStageVisible(true);
       pushHome(true);
+      // Lattice-like wall: keep lyric/time flowing for in-wall chrome.
+      if (state.enabled) {
+        post('FOLIA_SET_MODE', { mode: state.mode });
+        pushLines(true);
+        pushMeta();
+        pushAssets();
+        var tw = 0;
+        try {
+          if (typeof audio !== 'undefined' && audio && isFinite(audio.currentTime)) tw = audio.currentTime;
+        } catch (_) {}
+        post('FOLIA_SET_TIME', { seconds: tw });
+      } else {
+        pushMeta();
+      }
       return;
     }
-    pushHome(true);
-    if (!state.enabled) return;
+    if (!state.enabled) {
+      pushHome(true);
+      return;
+    }
     post('FOLIA_SET_MODE', { mode: state.mode });
+    pushHome(true);
     pushLines(true);
     pushMeta();
     pushAssets();
@@ -446,7 +639,6 @@
     } catch (_) {}
     post('FOLIA_SET_TIME', { seconds: t });
   }
-
   function hidePageLyrics(on) {
     try {
       if (typeof stageLyrics === 'undefined' || !stageLyrics) return;
@@ -459,7 +651,6 @@
       if (stageLyrics.group) stageLyrics.group.visible = !on;
     } catch (_) {}
   }
-
   function syncLyricSurface() {
     var on = !!state.enabled;
     document.body.classList.toggle('folia-lyrics-on', on);
@@ -472,7 +663,6 @@
     var bg = document.getElementById('folia-bg-slot');
     if (bg) bg.hidden = false;
   }
-
   function ensureFoliaPresetGrids() {
     var modeGrid = document.getElementById('folia-mode-grid');
     if (modeGrid && !modeGrid.dataset.built) {
@@ -496,7 +686,6 @@
       }).join('');
     }
   }
-
   function mrLinesToFolia(lines) {
     lines = Array.isArray(lines) ? lines : [];
     var out = [];
@@ -545,12 +734,17 @@
     }
     return out;
   }
-
   function linesSignature(lines) {
     if (!lines || !lines.length) return '0';
-    return String(lines.length) + ':' + (lines[0] && lines[0].text || '') + ':' + (lines[lines.length - 1] && lines[lines.length - 1].text || '');
+    var first = lines[0] || {};
+    var mid = lines[Math.floor(lines.length / 2)] || {};
+    var last = lines[lines.length - 1] || {};
+    return String(lines.length) + ':' +
+      (first.text || '') + '@' + (first.time || first.startTime || '') + ':' +
+      (mid.text || '') + '@' + (mid.time || mid.startTime || '') + ':' +
+      (last.text || '') + '@' + (last.time || last.startTime || '') + ':' +
+      (first.trans || '') + '|' + (last.trans || '');
   }
-
   function pushLines(force) {
     if (!state.enabled || !state.ready) return;
     var raw = (typeof lyricsLines !== 'undefined' && Array.isArray(lyricsLines)) ? lyricsLines : [];
@@ -559,16 +753,13 @@
     state.lastLinesSig = sig;
     post('FOLIA_SET_LINES', { lines: mrLinesToFolia(raw) });
   }
-
   function subtitleModeFromFx() {
     try {
       if (typeof fx !== 'undefined' && fx && fx.lyricTranslationMode === 'off') return 'none';
     } catch (_) {}
     return 'translation';
   }
-
   var coverDataCache = { key: '', url: '' };
-
   function canvasToCoverDataUrl(canvas) {
     if (!canvas || !canvas.width || !canvas.height) return '';
     try {
@@ -588,8 +779,18 @@
       return '';
     }
   }
-
   function resolveFoliaCoverUrl(song) {
+    // Prefer the new track's CDN URL first so cutovers don't keep showing the previous canvas texture.
+    try {
+      if (song && typeof resolveSongCoverUrl === 'function') {
+        var remote = resolveSongCoverUrl(song, 300) || '';
+        if (remote) return remote;
+      }
+      if (song) {
+        var raw = song.cover || song.pic || (song.al && song.al.picUrl) || '';
+        if (raw) return raw;
+      }
+    } catch (_) {}
     try {
       if (typeof currentCoverSource !== 'undefined' && currentCoverSource && currentCoverSource.src) {
         var local = String(currentCoverSource.src || '');
@@ -614,13 +815,8 @@
         if (img && img.src && /^(data:|blob:)/i.test(img.src)) return img.src;
       }
     } catch (_) {}
-    try {
-      if (song && typeof resolveSongCoverUrl === 'function') return resolveSongCoverUrl(song, 500) || '';
-      if (song) return song.cover || song.pic || (song.al && song.al.picUrl) || '';
-    } catch (_) {}
     return '';
   }
-
   function pushMeta() {
     if (!state.ready) return;
     if (!state.enabled && !(state.homeStyle === 'wall' && state.wallOpen)) return;
@@ -644,14 +840,20 @@
         songArtist: artist || null,
         songAlbum: (song && (song.album || song.al && song.al.name)) || null,
         paused: !(typeof playing !== 'undefined' && playing),
-        visible: !(state.homeStyle === 'wall' && state.wallOpen),
+        durationSeconds: (function () {
+          try {
+            if (typeof getPlaybackDurationSeconds === 'function') return getPlaybackDurationSeconds() || 0;
+            if (typeof audio !== 'undefined' && audio && isFinite(audio.duration) && audio.duration > 0) return audio.duration;
+          } catch (_) {}
+          return 0;
+        })(),
+        visible: true,
         lyricsFontScale: fontScale,
         visualizerOpacity: 1,
         background: backgroundPayload(),
         subtitleContentMode: subtitleModeFromFx()
       }
     });
-
     var theme = {
       name: 'Mineradio',
       backgroundColor: '#05060a',
@@ -683,7 +885,6 @@
     post('FOLIA_SET_THEME', { theme: theme });
     pushTuning();
   }
-
   function revokeImportDisplayUrl() {
     if (state.importDisplayUrl && state.importDisplayUrl.indexOf('blob:') === 0) {
       try { URL.revokeObjectURL(state.importDisplayUrl); } catch (_) {}
@@ -691,12 +892,10 @@
     state.importDisplayUrl = '';
     state.importDisplayKey = '';
   }
-
   function importedBackgroundItem() {
     var list = state.assets && state.assets.backgrounds;
     return list && list[0] ? list[0] : null;
   }
-
   function ensureImportDisplayUrl(dataUrl) {
     var src = String(dataUrl || '');
     if (!src) return '';
@@ -712,7 +911,6 @@
     state.importDisplayKey = key;
     return state.importDisplayUrl;
   }
-
   function activeBackgroundUrl() {
     if (state.backgroundFromImport) {
       var item = importedBackgroundItem();
@@ -720,7 +918,6 @@
     }
     return String(state.backgroundUrl || '').trim();
   }
-
   function backgroundPayload() {
     var payload = {
       mode: state.background || 'common',
@@ -741,16 +938,13 @@
     }
     return payload;
   }
-
   function pushTuning() {
     if (!state.ready) return;
     post('FOLIA_SET_TUNING', { tunings: state.tunings || {} });
   }
-
   var ASSET_DB = 'mineradio-folia-assets';
   var ASSET_LIMITS = { avatars: 12, emojis: 24, tempera: 16, backgrounds: 1 };
   var ASSET_BYTES = { avatars: 3 * 1024 * 1024, emojis: 2 * 1024 * 1024, tempera: 4 * 1024 * 1024, backgrounds: 8 * 1024 * 1024 };
-
   function openAssetDb() {
     return new Promise(function (resolve, reject) {
       var req = indexedDB.open(ASSET_DB, 1);
@@ -761,7 +955,6 @@
       req.onerror = function () { reject(req.error); };
     });
   }
-
   function loadAssets() {
     return openAssetDb().then(function (db) {
       return new Promise(function (resolve, reject) {
@@ -781,7 +974,6 @@
       return { avatars: [], emojis: [], tempera: [], backgrounds: [] };
     });
   }
-
   function saveAssets() {
     return openAssetDb().then(function (db) {
       return new Promise(function (resolve, reject) {
@@ -792,7 +984,6 @@
       });
     }).catch(function () {});
   }
-
   function pushAssets() {
     if (!state.ready) return;
     function pack(list) {
@@ -806,7 +997,6 @@
       tempera: pack(state.assets.tempera)
     });
   }
-
   function syncTemperaImages() {
     var next = currentTuning('tempera');
     next.layerImages = (state.assets.tempera || []).map(function (img) {
@@ -823,7 +1013,6 @@
     writeStore();
     pushTuning();
   }
-
   function readImageFile(file) {
     return new Promise(function (resolve, reject) {
       var reader = new FileReader();
@@ -832,7 +1021,6 @@
       reader.readAsDataURL(file);
     });
   }
-
   function addAssetFiles(kind, fileList) {
     var files = Array.prototype.slice.call(fileList || []);
     var limit = ASSET_LIMITS[kind] || 8;
@@ -874,7 +1062,6 @@
       if (typeof showToast === 'function') showToast('图片读取失败');
     });
   }
-
   function removeAsset(kind, id) {
     state.assets[kind] = (state.assets[kind] || []).filter(function (item) { return item.id !== id; });
     saveAssets();
@@ -882,7 +1069,6 @@
     pushAssets();
     renderTuningPanel();
   }
-
   function clearAssets(kind) {
     state.assets[kind] = [];
     saveAssets();
@@ -890,7 +1076,6 @@
     pushAssets();
     renderTuningPanel();
   }
-
   function patchTemperaAsset(id, key, value) {
     var item = (state.assets.tempera || []).filter(function (img) { return img.id === id; })[0];
     if (!item) return;
@@ -898,13 +1083,11 @@
     saveAssets();
     syncTemperaImages();
   }
-
   function escAttr(value) {
     return String(value == null ? '' : value).replace(/[&<>"']/g, function (ch) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
     });
   }
-
   function assetButtons(kind, uploadLabel) {
     return '<div class="folia-asset-actions">' +
       '<label class="fx-mini-btn ghost folia-file-btn">' + uploadLabel +
@@ -913,7 +1096,6 @@
       '<button type="button" class="fx-mini-btn ghost" onclick="clearFoliaAssets(\'' + kind + '\')">清空</button>' +
       '</div>';
   }
-
   function assetListHtml(kind) {
     var list = state.assets[kind] || [];
     if (!list.length) return '<div class="folia-asset-empty">还没有图片</div>';
@@ -938,7 +1120,6 @@
       return row;
     }).join('');
   }
-
   function assetPanelHtml() {
     if (state.mode === 'cappella') {
       return '<div class="folia-asset-block"><div class="fx-section-label">自定义头像</div>' +
@@ -954,7 +1135,6 @@
     }
     return '';
   }
-
   function currentTuning(mode) {
     var base = FOLIA_TUNING_DEFAULTS[mode] || {};
     var saved = (state.tunings && state.tunings[mode]) || {};
@@ -963,7 +1143,6 @@
     Object.keys(saved).forEach(function (key) { out[key] = saved[key]; });
     return out;
   }
-
   function renderTuningPanel() {
     var panel = document.getElementById('folia-tuning-panel');
     if (!panel) return;
@@ -993,7 +1172,6 @@
     html += assetPanelHtml();
     panel.innerHTML = html;
   }
-
   function setBackground(mode, opts) {
     opts = opts || {};
     if (FOLIA_BACKGROUNDS.indexOf(mode) < 0) mode = 'common';
@@ -1006,7 +1184,6 @@
       showToast('Folia 背景: ' + meta.label);
     }
   }
-
   function setBackgroundUrl(url) {
     state.backgroundUrl = String(url || '').trim();
     state.background = 'url';
@@ -1016,7 +1193,6 @@
     syncUi();
     if (state.enabled && state.ready) pushMeta();
   }
-
   function importBackgroundFiles(fileList) {
     var file = Array.prototype.slice.call(fileList || []).filter(function (f) {
       return f && /^image\//.test(f.type || '');
@@ -1047,7 +1223,6 @@
       if (typeof showToast === 'function') showToast('背景图读取失败');
     });
   }
-
   function clearBackgroundImport() {
     state.assets.backgrounds = [];
     state.backgroundFromImport = false;
@@ -1059,7 +1234,6 @@
     if (state.enabled && state.ready) pushMeta();
     if (typeof showToast === 'function') showToast('已清除导入的背景');
   }
-
   function setTuning(mode, key, value, fromSlider) {
     if (!FOLIA_TUNING_DEFAULTS[mode]) return;
     var next = currentTuning(mode);
@@ -1073,7 +1247,6 @@
       if (output && output.nextElementSibling) output.nextElementSibling.textContent = value;
     }
   }
-
   function setBgCommon(key, value) {
     if (!Object.prototype.hasOwnProperty.call(state.bgCommon, key)) return;
     if (key === 'opacity') {
@@ -1092,7 +1265,6 @@
     syncUi();
     if (state.ready) pushMeta();
   }
-
   function suppressMineradioEmptyHome() {
     try {
       if (typeof homeForcedOpen !== 'undefined') homeForcedOpen = false;
@@ -1101,7 +1273,6 @@
       if (typeof updateEmptyHomeVisibility === 'function') updateEmptyHomeVisibility({ forceLoad: false });
     } catch (_) {}
   }
-
   function setHomeStyle(style, opts) {
     opts = opts || {};
     state.homeStyle = style === 'wall' ? 'wall' : 'mr';
@@ -1114,7 +1285,6 @@
       showToast(state.homeStyle === 'wall' ? 'Home 已切换为 Folia 海报墙' : 'Home 已切回 Mineradio');
     }
   }
-
   function setWallOpen(open, opts) {
     opts = opts || {};
     if (state.homeStyle !== 'wall') return false;
@@ -1133,33 +1303,111 @@
     }
     return true;
   }
-
   function toggleWall(opts) {
     if (state.homeStyle !== 'wall') return false;
     return setWallOpen(!state.wallOpen, opts);
   }
-
-  function openWallSong(index) {
+  function wallItemAt(index) {
     index = Number(index);
-    if (!isFinite(index) || index < 0) return;
-    state.wallOpen = false;
-    applyWallVisibility();
-    if (typeof playQueueAt === 'function') playQueueAt(index);
+    if (!isFinite(index) || index < 0) return null;
+    return (state.lastWallItems || [])[index] || null;
   }
 
+  function playWallItem(index, closeWall) {
+    var item = wallItemAt(index);
+    if (closeWall) {
+      state.wallOpen = false;
+      applyWallVisibility();
+    }
+    if (!item) {
+      if (typeof playQueueAt === 'function' && index < wallSongList().length && index !== wallPlayingIndex()) {
+        playQueueAt(index);
+      }
+      return;
+    }
+    if (item.type === 'playlist' && item.playlistId) {
+      state.lastWallPlaylistId = String(item.playlistId || '');
+      if (typeof loadPlaylistIntoQueueById === 'function') {
+        loadPlaylistIntoQueueById(item.playlistId, true, item.name || '');
+      }
+      return;
+    }
+    if (typeof playQueueAt === 'function') {
+      var qi = typeof item.queueIndex === 'number' ? item.queueIndex : index;
+      // Already the playing track: keep position (Lattice open-player / in-wall play).
+      if (qi === wallPlayingIndex()) return;
+      playQueueAt(qi);
+    }
+  }
+
+  function openWallItem(index) {
+    // Lattice “open player”: leave the wall into the lyric stage without restarting.
+    var item = wallItemAt(index);
+    var qi = item && typeof item.queueIndex === 'number'
+      ? item.queueIndex
+      : Number(index);
+    state.wallOpen = false;
+    // Closing the wall with Folia lyrics off would hide the stage — turn lyrics on.
+    if (!state.enabled) {
+      var mode = state.mode && state.mode !== 'off' ? state.mode : 'classic';
+      applyMode(mode, { silent: true });
+    } else {
+      applyWallVisibility();
+    }
+    if (item && item.type === 'playlist' && item.playlistId) {
+      state.lastWallPlaylistId = String(item.playlistId || '');
+      if (typeof loadPlaylistIntoQueueById === 'function') {
+        loadPlaylistIntoQueueById(item.playlistId, true, item.name || '');
+      }
+      return;
+    }
+    if (typeof playQueueAt === 'function' && isFinite(qi) && qi >= 0 && qi !== wallPlayingIndex()) {
+      playQueueAt(qi);
+    } else if (state.ready) {
+      pushHome(true);
+      pushMeta();
+      pushLines(true);
+      var t = 0;
+      try {
+        if (typeof audio !== 'undefined' && audio && isFinite(audio.currentTime)) t = audio.currentTime;
+      } catch (_) {}
+      post('FOLIA_SET_TIME', { seconds: t });
+    }
+  }
+
+  function toggleWallPlayback() {
+    try {
+      if (typeof togglePlay === 'function') togglePlay();
+      else if (typeof audio !== 'undefined' && audio) {
+        if (audio.paused) audio.play();
+        else audio.pause();
+      }
+    } catch (_) {}
+    if (state.ready) pushMeta();
+  }
+
+  function seekWallPlayback(seconds) {
+    seconds = Number(seconds);
+    if (!isFinite(seconds) || seconds < 0) return;
+    try {
+      if (typeof audio !== 'undefined' && audio) {
+        audio.currentTime = seconds;
+        if (state.ready) post('FOLIA_SET_TIME', { seconds: seconds });
+      }
+    } catch (_) {}
+  }
   function tick() {
     if (!state.enabled && !(state.homeStyle === 'wall' && state.wallOpen)) {
       state.raf = 0;
       return;
     }
     if (state.enabled) hidePageLyrics(true);
-    if (state.ready && state.enabled && !(state.homeStyle === 'wall' && state.wallOpen)) {
+    if (state.ready && state.enabled) {
       var t = 0;
       try {
         if (typeof audio !== 'undefined' && audio && isFinite(audio.currentTime)) t = audio.currentTime;
       } catch (_) {}
       post('FOLIA_SET_TIME', { seconds: t });
-
       var power = 0;
       var bands = { bass: 0, mid: 0, treble: 0 };
       var spectrum = [];
@@ -1177,22 +1425,20 @@
       post('FOLIA_SET_AUDIO', { power: power, bands: bands, spectrum: spectrum });
       pushLines(false);
     } else if (state.ready && state.homeStyle === 'wall' && state.wallOpen) {
-      pushHome(false);
+      // ~4Hz is enough to catch queue/playing changes without rebuilding the wall each frame.
+      if ((++wallTickCounter & 15) === 0) pushHome(false);
     }
     state.raf = requestAnimationFrame(tick);
   }
-
   function startTick() {
     if (state.raf) return;
     if (!state.enabled && !(state.homeStyle === 'wall' && state.wallOpen)) return;
     state.raf = requestAnimationFrame(tick);
   }
-
   function stopTick() {
     if (state.raf) cancelAnimationFrame(state.raf);
     state.raf = 0;
   }
-
   function applyMode(mode, opts) {
     opts = opts || {};
     mode = String(mode || 'off');
@@ -1201,21 +1447,33 @@
     state.enabled = mode !== 'off';
     writeStore();
     syncUi();
-
     if (!state.enabled) {
-      setStageVisible(false);
-      stopTick();
       syncLyricSurface();
       hidePageLyrics(false);
       post('FOLIA_SET_MODE', { mode: 'off' });
-      post('FOLIA_SET_META', { payload: { visible: false } });
+      var wallShowing = state.homeStyle === 'wall' && state.wallOpen;
+      if (wallShowing) {
+        // Closing Folia lyrics must not tear down the poster wall stage.
+        ensureFrame();
+        setStageVisible(true);
+        startTick();
+        if (state.ready) {
+          pushHome(true);
+          post('FOLIA_SET_META', { payload: { visible: false } });
+        } else {
+          post('FOLIA_PING');
+        }
+      } else {
+        setStageVisible(false);
+        stopTick();
+        post('FOLIA_SET_META', { payload: { visible: false } });
+      }
       if (!opts.silent && typeof showToast === 'function') showToast('已关闭 Folia 全屏歌词');
       if (!opts.silent && typeof global.setPresetsSurface === 'function') {
         try { global.setPresetsSurface('folia'); } catch (_) {}
       }
       return;
     }
-
     syncLyricSurface();
     hidePageLyrics(true);
     ensureFrame();
@@ -1227,6 +1485,9 @@
     } catch (_) {}
     if (state.ready) {
       pushPlaybackSnapshot();
+      if (!(state.homeStyle === 'wall' && state.wallOpen)) {
+        post('FOLIA_SET_META', { payload: { visible: true } });
+      }
     } else {
       post('FOLIA_PING');
     }
@@ -1238,7 +1499,6 @@
       try { global.setPresetsSurface('folia'); } catch (_) {}
     }
   }
-
   function syncUi() {
     ensureFoliaPresetGrids();
     var modeButtons = document.querySelectorAll('[data-folia-mode]');
@@ -1296,7 +1556,6 @@
     syncLyricSurface();
     renderTuningPanel();
   }
-
   function onMessage(event) {
     var data = event.data;
     if (!data || data.source !== EMBED_SOURCE) return;
@@ -1309,10 +1568,18 @@
       syncUi();
     }
     if (data.type === 'FOLIA_WALL_OPEN') {
-      openWallSong(data.index);
+      openWallItem(data.index);
+    }
+    if (data.type === 'FOLIA_WALL_PLAY') {
+      playWallItem(data.index, false);
+    }
+    if (data.type === 'FOLIA_WALL_TOGGLE') {
+      toggleWallPlayback();
+    }
+    if (data.type === 'FOLIA_WALL_SEEK') {
+      seekWallPlayback(data.seconds);
     }
   }
-
   function init() {
     readStore();
     window.addEventListener('message', onMessage);
@@ -1345,7 +1612,6 @@
       post('FOLIA_PING');
     }
   }
-
   global.MineradioFolia = {
     modes: FOLIA_MODES,
     isEnabled: function () { return !!state.enabled; },
@@ -1373,14 +1639,34 @@
     },
     refresh: function () {
       pushHome(true);
-      pushLines(true);
+      if (state.enabled) pushLines(true);
       pushMeta();
-      pushAssets();
+      if (state.enabled) pushAssets();
       syncUi();
+    },
+    /** Lightweight pause/play/cover sync without rebuilding home/lines. */
+    notifyPlayback: function () {
+      if (!state.ready) return;
+      if (!state.enabled && !(state.homeStyle === 'wall' && state.wallOpen)) return;
+      pushMeta();
+    },
+    /** Immediate track switch sync so Folia doesn't wait for lyric fetch. */
+    notifyTrackChange: function () {
+      if (!state.ready) return;
+      if (!state.enabled && !(state.homeStyle === 'wall' && state.wallOpen)) return;
+      if (state.homeStyle === 'wall' && state.wallOpen) pushHome(true);
+      pushMeta();
+      if (state.enabled && !(state.homeStyle === 'wall' && state.wallOpen)) {
+        pushLines(true);
+        var t = 0;
+        try {
+          if (typeof audio !== 'undefined' && audio && isFinite(audio.currentTime)) t = audio.currentTime;
+        } catch (_) {}
+        post('FOLIA_SET_TIME', { seconds: t });
+      }
     },
     syncUi: syncUi
   };
-
   global.setFoliaLyricMode = function (mode) {
     applyMode(mode);
   };
@@ -1409,7 +1695,6 @@
   global.removeFoliaAsset = function (kind, id) { removeAsset(kind, id); };
   global.clearFoliaAssets = function (kind) { clearAssets(kind); };
   global.setFoliaTemperaAsset = function (id, key, value) { patchTemperaAsset(id, key, value); };
-
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {

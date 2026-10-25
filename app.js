@@ -342,7 +342,7 @@ var lastPlaybackPrefetchAt = 0;
 var searchHoverPrefetchTimer = null;
 var searchResultsHoverBound = false;
 var playbackQualityUiProvider = '';
-var PLAYBACK_SOURCE_CACHE_TTL_MS = 180000;
+var PLAYBACK_SOURCE_CACHE_TTL_MS = 240000;
 var coverCropState = null, coverCropBound = false;
 var currentLocalSong = null;
 var lyricSourceMode = 'original';
@@ -774,10 +774,6 @@ function applyDiyMode(on, opts) {
 }
 function toggleDiyMode() {
   applyDiyMode(!diyPlayerMode, { save: true, toast: true, animate: true, fromUser: true });
-  if (visualGuideActive) {
-    visualGuideState.mode = diyPlayerMode ? 'diy' : 'simple';
-    showVisualGuideStep(0);
-  }
 }
 var targetVolume = readSavedVolume();
 var lastNonZeroVolume = targetVolume > 0.01 ? targetVolume : 0.8;
@@ -8056,26 +8052,64 @@ function setControlCoverSrc(src) {
   cover.classList.remove('cover-empty');
 }
 
+function applyImmediateTrackCover(song, opts) {
+  opts = opts || {};
+  var coverUrl = '';
+  try {
+    var custom = typeof getCustomCoverForSong === 'function' ? getCustomCoverForSong(song) : '';
+    coverUrl = custom || (typeof resolveSongCoverUrl === 'function' ? resolveSongCoverUrl(song, opts.size || 300) : '') || '';
+  } catch (_) {}
+  coverUrl = normalizeListenCoverUrl(coverUrl) || coverUrl;
+  var displaySrc = coverUrl ? (coverProxySrc(coverUrl) || coverUrl) : '';
+  var thumb = document.getElementById('thumb-cover');
+  if (!coverUrl) {
+    if (thumb) thumb.removeAttribute('src');
+    setControlCoverSrc('');
+    setAlbumBackground('');
+    return '';
+  }
+  // Paint UI covers immediately from CDN URL; heavy particle texture can catch up later.
+  if (thumb) thumb.src = displaySrc;
+  setControlCoverSrc(displaySrc);
+  setAlbumBackground(coverUrl);
+  try {
+    currentCoverSource = { kind: /^data:/i.test(coverUrl) ? 'data' : 'url', src: coverUrl };
+  } catch (_) {}
+  if (shelfManager && typeof shelfManager.onCoverChange === 'function') {
+    try { shelfManager.onCoverChange(displaySrc); } catch (_) {}
+  }
+  return coverUrl;
+}
 function updateControlTrackInfo(song) {
   song = song || {};
   var title = document.getElementById('control-title');
   var artist = document.getElementById('control-artist');
   if (title) title.textContent = song.name || '';
   if (artist) artist.textContent = song.artist || '';
-  var previewCover = resolveSongCoverUrl(song, 96);
-  if (previewCover) {
-    var proxiedPreview = coverProxySrc(previewCover) || previewCover;
-    if (mineradioUsesWebMediaBridge() && typeof window.__mineradioResolveCoverUrl === 'function') {
-      window.__mineradioResolveCoverUrl(previewCover, false).then(function(resolved) {
-        if (resolved) setControlCoverSrc(resolved);
-      }).catch(function(){ setControlCoverSrc(proxiedPreview); });
-    } else {
-      setControlCoverSrc(proxiedPreview);
-    }
-  } else {
-    setControlCoverSrc('');
+  // Instant UI paint; optional Bridge resolve only upgrades the control cover later.
+  var previewCover = applyImmediateTrackCover(song, { size: 180 }) || resolveSongCoverUrl(song, 96);
+  if (previewCover && mineradioUsesWebMediaBridge() && typeof window.__mineradioResolveCoverUrl === 'function') {
+    var token = trackSwitchToken;
+    window.__mineradioResolveCoverUrl(previewCover, false).then(function(resolved) {
+      if (token !== trackSwitchToken || !resolved) return;
+      setControlCoverSrc(resolved);
+      var thumb = document.getElementById('thumb-cover');
+      if (thumb) thumb.src = resolved;
+    }).catch(function(){});
   }
   updatePlaybackQualityUi();
+}
+function prefetchSongCover(song) {
+  if (!song || song.type === 'local' || song.source === 'local') return;
+  var url = '';
+  try { url = resolveSongCoverUrl(song, 300) || ''; } catch (_) {}
+  if (!url || !/^https?:\/\//i.test(url)) return;
+  var src = coverProxySrc(url) || url;
+  try {
+    var img = new Image();
+    img.decoding = 'async';
+    img.src = src;
+  } catch (_) {}
 }
 
 function applyCoverCanvas(cv, thumbSrc, opts) {
@@ -10804,8 +10838,13 @@ function loadCoverFromUrlResolved(proxiedUrl, directUrl, opts) {
   opts = opts || {};
   directUrl = normalizeListenCoverUrl(directUrl) || directUrl;
   proxiedUrl = normalizeListenCoverUrl(proxiedUrl) || proxiedUrl;
-  document.getElementById('album-bg').style.backgroundImage = "url(" + directUrl + ")";
-  document.getElementById('album-bg').classList.add('visible');
+  var paintSrc = directUrl || proxiedUrl;
+  if (paintSrc) {
+    setAlbumBackground(paintSrc);
+    var thumb = document.getElementById('thumb-cover');
+    if (thumb) thumb.src = paintSrc;
+    setControlCoverSrc(paintSrc);
+  }
   if (!proxiedUrl) {
     uniforms.uHasCover.value = 0; setCoverDepthState(0, 0, 1);
     resetFloatColorsToIdle();
@@ -11197,6 +11236,7 @@ function setShelfGuideCueActive(on) {
     shelfHoverCue.x = c.x;
     shelfHoverCue.y = c.y;
     shelfHoverCue.lastAt = performance.now();
+    if (typeof wakeIdleGuideLoop === 'function') wakeIdleGuideLoop();
   } else {
     shelfHoverCue.target = 0;
   }
@@ -11222,6 +11262,9 @@ function updateShelfHoverCueFromPointer(e) {
   shelfHoverCue.x = e.clientX;
   shelfHoverCue.y = e.clientY;
   shelfHoverCue.lastAt = performance.now();
+  if ((active || shelfHoverCue.guide || shelfHoverCue.target > 0) && typeof wakeIdleGuideLoop === 'function') {
+    wakeIdleGuideLoop();
+  }
 }
 function tickShelfHoverCue(dt) {
   if (!shelfHoverCue.guide && shelfHoverCue.zoneActive) {
@@ -14544,7 +14587,6 @@ function fallbackHomeTiles() {
     { kind: 'search', title: '搜索一首歌', sub: '原唱优先', query: '' },
     { kind: 'local', title: '导入本地音乐', sub: '本地文件也能可视化' },
     { kind: 'podcastSearch', title: '搜索播客', sub: '长内容 / 电台' },
-    { kind: 'guide', title: '看看视觉舞台', sub: '粒子 / 歌词 / 封面' },
   ];
 }
 function coverForListenArtist(artistName) {
@@ -15611,8 +15653,7 @@ function openHomeLocalImport() {
   if (input) input.click();
 }
 function openHomeProductGuide() {
-  closeLoginModal({ skipAccountReturn: true });
-  setTimeout(function(){ startVisualGuide({ manual: true, source: 'home' }); }, 160);
+  // Visual onboarding tour removed.
 }
 async function waitForHomeDiscoverIdle(timeout) {
   var started = Date.now();
@@ -15732,7 +15773,7 @@ function openHomeThirdCard() {
 }
 function openHomeLibrary() {
   if (!hasAnyPlatformLogin() && !homeDiscoverState.loggedIn) {
-    openHomeProductGuide();
+    showLoginModal({ source: 'home-library' });
     return;
   }
   homeSuppressed = false;
@@ -15946,7 +15987,6 @@ function handleHomeTileClick(index) {
   else if (item.kind === 'song') playHomeSong(item.index);
   else if (item.kind === 'login') showLoginModal({ source: 'home-tile' });
   else if (item.kind === 'local') openHomeLocalImport();
-  else if (item.kind === 'guide') openHomeProductGuide();
   else if (item.kind === 'playlist') openHomePlaylist(item.index);
   else if (item.kind === 'podcast') openHomePodcast(item.index);
   else if (item.kind === 'podcastSearch') { setSearchMode('podcast'); loadPodcastHot(); }
@@ -17403,9 +17443,9 @@ var searchResultCache = Object.create(null);
 var searchAbortController = null;
 var searchPartialEmitTimer = null;
 var searchPartialEmitPending = false;
-var SEARCH_CACHE_TTL_MS = 90000;
-var SEARCH_INPUT_DEBOUNCE_MS = 140;
-var SEARCH_PARTIAL_EMIT_MS = 48;
+var SEARCH_CACHE_TTL_MS = 120000;
+var SEARCH_INPUT_DEBOUNCE_MS = 100;
+var SEARCH_PARTIAL_EMIT_MS = 36;
 var SEARCH_PAGE_SIZE = 10;
 var searchPagingState = { query: '', mode: '', page: 0, hasMore: false, loading: false };
 var detailResponseCache = Object.create(null);
@@ -17448,8 +17488,7 @@ function bindSearchResultsLazyLoad() {
 function bindSearchResultsHoverPrefetch() {
   if (!$results || searchResultsHoverBound) return;
   searchResultsHoverBound = true;
-  $results.addEventListener('mousedown', function(e){
-    if (e.button !== 0) return;
+  function warmSearchResultPlayback(e) {
     var row = e.target && e.target.closest ? e.target.closest('.search-result[data-search-index]') : null;
     if (!row) return;
     var index = Number(row.getAttribute('data-search-index'));
@@ -17458,7 +17497,12 @@ function bindSearchResultsHoverPrefetch() {
     if (!song) return;
     fetchPlaybackSourceData(song).catch(function(){});
     prefetchPlaybackAudioForSong(song);
+  }
+  $results.addEventListener('mousedown', function(e){
+    if (e.button !== 0) return;
+    warmSearchResultPlayback(e);
   }, { passive: true });
+  $results.addEventListener('touchstart', warmSearchResultPlayback, { passive: true });
   $results.addEventListener('mouseover', function(e){
     var row = e.target && e.target.closest ? e.target.closest('.search-result[data-search-index]') : null;
     if (!row) return;
@@ -17471,7 +17515,7 @@ function bindSearchResultsHoverPrefetch() {
         prefetchPlaybackSourceForSong(song);
         prefetchPlaybackAudioForSong(song);
       }
-    }, 260);
+    }, 120);
   }, { passive: true });
   $results.addEventListener('mouseleave', function(e){
     if (e.target === $results || !$results.contains(e.relatedTarget)) clearTimeout(searchHoverPrefetchTimer);
@@ -17971,7 +18015,31 @@ function rememberPlaybackSourceResolvedUrl(key, resolvedUrl) {
   if (hit) hit.resolvedUrl = resolvedUrl;
 }
 function canSwapPrefetchedPlaybackAudio() {
-  return !canUsePlaybackAudioGraph() || !source;
+  // Always allow hot-swapping a warm prefetched <audio>; graph is reattached in initAudio.
+  return true;
+}
+function preparePrefetchAudioElementSwap() {
+  if (!canUsePlaybackAudioGraph()) {
+    audioReady = false;
+    return;
+  }
+  try {
+    if (source) { source.disconnect(); source = null; }
+    if (analyser) { analyser.disconnect(); analyser = null; }
+    if (beatAnalyser) { beatAnalyser.disconnect(); beatAnalyser = null; }
+    if (gainNode) { gainNode.disconnect(); gainNode = null; }
+  } catch (_) {}
+  audioReady = false;
+}
+function retirePlaybackAudioElement(el) {
+  if (!el) return;
+  try { el.onended = null; } catch (_) {}
+  try { el.onerror = null; } catch (_) {}
+  try { el.pause(); } catch (_) {}
+  try {
+    el.removeAttribute('src');
+    el.load();
+  } catch (_) {}
 }
 function disposePlaybackAudioPrefetchMedia() {
   if (!playbackAudioPrefetch.media) return;
@@ -18012,8 +18080,9 @@ function takePrefetchedPlaybackAudio(key) {
 async function prefetchPlaybackAudioForSong(song, opts) {
   if (!song || song.type === 'local' || song.source === 'local') return;
   opts = opts || {};
+  prefetchSongCover(song);
   var key = playbackSourceCacheKey(song, opts);
-  if (playbackAudioPrefetch.key === key && playbackAudioPrefetch.media) return;
+  if (playbackAudioPrefetch.key === key && playbackAudioPrefetch.media && playbackAudioPrefetch.media.readyState >= 2) return;
   var myToken = ++playbackAudioPrefetchToken;
   try {
     var data = await fetchPlaybackSourceData(song, opts);
@@ -18021,12 +18090,18 @@ async function prefetchPlaybackAudioForSong(song, opts) {
     var resolvedUrl = await resolvePlaybackAudioUrl(data.url);
     if (myToken !== playbackAudioPrefetchToken || !resolvedUrl) return;
     rememberPlaybackSourceResolvedUrl(key, resolvedUrl);
+    // Reuse the same warm element if URL is unchanged.
+    if (playbackAudioPrefetch.key === key && playbackAudioPrefetch.media && playbackAudioPrefetch.resolvedUrl === resolvedUrl) {
+      playbackAudioPrefetch.token = myToken;
+      return;
+    }
     disposePlaybackAudioPrefetchMedia();
     var media = new Audio();
     configurePlaybackAudioElement(media, data.url);
     media.preload = 'auto';
     media.src = resolvedUrl;
     media.load();
+    // Nudge buffering without audible play (muted play is blocked on some browsers; load() is enough).
     playbackAudioPrefetch = { key: key, idx: -1, media: media, directUrl: data.url, resolvedUrl: resolvedUrl, token: myToken };
   } catch (_) {}
 }
@@ -18051,13 +18126,14 @@ async function prefetchPlaybackAudioForIndex(idx, opts) {
 function maybePrefetchNextTrackDuringPlayback() {
   if (!audio || audio.paused || audio.ended || !playQueue.length || currentIdx < 0) return;
   var now = Date.now();
-  if (now - lastPlaybackPrefetchAt < 3500) return;
+  if (now - lastPlaybackPrefetchAt < 1400) return;
   var duration = getPlaybackDurationSeconds();
   var current = getPlaybackCurrentSeconds();
   var shouldPrefetch = false;
   if (duration > 0) {
-    shouldPrefetch = (duration - current) <= 45 || (current / duration) >= 0.58;
-  } else if (current >= 24) {
+    // Start warming the next track early so manual next / auto-advance feel seamless.
+    shouldPrefetch = (duration - current) <= 90 || (current / duration) >= 0.12 || current >= 6;
+  } else if (current >= 6) {
     shouldPrefetch = true;
   }
   if (!shouldPrefetch) return;
@@ -18071,10 +18147,13 @@ function prefetchAdjacentPlaybackSources(fromIdx) {
   if (!playQueue.length) return;
   var nextIdx = resolveNextQueueIndex(fromIdx);
   prefetchPlaybackSourceForIndex(nextIdx);
+  if (nextIdx >= 0 && playQueue[nextIdx]) prefetchSongCover(playQueue[nextIdx]);
   if (playMode !== 'shuffle' && fromIdx + 1 < playQueue.length && fromIdx + 1 !== nextIdx) {
     prefetchPlaybackSourceForIndex(fromIdx + 1);
+    if (playQueue[fromIdx + 1]) prefetchSongCover(playQueue[fromIdx + 1]);
   }
   if (playQueue.length > 2 && playMode !== 'shuffle') prefetchPlaybackSourceForIndex(fromIdx - 1);
+  // Always warm the actual next audio element (not only the URL) for gapless-ish switches.
   if (nextIdx >= 0 && nextIdx !== fromIdx) prefetchPlaybackAudioForIndex(nextIdx);
   else if (fromIdx + 1 < playQueue.length) prefetchPlaybackAudioForIndex(fromIdx + 1);
 }
@@ -18342,11 +18421,9 @@ async function fetchMusicSearchPage(q, mode, page) {
   page = Math.max(1, Number(page) || 1);
   var pageSize = SEARCH_PAGE_SIZE;
   var cacheKey = searchResultKeyWithPage(q, mode, page);
-  if (page === 1) {
-    var cached = searchResultCache[cacheKey];
-    if (cached && Date.now() - cached.at < SEARCH_CACHE_TTL_MS) {
-      return { songs: cached.songs.slice(), hasMore: !!cached.hasMore };
-    }
+  var cached = searchResultCache[cacheKey];
+  if (cached && Date.now() - cached.at < SEARCH_CACHE_TTL_MS) {
+    return { songs: cached.songs.slice(), hasMore: !!cached.hasMore };
   }
   var offset = (page - 1) * pageSize;
   var hasMore = false;
@@ -18380,7 +18457,7 @@ async function fetchMusicSearchPage(q, mode, page) {
     songs = mergeSongSearchResults(neteaseSongs, qqSongsMerged, pageSize, q, kgSongsMerged, true);
     hasMore = neteaseSongs.length >= per || qqSongsMerged.length >= per || kgSongsMerged.length >= per;
   }
-  if (page === 1) searchResultCache[cacheKey] = { at: Date.now(), songs: songs.slice(), hasMore: hasMore };
+  searchResultCache[cacheKey] = { at: Date.now(), songs: songs.slice(), hasMore: hasMore };
   return { songs: songs, hasMore: hasMore };
 }
 async function fetchMusicSearchResults(q, mode, onPartial) {
