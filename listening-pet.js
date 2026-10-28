@@ -32,6 +32,9 @@
   var lastBeat = 0;
   var lastProgress = 0;
   var faceDir = 1;
+  /* Hold facing after big seeks/track jumps so CSS left-transition matches gaze */
+  var faceHoldUntil = 0;
+  var FACE_HOLD_MS = 240;
   var beatUntil = 0;
   var trackUntil = 0;
   var reactUntil = 0;
@@ -339,8 +342,16 @@
 
   function applyProgress(progress, playing) {
     progress = Math.max(0, Math.min(1, Number(progress) || 0));
-    if (progress > lastProgress + 0.002) faceDir = 1;
-    else if (progress < lastProgress - 0.002) faceDir = -1;
+    var delta = progress - lastProgress;
+    var t = nowMs();
+    /* Song change / seek: pet CSS-slides toward new left; face that travel dir and hold */
+    if (Math.abs(delta) > 0.08) {
+      faceDir = delta < 0 ? -1 : 1;
+      faceHoldUntil = t + FACE_HOLD_MS;
+    } else if (t >= faceHoldUntil) {
+      if (delta > 0.002) faceDir = 1;
+      else if (delta < -0.002) faceDir = -1;
+    }
     lastProgress = progress;
     if (!el) return;
     el.style.setProperty('--pet-progress', String(progress));
@@ -398,6 +409,10 @@
 
   function notifyTrackChange() {
     lastTrackKey = '';
+    /* Prefer facing left: track changes usually snap progress toward bar start */
+    faceDir = -1;
+    faceHoldUntil = nowMs() + FACE_HOLD_MS;
+    if (el) el.style.setProperty('--pet-face', String(faceDir));
     trackUntil = nowMs() + TRACK_FLASH_MS;
     if (el && enabled) {
       setStateClass('is-track');
