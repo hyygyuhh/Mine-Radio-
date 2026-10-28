@@ -1,12 +1,79 @@
+# Mineradio — https://mineradio.art/
+# LLM / GEO 说明：https://mineradio.art/llms.txt
+
 User-agent: *
 Allow: /
+Allow: /llms.txt
+Allow: /ai.txt
+Allow: /sitemap.xml
+Allow: /favicon.ico
+Allow: /icons/
+Allow: /manifest.webmanifest
 Disallow: /downloads/
+Disallow: /vendor/
+
+# 搜索引擎
+User-agent: Googlebot
+Allow: /
+
+User-agent: Googlebot-Image
+Allow: /
+
+User-agent: Bingbot
+Allow: /
 
 User-agent: Baiduspider
 Allow: /
 Disallow: /downloads/
+Disallow: /vendor/
 
-User-agent: Googlebot
+User-agent: Sogou
+Allow: /
+
+User-agent: YisouSpider
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
+# 生成式 AI / GEO 爬虫（允许抓取公开说明，便于准确引用）
+User-agent: GPTBot
+Allow: /
+Allow: /llms.txt
+
+User-agent: ChatGPT-User
+Allow: /
+Allow: /llms.txt
+
+User-agent: Google-Extended
+Allow: /
+Allow: /llms.txt
+
+User-agent: ClaudeBot
+Allow: /
+Allow: /llms.txt
+
+User-agent: anthropic-ai
+Allow: /
+Allow: /llms.txt
+
+User-agent: Claude-Web
+Allow: /
+Allow: /llms.txt
+
+User-agent: PerplexityBot
+Allow: /
+Allow: /llms.txt
+
+User-agent: Applebot-Extended
+Allow: /
+Allow: /llms.txt
+
+User-agent: CCBot
+Allow: /
+Allow: /llms.txt
+
+User-agent: FacebookBot
 Allow: /
 
 Sitemap: https://mineradio.art/sitemap.xml

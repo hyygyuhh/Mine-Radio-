@@ -4,7 +4,7 @@
         xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>https://mineradio.art/</loc>
-    <lastmod>2026-10-23</lastmod>
+    <lastmod>2026-10-28</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://mineradio.art/"/>
@@ -12,6 +12,13 @@
     <image:image>
       <image:loc>https://mineradio.art/icons/icon512.png</image:loc>
       <image:title>Mineradio 网页版在线音乐可视化播放器</image:title>
+      <image:caption>Mineradio — 免费网页版在线听歌，免安装，支持网易云/QQ/酷狗与沉浸歌词</image:caption>
     </image:image>
+  </url>
+  <url>
+    <loc>https://mineradio.art/llms.txt</loc>
+    <lastmod>2026-10-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
   </url>
 </urlset>
