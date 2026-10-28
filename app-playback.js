@@ -3416,7 +3416,11 @@ function applyFxArchiveSnapshot(snapshot) {
     fx[key] = data[key];
   });
   normalizeDevelopmentLockedFxState();
-  setPreset(targetPreset, { silent: true, preserveCamera: false, skipTransition: false, noSave: true, commitPlaybackPreset: true });
+  /* 存档属于 Mineradio 视觉：应用时同样自动退出 Folia 全屏歌词 */
+  if (typeof releaseFoliaStageForMineradio === 'function') {
+    releaseFoliaStageForMineradio({ silent: true });
+  }
+  setPreset(targetPreset, { silent: true, keepFolia: true, preserveCamera: false, skipTransition: false, noSave: true, commitPlaybackPreset: true });
   applyCoverParticleResolution(fx.coverResolution, { reload: true });
   if (fx.floatLayer) createFloatLayer(); else destroyFloatLayer();
   setParticleLyricsSilently(fx.particleLyrics);
@@ -4645,12 +4649,32 @@ function ensureSonicTopography() {
   script.async = true;
   document.body.appendChild(script);
 }
+/* Folia 全屏歌词盖住 MR 画布：切到 Mineradio 预设/面板时自动退出 Folia 歌词，无需先点「关闭」。 */
+function releaseFoliaStageForMineradio(opts) {
+  opts = opts || {};
+  try {
+    var api = window.MineradioFolia;
+    if (!api || typeof api.isEnabled !== 'function' || !api.isEnabled()) return false;
+    if (typeof api.setMode === 'function') api.setMode('off', { silent: true });
+    if (!opts.silent && typeof showToast === 'function') showToast('已切回 Mineradio 视觉');
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+window.releaseFoliaStageForMineradio = releaseFoliaStageForMineradio;
+
 function setPreset(p, opts) {
   opts = opts || {};
   p = migrateVisualPresetIndex(p);
   p = Math.max(0, Math.min(presetMeta.length - 1, Number(p) || 0));
   var prev = fx.preset;
   var changed = prev !== p;
+  var releasedFolia = false;
+  /* 用户点选 MR 预设时自动让出舞台；静默恢复（启动/内部同步）不打断 Folia。 */
+  if (!opts.silent && !opts.keepFolia) {
+    releasedFolia = releaseFoliaStageForMineradio({ silent: true });
+  }
   fx.preset = p;
   if (p === 7) ensureSonicTopography();
   if (changed && prev === SKULL_PRESET_INDEX && p !== SKULL_PRESET_INDEX) clearSkullPresetResidue();
@@ -4672,7 +4696,11 @@ function setPreset(p, opts) {
     else              { orbit.userRadius = 6.6; orbit.userPhi = 0.08; orbit.userTheta = 0.0; orbit.baselineRadius = 6.6; orbit.baselinePhi = 0.08; }
     orbit.baselineTheta = p === 5 ? -0.52 : (p === 6 ? 0.18 : 0.0);
   }
-  if (changed && !opts.silent) showToast('视觉预设: ' + presetMeta[p].name);
+  if (changed && !opts.silent) {
+    showToast('视觉预设: ' + presetMeta[p].name + (releasedFolia ? ' · 已退出 Folia 歌词' : ''));
+  } else if (!changed && releasedFolia && !opts.silent) {
+    showToast('已切回 Mineradio 视觉: ' + presetMeta[p].name);
+  }
   var shouldCommitPlaybackPreset = !!opts.commitPlaybackPreset || !opts.noSave;
   if (shouldCommitPlaybackPreset) {
     playbackVisualPreset = p;
@@ -4998,6 +5026,7 @@ var presetsSurface = (function(){
 function setPresetsSurface(surface, opts) {
   opts = opts || {};
   var next = surface === 'folia' ? 'folia' : 'mr';
+  var prevSurface = presetsSurface;
   presetsSurface = next;
   try { localStorage.setItem(PRESETS_SURFACE_STORE_KEY, presetsSurface); } catch (_) {}
   var mr = document.getElementById('mr-presets-surface');
@@ -5011,6 +5040,10 @@ function setPresetsSurface(surface, opts) {
     try { window.MineradioFolia.syncUi(); } catch (_) {}
   } else if (next === 'folia' && typeof window.__mineradioEnsureFoliaHost === 'function') {
     try { window.__mineradioEnsureFoliaHost(); } catch (_) {}
+  }
+  /* 切到 Mineradio 预设体系时自动关闭 Folia 全屏歌词，立即露出 MR 粒子效果 */
+  if (next === 'mr' && prevSurface !== 'mr' && !opts.silent && !opts.keepFolia) {
+    releaseFoliaStageForMineradio({ silent: false });
   }
   if (!opts.silent) updateFxConsoleStatus();
 }
