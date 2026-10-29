@@ -344,13 +344,15 @@
     progress = Math.max(0, Math.min(1, Number(progress) || 0));
     var delta = progress - lastProgress;
     var t = nowMs();
-    /* Song change / seek: pet CSS-slides toward new left; face that travel dir and hold */
+    /* Song change / seek: face travel dir only while CSS left is sliding */
     if (Math.abs(delta) > 0.08) {
       faceDir = delta < 0 ? -1 : 1;
       faceHoldUntil = t + FACE_HOLD_MS;
     } else if (t >= faceHoldUntil) {
       if (delta > 0.002) faceDir = 1;
       else if (delta < -0.002) faceDir = -1;
+      /* Settled (esp. after snap to track start): look along the bar */
+      else faceDir = 1;
     }
     lastProgress = progress;
     if (!el) return;
@@ -409,9 +411,9 @@
 
   function notifyTrackChange() {
     lastTrackKey = '';
-    /* Prefer facing left: track changes usually snap progress toward bar start */
-    faceDir = -1;
-    faceHoldUntil = nowMs() + FACE_HOLD_MS;
+    /* New track plays forward; travel facing is handled by applyProgress on the snap */
+    faceDir = 1;
+    faceHoldUntil = 0;
     if (el) el.style.setProperty('--pet-face', String(faceDir));
     trackUntil = nowMs() + TRACK_FLASH_MS;
     if (el && enabled) {
