@@ -17447,6 +17447,10 @@ var SEARCH_CACHE_TTL_MS = 120000;
 var SEARCH_INPUT_DEBOUNCE_MS = 100;
 var SEARCH_PARTIAL_EMIT_MS = 36;
 var SEARCH_PAGE_SIZE = 10;
+/* Aggregate: never let QQ/KG hang keep the UI on “正在搜索” */
+var SEARCH_NE_TIMEOUT_MS = 8000;
+var SEARCH_SIDE_TIMEOUT_MS = 3500;
+var SEARCH_SIDE_GRACE_MS = 600;
 var searchPagingState = { query: '', mode: '', page: 0, hasMore: false, loading: false };
 var detailResponseCache = Object.create(null);
 var DETAIL_CACHE_TTL_MS = 180000;
@@ -17554,6 +17558,28 @@ function searchApiJson(url) {
   if (searchAbortController) opts.signal = searchAbortController.signal;
   return apiJson(url, opts);
 }
+function searchProviderJson(url, timeoutMs) {
+  timeoutMs = Math.max(1000, Number(timeoutMs) || SEARCH_NE_TIMEOUT_MS);
+  var settled = false;
+  return new Promise(function(resolve) {
+    var timer = setTimeout(function() {
+      if (settled) return;
+      settled = true;
+      resolve({ songs: [], error: 'SEARCH_TIMEOUT', timedOut: true });
+    }, timeoutMs);
+    searchApiJson(url).then(function(r) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(r && typeof r === 'object' ? r : { songs: [] });
+    }).catch(function(err) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve({ songs: [], error: (err && err.message) || 'SEARCH_FAILED' });
+    });
+  });
+}
 function isMusicSearchMode(mode) {
   return mode !== 'podcast';
 }
@@ -17653,6 +17679,8 @@ function tryHydrateSearchFromCache(q, mode, opts) {
   var cacheKey = searchResultKeyWithPage(q, mode, 1);
   var cached = searchResultCache[cacheKey];
   if (!cached || Date.now() - cached.at >= SEARCH_CACHE_TTL_MS) return false;
+  /* Never hydrate a blank All-search cache — side providers may have timed out earlier */
+  if (!cached.songs || !cached.songs.length) return false;
   resetSearchPaging();
   searchPagingState.query = q;
   searchPagingState.mode = mode;
@@ -18445,19 +18473,21 @@ async function fetchMusicSearchPage(q, mode, page) {
     hasMore = !!(neOnly && neOnly.hasMore);
     if (!hasMore && songs.length >= pageSize) hasMore = true;
   } else {
-    var per = Math.max(4, Math.ceil(pageSize / 3));
-    var nePromise = searchApiJson('/api/search?keywords=' + encodeURIComponent(q) + '&limit=' + per + '&offset=' + offset);
-    var qqPromise = searchApiJson('/api/qq/search?keywords=' + encodeURIComponent(q) + '&limit=' + per + '&page=' + page);
-    var kgPromise = searchApiJson('/api/kg/search?keywords=' + encodeURIComponent(q) + '&limit=' + per + '&page=' + page);
-    var result = await Promise.allSettled([nePromise, qqPromise, kgPromise]);
-    var neteaseSongs = result[0].status === 'fulfilled' ? ((result[0].value && result[0].value.songs) || []) : [];
-    var qqSongsMerged = result[1].status === 'fulfilled' ? ((result[1].value && result[1].value.songs) || []) : [];
-    var kgSongsMerged = result[2].status === 'fulfilled' ? ((result[2].value && result[2].value.songs) || []) : [];
-    if (result[0].status === 'rejected') console.warn('Netease search failed:', result[0].reason);
+    var per = Math.max(6, Math.ceil(pageSize / 2));
+    var side = Math.max(4, Math.ceil(pageSize / 3));
+    var neRes = await searchProviderJson('/api/search?keywords=' + encodeURIComponent(q) + '&limit=' + per + '&offset=' + offset, SEARCH_NE_TIMEOUT_MS);
+    var sideResult = await Promise.all([
+      searchProviderJson('/api/qq/search?keywords=' + encodeURIComponent(q) + '&limit=' + side + '&page=' + page, SEARCH_SIDE_TIMEOUT_MS),
+      searchProviderJson('/api/kg/search?keywords=' + encodeURIComponent(q) + '&limit=' + side + '&page=' + page, SEARCH_SIDE_TIMEOUT_MS)
+    ]);
+    var neteaseSongs = (neRes && neRes.songs) || [];
+    var qqSongsMerged = (sideResult[0] && sideResult[0].songs) || [];
+    var kgSongsMerged = (sideResult[1] && sideResult[1].songs) || [];
+    if (neRes && neRes.error) console.warn('Netease search error:', neRes.error);
     songs = mergeSongSearchResults(neteaseSongs, qqSongsMerged, pageSize, q, kgSongsMerged, true);
-    hasMore = neteaseSongs.length >= per || qqSongsMerged.length >= per || kgSongsMerged.length >= per;
+    hasMore = neteaseSongs.length >= per || qqSongsMerged.length >= side || kgSongsMerged.length >= side;
   }
-  searchResultCache[cacheKey] = { at: Date.now(), songs: songs.slice(), hasMore: hasMore };
+  if (songs.length) searchResultCache[cacheKey] = { at: Date.now(), songs: songs.slice(), hasMore: hasMore };
   return { songs: songs, hasMore: hasMore };
 }
 async function fetchMusicSearchResults(q, mode, onPartial) {
@@ -18469,38 +18499,76 @@ async function fetchMusicSearchResults(q, mode, onPartial) {
     var neteaseSongs = [];
     var qqSongsMerged = [];
     var kgSongsMerged = [];
-    var per = Math.max(4, Math.ceil(SEARCH_PAGE_SIZE / 3));
-    function emitAllPartial() {
+    var per = Math.max(8, SEARCH_PAGE_SIZE);
+    var side = Math.max(4, Math.ceil(SEARCH_PAGE_SIZE / 3));
+    var searchGen = searchRequestSeq;
+    function emitAllPartial(immediate) {
       if (typeof onPartial !== 'function') return;
-      searchPartialEmitPending = true;
-      if (searchPartialEmitTimer) return;
-      searchPartialEmitTimer = setTimeout(function(){
+      if (searchGen !== searchRequestSeq) return;
+      function flush() {
         searchPartialEmitTimer = null;
-        if (!searchPartialEmitPending) return;
         searchPartialEmitPending = false;
+        if (searchGen !== searchRequestSeq) return;
         var partial = mergeSongSearchResults(neteaseSongs, qqSongsMerged, SEARCH_PAGE_SIZE, q, kgSongsMerged, true);
         if (partial.length) onPartial(partial, false);
-      }, SEARCH_PARTIAL_EMIT_MS);
+      }
+      if (immediate) {
+        clearTimeout(searchPartialEmitTimer);
+        searchPartialEmitTimer = null;
+        flush();
+        return;
+      }
+      searchPartialEmitPending = true;
+      if (searchPartialEmitTimer) return;
+      searchPartialEmitTimer = setTimeout(flush, SEARCH_PARTIAL_EMIT_MS);
     }
-    var nePromise = searchApiJson('/api/search?keywords=' + encodeURIComponent(q) + '&limit=' + per + '&offset=0').then(function(r){
-      neteaseSongs = (r && r.songs) || [];
-      emitAllPartial();
-      return r;
-    });
-    var qqPromise = searchApiJson('/api/qq/search?keywords=' + encodeURIComponent(q) + '&limit=' + per + '&page=1').then(function(r){
+    function finishCache() {
+      if (searchGen !== searchRequestSeq) return;
+      var mergedNow = mergeSongSearchResults(neteaseSongs, qqSongsMerged, SEARCH_PAGE_SIZE, q, kgSongsMerged, true);
+      searchPagingState.hasMore = neteaseSongs.length >= per || qqSongsMerged.length >= side || kgSongsMerged.length >= side;
+      if (mergedNow.length) {
+        searchResultCache[searchResultKeyWithPage(q, mode, 1)] = {
+          at: Date.now(),
+          songs: mergedNow.slice(),
+          hasMore: searchPagingState.hasMore
+        };
+      }
+      return mergedNow;
+    }
+    /* Parallel: paint as soon as NE (or any source) returns; do not await hung QQ/KG */
+    var nePromise = searchProviderJson('/api/search?keywords=' + encodeURIComponent(q) + '&limit=' + per + '&offset=0', SEARCH_NE_TIMEOUT_MS);
+    var qqPromise = searchProviderJson('/api/qq/search?keywords=' + encodeURIComponent(q) + '&limit=' + side + '&page=1', SEARCH_SIDE_TIMEOUT_MS);
+    var kgPromise = searchProviderJson('/api/kg/search?keywords=' + encodeURIComponent(q) + '&limit=' + side + '&page=1', SEARCH_SIDE_TIMEOUT_MS);
+    qqPromise.then(function(r){
+      if (searchGen !== searchRequestSeq) return;
       qqSongsMerged = (r && r.songs) || [];
-      emitAllPartial();
-      return r;
+      if (r && r.timedOut) console.warn('QQ search timed out');
+      emitAllPartial(true);
     });
-    var kgPromise = searchApiJson('/api/kg/search?keywords=' + encodeURIComponent(q) + '&limit=' + per + '&page=1').then(function(r){
+    kgPromise.then(function(r){
+      if (searchGen !== searchRequestSeq) return;
       kgSongsMerged = (r && r.songs) || [];
-      emitAllPartial();
-      return r;
+      if (r && r.timedOut) console.warn('KuGou search timed out');
+      emitAllPartial(true);
     });
-    await Promise.allSettled([nePromise, qqPromise, kgPromise]);
-    var merged = mergeSongSearchResults(neteaseSongs, qqSongsMerged, SEARCH_PAGE_SIZE, q, kgSongsMerged, true);
-    searchPagingState.hasMore = neteaseSongs.length >= per || qqSongsMerged.length >= per || kgSongsMerged.length >= per;
-    searchResultCache[searchResultKeyWithPage(q, mode, 1)] = { at: Date.now(), songs: merged.slice(), hasMore: searchPagingState.hasMore };
+    var neRes = await nePromise;
+    if (searchGen !== searchRequestSeq) return [];
+    neteaseSongs = (neRes && neRes.songs) || [];
+    if (neRes && neRes.error) console.warn('Netease search error:', neRes.error);
+    if (neteaseSongs.length) emitAllPartial(true);
+    /* Brief grace for fast QQ/KG; then return so UI leaves “正在搜索” */
+    await Promise.race([
+      Promise.all([qqPromise, kgPromise]),
+      new Promise(function(resolve){ setTimeout(resolve, SEARCH_SIDE_GRACE_MS); })
+    ]);
+    if (searchGen !== searchRequestSeq) return neteaseSongs.slice();
+    var merged = finishCache();
+    /* Late QQ/KG still patch the list via onPartial after return */
+    Promise.all([qqPromise, kgPromise]).then(function(){
+      if (searchGen !== searchRequestSeq) return;
+      var late = finishCache();
+      if (late.length) emitAllPartial(true);
+    });
     return merged;
   }
   var pageResult = await fetchMusicSearchPage(q, mode, 1);
@@ -18647,6 +18715,11 @@ async function loadMoreSearchResults() {
   }
 }
 
+function searchResultsStillLoading() {
+  if (!$results) return false;
+  var text = String($results.textContent || '');
+  return /正在搜索/.test(text);
+}
 async function doSearch(q, opts) {
   opts = opts || {};
   q = String(q || '').trim();
@@ -18673,6 +18746,7 @@ async function doSearch(q, opts) {
     });
     if (requestSeq !== searchRequestSeq || $input.value.trim() !== q) return;
     if (!songs.length) {
+      if (partialRendered) return;
       playlist = [];
       searchLastResultQuery = '';
       $results.innerHTML = '<div class="search-empty">没有找到相关歌曲</div>';
@@ -18688,6 +18762,15 @@ async function doSearch(q, opts) {
   } catch (err) {
     if (err && (err.name === 'AbortError' || String(err.message || '').indexOf('aborted') >= 0)) return;
     console.error('Search:', err);
+    if (requestSeq === searchRequestSeq && searchResultsStillLoading()) {
+      $results.innerHTML = '<div class="search-empty">搜索失败，请重试</div>';
+      $results.classList.add('show');
+    }
+  } finally {
+    if (requestSeq === searchRequestSeq && searchResultsStillLoading() && !(playlist && playlist.length)) {
+      $results.innerHTML = '<div class="search-empty">没有找到相关歌曲</div>';
+      $results.classList.add('show');
+    }
   }
 }
 
