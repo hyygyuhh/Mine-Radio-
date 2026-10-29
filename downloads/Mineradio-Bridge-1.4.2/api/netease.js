@@ -15,8 +15,18 @@ const FEATURED_REVIEW_FETCH_LIMIT = 8;
 const FEATURED_REVIEW_PICK_PER_SONG = 2;
 
 function mapArtists(list) {
-  return (list || [])
-    .map((a) => ({ id: a.id, name: a.name || '' }))
+  if (!Array.isArray(list)) {
+    if (list && typeof list === 'object') {
+      try { list = Object.values(list); } catch (_) { list = []; }
+    } else {
+      list = [];
+    }
+  }
+  return list
+    .map((a) => {
+      if (typeof a === 'string') return { id: '', name: a.trim() };
+      return { id: a && a.id, name: (a && (a.name || a.nickname)) || '' };
+    })
     .filter((a) => a.name);
 }
 
@@ -227,11 +237,20 @@ function normalizeNeteaseVip(profile, account, extra) {
     'blackVipLevel', 'black_vip_level', 'luxuryVipLevel', 'luxury_vip_level',
     'svipType', 'svip_type',
   ]);
+  const redVipLevel = firstPositiveNumberFrom(objects, ['redVipLevel', 'red_vip_level', 'redVipAnnualCount']);
   const text = collectVipStringValues({ account, profile, vipInfo, extra }, [], 0).join(' ').toLowerCase();
   const redplus = extra.redplus || vipInfo.redplus || profile.redplus || account.redplus || {};
+  const associator = extra.associator || vipInfo.associator || profile.associator || {};
+  const musicPackage = extra.musicPackage || extra.musicpackage || vipInfo.musicPackage || {};
   const redplusExpire = Number(redplus.expireTime || redplus.expire_time || 0);
+  const associatorExpire = Number(associator.expireTime || associator.expire_time || 0);
+  const packageExpire = Number(musicPackage.expireTime || musicPackage.expire_time || 0);
   const redplusActive = (Number.isFinite(redplusExpire) && redplusExpire > Date.now())
     || !!(redplus.vipLevel || redplus.status || redplus.isSign);
+  const associatorActive = (Number.isFinite(associatorExpire) && associatorExpire > Date.now())
+    || !!(associator.vipCode || associator.vipType || associator.isSign);
+  const packageActive = (Number.isFinite(packageExpire) && packageExpire > Date.now())
+    || !!(musicPackage.vipCode || musicPackage.isSign);
   const svipFlag = objects.some((obj) => obj && (
     obj.isSvip === true || obj.is_svip === true || obj.svip === true
     || Number(obj.isSvip || obj.is_svip || obj.svip || obj.svipType || obj.svip_type || 0) > 0
@@ -239,15 +258,16 @@ function normalizeNeteaseVip(profile, account, extra) {
   const vipFlag = objects.some((obj) => obj && (
     obj.isVip === true || obj.is_vip === true || obj.vip === true
     || Number(obj.isVip || obj.is_vip || obj.vip || obj.vipFlag || obj.vipflag || 0) > 0
-  )) || /vip|黑胶|会员/.test(text);
-  const isSvip = svipFlag || vipType === 11 || redplusActive;
-  const isVip = isSvip || vipFlag || vipType >= 10 || vipType > 0;
+  )) || associatorActive || packageActive || redVipLevel > 0
+    || /黑胶vip|黑胶会员|musicpackage|associator/.test(text);
+  const isSvip = svipFlag || vipType === 11 || redplusActive || redVipLevel >= 6;
+  const isVip = isSvip || vipFlag || vipType >= 10 || vipType > 0 || redVipLevel > 0;
   const vipLevel = isSvip ? 'svip' : (isVip ? 'vip' : 'none');
   let vipLabel = '无VIP';
   if (isSvip) vipLabel = '黑胶SVIP';
-  else if (vipType === 10) vipLabel = '黑胶VIP';
+  else if (vipType === 10 || redVipLevel > 0) vipLabel = '黑胶VIP';
   else if (isVip) vipLabel = 'VIP';
-  return { vipType, vipLevel, isVip, isSvip, vipLabel };
+  return { vipType: vipType || redVipLevel || (isVip ? 10 : 0), vipLevel, isVip, isSvip, vipLabel };
 }
 
 function normalizeLoginInfo(profile, account, body) {
@@ -380,7 +400,7 @@ async function backfillSongCovers(songs, cookie) {
   try {
     const dd = await api('/api/v3/song/detail', { c: JSON.stringify(missing.map((id) => ({ id }))) }, cookie);
     const idToPic = {};
-    ((dd.songs) || []).forEach((s) => {
+    asArray(dd && dd.songs).forEach((s) => {
       const pic = (s.al && s.al.picUrl) || (s.album && s.album.picUrl) || '';
       if (pic) idToPic[s.id] = pic;
     });
@@ -436,20 +456,49 @@ async function ensureNeteaseCookieHeader(cookie) {
   return header;
 }
 
+function pickNeteaseVipPayload(body) {
+  if (!body || typeof body !== 'object') return null;
+  const layer = body.data && typeof body.data === 'object' ? body.data : body;
+  const nested = layer.data && typeof layer.data === 'object' ? layer.data : null;
+  return nested || layer;
+}
+
 async function enrichLoginInfoWithVip(info, cookie) {
   if (!info || !info.loggedIn) return info;
-  try {
-    const vipBody = await api('/api/music-vip-membership/front/vip/info', { userId: info.userId || '' }, cookie);
-    const data = vipBody.data || vipBody;
-    const vip = normalizeNeteaseVip({}, {}, { ...data, vipInfo: data });
-    const userId = info.userId || data.userId || data.uid || data.accountId || '';
-    return {
-      ...info,
-      ...vip,
-      userId,
-      pendingProfile: info.pendingProfile && !(info.nickname && info.nickname !== '网易云用户'),
-    };
-  } catch (_) {}
+  const paths = [
+    '/api/music-vip-membership/front/vip/info',
+    '/api/music-vip-membership/client/vip/info',
+    '/api/vipmain/vipinfo/get',
+  ];
+  for (const path of paths) {
+    try {
+      const vipBody = await api(path, { userId: info.userId || '' }, cookie);
+      const data = pickNeteaseVipPayload(vipBody);
+      if (!data) continue;
+      const vip = normalizeNeteaseVip(
+        { vipInfo: data, redVipLevel: data.redVipLevel, redplus: data.redplus },
+        {},
+        {
+          ...data,
+          vipInfo: data,
+          associator: data.associator,
+          musicPackage: data.musicPackage || data.musicpackage,
+          redplus: data.redplus,
+        },
+      );
+      if (!vip.isVip && !vip.isSvip && !info.isVip && !info.isSvip) {
+        /* Keep trying other endpoints when this one returns empty membership */
+        if (!(Number(data.redVipLevel) > 0 || data.associator || data.musicPackage || data.redplus)) continue;
+      }
+      const userId = info.userId || data.userId || data.uid || data.accountId || '';
+      return {
+        ...info,
+        ...vip,
+        userId,
+        pendingProfile: info.pendingProfile && !(info.nickname && info.nickname !== '网易云用户'),
+      };
+    } catch (_) {}
+  }
   return info;
 }
 
@@ -486,43 +535,50 @@ export async function getLoginInfo(cookie) {
   return { loggedIn: false, vipType: 0, vipLevel: 'none', isVip: false, isSvip: false, vipLabel: '无VIP' };
 }
 
+function asArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
 export async function handleSearch(keywords, limit, cookie, offset) {
   const kw = String(keywords || '').trim();
   if (!kw) return [];
   const lim = Math.max(4, Math.min(50, Number(limit) || 20));
   const off = Math.max(0, Number(offset) || 0);
   let songs = [];
+  /* Sequential only — avoid Promise.any AggregateError edge cases in MV3 SW */
   const searchPaths = [
     ['/api/cloudsearch/pc', { s: kw, type: 1, limit: lim, offset: off, total: true }],
     ['/api/search/pc', { s: kw, type: 1, limit: lim, offset: off }],
     ['/api/search/get', { s: kw, type: 1, limit: lim, offset: off }],
     ['/api/v1/search/song', { s: kw, limit: lim, offset: off }],
   ];
-  try {
-    songs = await Promise.any(searchPaths.map(async ([path, data]) => {
+  for (const [path, data] of searchPaths) {
+    try {
       const body = await api(path, data, cookie);
-      const list = (body.result && body.result.songs) || body.songs || [];
-      if (!list.length) throw new Error('empty');
-      return list;
-    }));
-  } catch (_) {
-    for (const [path, data] of searchPaths) {
-      try {
-        const body = await api(path, data, cookie);
-        songs = (body.result && body.result.songs) || body.songs || [];
-        if (songs.length) break;
-      } catch (_) {}
-    }
+      songs = asArray((body && body.result && body.result.songs) || (body && body.songs));
+      if (songs.length) break;
+    } catch (_) {}
   }
-  let mapped = songs.map(mapSongRecord);
-  const missing = mapped.filter((s) => !s.cover).map((s) => s.id).slice(0, 6);
+  songs = asArray(songs);
+  let mapped = [];
+  try {
+    mapped = songs.map((row) => {
+      try { return mapSongRecord(row); } catch (_) { return null; }
+    }).filter((s) => s && s.name);
+  } catch (err) {
+    console.warn('[Mineradio Bridge] mapSongRecord failed', err);
+    return [];
+  }
+  /* Cover backfill is best-effort; never fail the search */
+  const missing = mapped.filter((s) => !s.cover).map((s) => s.id).filter(Boolean).slice(0, 6);
   if (missing.length) {
     try {
       const dd = await api('/api/v3/song/detail', { c: JSON.stringify(missing.map((id) => ({ id }))) }, cookie);
       const idToPic = {};
-      ((dd.songs) || []).forEach((s) => {
+      asArray(dd && dd.songs).forEach((s) => {
+        if (!s) return;
         const pic = (s.al && s.al.picUrl) || (s.album && s.album.picUrl) || '';
-        if (pic) idToPic[s.id] = pic;
+        if (pic && s.id != null) idToPic[s.id] = pic;
       });
       mapped = mapped.map((s) => (s.cover ? s : { ...s, cover: idToPic[s.id] || '' }));
     } catch (_) {}
@@ -765,6 +821,7 @@ export async function handlePlaylistTracks(id, cookie) {
 }
 
 export async function handleSongLikeCheck(ids, cookie) {
+  ids = Array.isArray(ids) ? ids : [];
   cookie = await ensureNeteaseCookieHeader(cookie);
   let info = await getLoginInfo(cookie);
   const liked = {};
@@ -775,7 +832,7 @@ export async function handleSongLikeCheck(ids, cookie) {
   if (numericIds.length) {
     try {
       const body = await weapiApi('/api/song/like/check', { ids: JSON.stringify(numericIds) }, cookie);
-      const data = body.data || body;
+      const data = (body && (body.data || body)) || {};
       numericIds.forEach((id) => {
         if (data[id] || data[String(id)] || data[Number(id)]) likedSet.add(String(id));
       });
@@ -784,7 +841,7 @@ export async function handleSongLikeCheck(ids, cookie) {
   if (!likedSet.size && info.userId) {
     try {
       const body = await weapiApi('/api/song/like/get', { uid: info.userId }, cookie);
-      const list = body.ids || (body.data && body.data.ids) || [];
+      const list = asArray((body && body.ids) || (body && body.data && body.data.ids));
       likedSet = new Set(list.map(String));
     } catch (_) {}
   }
@@ -1259,7 +1316,7 @@ async function enrichFeaturedSongSeeds(seeds, cookie) {
   try {
     const body = await api('/api/v3/song/detail', { c: JSON.stringify(missingCoverIds.map((id) => ({ id }))) }, cookie);
     const byId = new Map();
-    ((body.songs) || []).forEach((raw) => {
+    asArray(body && body.songs).forEach((raw) => {
       if (raw && raw.id) byId.set(String(raw.id), cloneFeaturedSongSeed(mapSongRecord(raw)));
     });
     return seeds.map((seed) => {

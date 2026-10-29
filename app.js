@@ -14150,6 +14150,9 @@ function coverProxySrc(url, cacheBust) {
   if (!url) return '';
   if (isInlineCoverSrc(url)) return url;
   if (!isProxyableCoverUrl(url)) return '';
+  /* Web+Bridge: Netease/CDN imgs often load directly via DNR Referer.
+     QQ gtimg still benefits from async resolve; keep direct URL for <img>,
+     hydrateSearchResultCovers / mineradioRetryCoverImg route through Bridge. */
   if (mineradioUsesWebMediaBridge()) return url;
   return '/api/cover?url=' + encodeURIComponent(url) + (cacheBust ? '&v=' + Date.now() : '');
 }
@@ -14199,11 +14202,22 @@ function resolveSongCoverUrl(song, size) {
     cover = cover.replace('://y.qq.com/music/photo_new/', '://y.gtimg.cn/music/photo_new/');
   }
   if (songProviderKey(song) === 'qq') {
-    if (!cover) cover = qqAlbumCoverUrl(song.albumMid || song.album_mid || song.albummid || '', size || 300);
+    /* Prefer 300 — small photo_new sizes often 404 */
+    var qqSize = Math.max(300, Number(size) || 300);
+    if (!cover) cover = qqAlbumCoverUrl(song.albumMid || song.album_mid || song.albummid || song.pmid || '', qqSize);
     if (!cover) {
-      var singerMid = song.singerMid || song.singer_mid || (song.artists && song.artists[0] && (song.artists[0].mid || song.artists[0].id)) || '';
-      cover = qqSingerCoverUrl(singerMid, size || 300);
+      var albumIdNum = Number(song.albumId || song.album_id || 0);
+      if (Number.isFinite(albumIdNum) && albumIdNum > 0) {
+        cover = 'https://imgcache.qq.com/music/photo/album_300/' + (albumIdNum % 100) + '/' + albumIdNum + '.jpg';
+      }
     }
+    if (!cover) {
+      var singerMid = song.singerMid || song.singer_mid
+        || (song.artists && song.artists[0] && song.artists[0].mid)
+        || song.artistMid || '';
+      cover = qqSingerCoverUrl(singerMid, qqSize);
+    }
+    if (cover) return coverUrlWithSize(cover, qqSize);
   }
   if (!cover) return '';
   return coverUrlWithSize(cover, size);
@@ -14254,8 +14268,65 @@ function enrichListenRecord(record) {
   }
   return out;
 }
-var webCoverResolveState = { pending: 0, max: 4, waiters: [] };
+var webCoverResolveState = { pending: 0, max: 14, waiters: [] };
+/* Transparent 1×1 — QQ thumbs stay dark until Bridge blob is ready (no visible placeholder art) */
+var QQ_COVER_PLACEHOLDER = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+var qqResolvedCoverByUrl = Object.create(null);
+var searchCoverPaintSeq = 0;
 var homeCoverObserver = null;
+function rememberResolvedQQCover(raw, resolved) {
+  raw = normalizeListenCoverUrl(raw);
+  if (!raw || !resolved) return '';
+  if (/^blob:/i.test(resolved) || /^data:image\//i.test(resolved)) {
+    qqResolvedCoverByUrl[raw] = resolved;
+    return resolved;
+  }
+  return '';
+}
+function peekResolvedQQCover(raw) {
+  raw = normalizeListenCoverUrl(raw);
+  return (raw && qqResolvedCoverByUrl[raw]) || '';
+}
+function prefetchQQCoversForSongs(songs, opts) {
+  opts = opts || {};
+  if (!mineradioUsesWebMediaBridge() || typeof window.__mineradioResolveCoverUrl !== 'function') {
+    return Promise.resolve();
+  }
+  var waitMs = opts.waitMs == null ? 560 : Math.max(0, Number(opts.waitMs) || 0);
+  var limit = Math.max(1, Number(opts.limit) || 22);
+  var urls = [];
+  var seen = Object.create(null);
+  (songs || []).forEach(function(song) {
+    if (urls.length >= limit) return;
+    if (songProviderKey(song) !== 'qq') return;
+    var url = resolveSongCoverUrl(song, 300);
+    if (!url || !isQQCoverUrl(url) || seen[url] || peekResolvedQQCover(url)) return;
+    seen[url] = 1;
+    urls.push(url);
+  });
+  if (!urls.length) return Promise.resolve();
+  var tasks = urls.map(function(url) {
+    return resolveCoverUrlForDisplay(url, false).then(function(resolved) {
+      rememberResolvedQQCover(url, resolved);
+    }).catch(function(){});
+  });
+  if (!waitMs) return Promise.all(tasks).then(function(){}, function(){});
+  return Promise.race([
+    Promise.all(tasks),
+    new Promise(function(resolve){ setTimeout(resolve, waitMs); })
+  ]);
+}
+function refreshSearchResultQQCoversFromCache() {
+  if (!$results) return;
+  $results.querySelectorAll('img[data-cover-url]').forEach(function(img) {
+    var raw = img.getAttribute('data-cover-url') || '';
+    var cached = peekResolvedQQCover(raw);
+    if (cached) {
+      img.dataset.coverHydrated = '1';
+      applyResolvedQQCover(img, cached);
+    }
+  });
+}
 function runWebCoverResolveTask(factory) {
   if (!mineradioUsesWebMediaBridge() || typeof window.__mineradioResolveCoverUrl !== 'function') {
     return Promise.resolve(typeof factory === 'function' ? factory() : factory);
@@ -14388,6 +14459,93 @@ function mineradioRetryCoverImg(img) {
     if (resolved && resolved !== raw) img.src = resolved;
     else img.style.opacity = 0.2;
   }).catch(function(){ img.style.opacity = 0.2; });
+}
+function isQQCoverUrl(url) {
+  return /gtimg\.cn|y\.qq\.com\/music\/photo_new|qpic\.cn|imgcache\.qq\.com/i.test(String(url || ''));
+}
+function applyResolvedQQCover(img, resolved) {
+  if (!img || !img.isConnected || !resolved) return false;
+  /* Prefer blob/data from Bridge; skip raw gtimg which will just 403 again */
+  if (/^https?:\/\/y\.gtimg\.cn\//i.test(resolved) || /^https?:\/\/imgcache\.qq\.com\//i.test(resolved)) return false;
+  var raw = img.getAttribute('data-cover-url') || '';
+  rememberResolvedQQCover(raw, resolved);
+  img.src = resolved;
+  img.style.opacity = '1';
+  img.classList.add('cover-ready');
+  return true;
+}
+function hydrateQQCoverImages(root) {
+  if (!mineradioUsesWebMediaBridge() || typeof window.__mineradioResolveCoverUrl !== 'function') return;
+  root = root || document;
+  var imgs = root.querySelectorAll('img[data-qq-cover="1"], img[data-cover-url]');
+  Array.prototype.forEach.call(imgs, function(img) {
+    if (!img || img.dataset.coverHydrated === '1') return;
+    var raw = img.getAttribute('data-cover-url') || '';
+    if (!raw) return;
+    var isQQ = img.getAttribute('data-qq-cover') === '1' || isQQCoverUrl(raw);
+    if (!isQQ) return;
+    var cached = peekResolvedQQCover(raw);
+    if (cached) {
+      img.dataset.coverHydrated = '1';
+      applyResolvedQQCover(img, cached);
+      return;
+    }
+    img.dataset.coverHydrated = '1';
+    resolveCoverUrlForDisplay(raw, false).then(function(resolved) {
+      if (applyResolvedQQCover(img, resolved)) return;
+      var retry = snapQQPhotoNewCoverUrl(raw, 300);
+      if (retry && retry !== raw) {
+        return resolveCoverUrlForDisplay(retry, true).then(function(second) {
+          if (!applyResolvedQQCover(img, second) && img.isConnected) img.style.opacity = '0.35';
+        });
+      }
+      if (img.isConnected) img.style.opacity = '0.35';
+    }).catch(function(){ if (img.isConnected) img.style.opacity = '0.35'; });
+  });
+}
+function hydrateQQCoverBackground(el, raw) {
+  if (!el) return;
+  el.style.backgroundColor = '#18181f';
+  el.style.backgroundSize = 'cover';
+  el.style.backgroundPosition = 'center';
+  if (!raw || !mineradioUsesWebMediaBridge() || typeof window.__mineradioResolveCoverUrl !== 'function') {
+    if (raw) {
+      el.style.backgroundImage = 'url("' + cssImageUrl(coverUrlWithSize(raw, 180)) + '")';
+      el.textContent = '';
+    }
+    return;
+  }
+  if (!isQQCoverUrl(raw) && !/^https?:\/\//i.test(raw)) {
+    el.style.backgroundImage = 'url("' + cssImageUrl(raw) + '")';
+    el.textContent = '';
+    return;
+  }
+  resolveCoverUrlForDisplay(raw, false).then(function(resolved) {
+    if (!el.isConnected) return;
+    var src = resolved || '';
+    if (!src || /^https?:\/\/y\.gtimg\.cn\//i.test(src) || /^https?:\/\/imgcache\.qq\.com\//i.test(src)) return;
+    el.style.backgroundImage = 'url("' + cssImageUrl(src) + '")';
+    el.textContent = '';
+  }).catch(function(){});
+}
+function hydrateSearchResultCovers() {
+  if ($results) hydrateQQCoverImages($results);
+}
+function qqCoverImgHtml(url, className, sizePx) {
+  sizePx = sizePx || 42;
+  url = normalizeListenCoverUrl(url);
+  if (!url) {
+    return '<div class="' + (className || '') + '" style="width:' + sizePx + 'px;height:' + sizePx + 'px;border-radius:8px;background:#18181f;flex-shrink:0"></div>';
+  }
+  var useBridge = mineradioUsesWebMediaBridge() && isQQCoverUrl(url);
+  var cached = useBridge ? peekResolvedQQCover(url) : '';
+  var src = cached || (useBridge ? QQ_COVER_PLACEHOLDER : url);
+  var pending = useBridge && !cached;
+  return '<img class="' + (className || '') + (cached ? ' cover-ready' : '') + '" src="' + src + '" data-cover-url="' + escHtml(url) + '"'
+    + (pending ? ' data-qq-cover="1"' : (useBridge ? ' data-qq-cover="0"' : ''))
+    + (cached ? ' data-cover-hydrated="1"' : '')
+    + ' alt="" loading="eager" decoding="async" onerror="mineradioRetryCoverImg(this)"'
+    + ' style="width:' + sizePx + 'px;height:' + sizePx + 'px;border-radius:8px;object-fit:cover;flex-shrink:0;background:#18181f;opacity:' + (pending ? '0' : '1') + ';transition:opacity .18s ease">';
 }
 function cssImageUrl(url) {
   url = normalizeListenCoverUrl(url) || String(url || '');
@@ -16241,8 +16399,9 @@ function isArtistDetailSongPlaying(song) {
 }
 function buildArtistSongItemHtml(s, i) {
   var playing = isArtistDetailSongPlaying(s);
-  var cover = songCoverSrc(s, 80);
-  var coverHtml = cover ? '<img class="artist-song-cover" src="' + escHtml(cover) + '" alt="" loading="lazy" decoding="async" onerror="this.style.opacity=0.18">' : '<div class="artist-song-cover"></div>';
+  var isQQ = songProviderKey(s) === 'qq';
+  var cover = isQQ ? resolveSongCoverUrl(s, 300) : songCoverSrc(s, 80);
+  var coverHtml = qqCoverImgHtml(cover, 'artist-song-cover', 42);
   var durationText = searchResultDurationText(s) || (s.duration ? songDurationLabel(s) : '');
   var vipTag = songVipTagHtml(s);
   var playBadge = playing ? '<span class="search-play-badge">播放中</span>' : '';
@@ -16366,6 +16525,8 @@ function bindArtistDetailListAfterRender() {
   bindArtistDetailLazyScroll();
   bindArtistDetailPrefetch();
   refreshArtistDetailPlayingState();
+  var list = document.getElementById('artist-song-list') || document.getElementById('artist-hot-songs');
+  if (list) hydrateQQCoverImages(list);
 }
 function renderArtistSongList(songs) {
   detailArtistSongs = (songs || []).map(cloneSong);
@@ -16475,12 +16636,7 @@ function openTrackDetailModal(type, songOverride) {
           }
           if (cachedArtist.artist && cachedArtist.artist.avatar) {
             var avatarElCached = document.getElementById('artist-detail-cover');
-            if (avatarElCached) {
-              avatarElCached.textContent = '';
-              avatarElCached.style.backgroundImage = 'url("' + coverUrlWithSize(cachedArtist.artist.avatar, 180).replace(/"/g, '\\"') + '")';
-              avatarElCached.style.backgroundSize = 'cover';
-              avatarElCached.style.backgroundPosition = 'center';
-            }
+            if (avatarElCached) hydrateQQCoverBackground(avatarElCached, coverUrlWithSize(cachedArtist.artist.avatar, 300));
           }
           if (targetCached) targetCached.innerHTML = cachedArtist.error ? '<div class="detail-empty">歌手主页加载失败</div>' : renderArtistSongList(cachedArtist.songs || []);
         }
@@ -16502,12 +16658,7 @@ function openTrackDetailModal(type, songOverride) {
         }
         if (r && r.artist && r.artist.avatar) {
           var avatarEl = document.getElementById('artist-detail-cover');
-          if (avatarEl) {
-            avatarEl.textContent = '';
-            avatarEl.style.backgroundImage = 'url("' + coverUrlWithSize(r.artist.avatar, 180).replace(/"/g, '\\"') + '")';
-            avatarEl.style.backgroundSize = 'cover';
-            avatarEl.style.backgroundPosition = 'center';
-          }
+          if (avatarEl) hydrateQQCoverBackground(avatarEl, coverUrlWithSize(r.artist.avatar, 300));
         }
         if (target) target.innerHTML = r && !r.error ? renderArtistSongList(r.songs || []) : '<div class="detail-empty">歌手主页加载失败</div>';
         bindTrackDetailScrollers();
@@ -16575,6 +16726,27 @@ function openTrackDetailModal(type, songOverride) {
   bindTrackDetailScrollers();
   openGsapModal(document.getElementById('track-detail-modal'));
 }
+function enrichQQSongFromDetail(song) {
+  if (!song || songProviderKey(song) !== 'qq') return Promise.resolve(song);
+  if (currentQQArtistMid(song) && song.cover && song.albumMid) return Promise.resolve(song);
+  var mid = String(song.mid || song.songmid || '').trim();
+  if (!mid) return Promise.resolve(song);
+  return apiJson('/api/qq/song/detail?mid=' + encodeURIComponent(mid)).then(function(r){
+    var detail = r && r.song;
+    if (!detail) return song;
+    var out = Object.assign({}, song);
+    if (detail.singerMid) out.singerMid = detail.singerMid;
+    if (detail.artistMid) out.artistMid = detail.artistMid;
+    if (detail.artists && detail.artists.length) out.artists = detail.artists;
+    if (detail.artist && !out.artist) out.artist = detail.artist;
+    if (detail.albumMid) out.albumMid = detail.albumMid;
+    if (detail.cover) out.cover = detail.cover;
+    if (detail.duration && !out.duration) out.duration = detail.duration;
+    if (detail.mediaMid && !out.mediaMid) out.mediaMid = detail.mediaMid;
+    if (detail.album && !out.album) out.album = detail.album;
+    return out;
+  }).catch(function(){ return song; });
+}
 function openArtistDetailForSong(song) {
   if (!song) { showToast('未找到歌手信息'); return; }
   if (currentArtistId(song) || currentQQArtistMid(song) || currentKGArtistId(song)) {
@@ -16582,6 +16754,22 @@ function openArtistDetailForSong(song) {
     return;
   }
   var artist = String(song.artist || '').split(/\s*\/\s*|\s*,\s*|、|&| feat\.? | ft\.? /i).filter(Boolean)[0] || '';
+  if (songProviderKey(song) === 'qq' && (song.mid || song.songmid)) {
+    showToast('正在补全 QQ 歌手信息…');
+    enrichQQSongFromDetail(song).then(function(enriched){
+      if (currentQQArtistMid(enriched)) {
+        openTrackDetailModal('artist', enriched);
+        return;
+      }
+      if (!artist) { openTrackDetailModal('artist', enriched); return; }
+      resolveArtistSongForDetail(enriched, artist).then(function(found){
+        openTrackDetailModal('artist', found || Object.assign({}, enriched, { artist: artist }));
+      }).catch(function(){
+        openTrackDetailModal('artist', Object.assign({}, enriched, { artist: artist }));
+      });
+    });
+    return;
+  }
   if (artist) {
     resolveArtistSongForDetail(song, artist).then(function(found){
       openTrackDetailModal('artist', found || Object.assign({}, song, { artist: artist }));
@@ -17553,9 +17741,10 @@ function beginSearchRequest() {
   if (window.AbortController) searchAbortController = new AbortController();
 }
 function searchApiJson(url) {
-  var opts = {};
-  if (searchAbortController) opts.signal = searchAbortController.signal;
-  return apiJson(url, opts);
+  /* Do not attach AbortSignal — Bridge ignores it, and aborting mid-search
+     surfaces as “搜索失败” when the UI still expects results. Stale responses
+     are ignored via searchRequestSeq instead. */
+  return apiJson(url, {});
 }
 function searchProviderJson(url, timeoutMs) {
   timeoutMs = Math.max(1000, Number(timeoutMs) || SEARCH_NE_TIMEOUT_MS);
@@ -17578,6 +17767,38 @@ function searchProviderJson(url, timeoutMs) {
       resolve({ songs: [], error: (err && err.message) || 'SEARCH_FAILED' });
     });
   });
+}
+function currentBridgeVersionLabel() {
+  try {
+    if (window.__mineradioWebBridge && typeof window.__mineradioWebBridge.getVersion === 'function') {
+      return String(window.__mineradioWebBridge.getVersion() || '').trim();
+    }
+  } catch (_) {}
+  return '';
+}
+function searchBridgeHintFromError(err) {
+  var msg = String((err && err.message) || err || '');
+  var ver = currentBridgeVersionLabel();
+  var verHint = ver ? ('（当前 Bridge v' + ver + '）') : '';
+  if (/BRIDGE_JOB_TIMEOUT/i.test(msg)) return '扩展请求超时，请重试' + verHint;
+  if (/BRIDGE_QUEUE_FULL/i.test(msg)) return '扩展正忙，请稍后再搜' + verHint;
+  if (/未检测|Bridge 扩展|Mineradio Bridge/i.test(msg)) {
+    return '请确认已加载 Mineradio Bridge 扩展，并允许访问本机预览页后重试';
+  }
+  if (/SEARCH_TIMEOUT|timedOut/i.test(msg)) return '搜索超时，请重试' + verHint;
+  if (/forEach|is not a function|Cannot read propert/i.test(msg)) {
+    var needVer = (typeof MINERADIO_BRIDGE_EXTENSION_VERSION !== 'undefined' && MINERADIO_BRIDGE_EXTENSION_VERSION) || '1.4.2';
+    var isOld = ver && (
+      (typeof compareBridgeExtensionVersion === 'function' && compareBridgeExtensionVersion(ver, needVer) < 0)
+      || (/^1\.4\.(\d+)$/.test(ver) && Number(RegExp.$1) < 2)
+    );
+    if (isOld) {
+      return 'Bridge 版本过旧（v' + ver + '），请在 chrome://extensions 重新加载到 v' + needVer + '+';
+    }
+    return '搜索解析异常，请重新加载 Bridge 后重试' + (ver ? ('（v' + ver + '）') : ('（需 v' + needVer + '+）'));
+  }
+  if (msg) return '搜索失败：' + msg.slice(0, 120) + verHint;
+  return '搜索失败，请重试' + verHint;
 }
 function isMusicSearchMode(mode) {
   return mode !== 'podcast';
@@ -18253,8 +18474,7 @@ function searchResultMetaText(song) {
   var bits = [];
   if (song.artist) bits.push(song.artist);
   if (song.album) bits.push(song.album);
-  if (songProviderKey(song) === 'qq' && !song.playable && !hasPlatformLogin('qq')) bits.push('QQ 需登录');
-  if (isQQSongVipRequired(song)) bits.push('QQ 会员');
+  /* Login/VIP prompts happen on play — don't clutter every QQ row */
   if (songProviderKey(song) === 'kg' && Number(song.fee) === 1) bits.push('酷狗会员');
   return bits.join('  ·  ') || songSourceLabel(song);
 }
@@ -18263,8 +18483,6 @@ function searchResultMetaHtml(song, index) {
   var artist = String(song.artist || '').trim();
   var bits = [];
   if (song.album) bits.push(song.album);
-  if (songProviderKey(song) === 'qq' && !song.playable && !hasPlatformLogin('qq')) bits.push('QQ 需登录');
-  if (isQQSongVipRequired(song)) bits.push('QQ 会员');
   if (songProviderKey(song) === 'kg' && Number(song.fee) === 1) bits.push('酷狗会员');
   var tail = bits.length ? (' · ' + escHtml(bits.join('  ·  '))) : '';
   if (!artist) return escHtml(searchResultMetaText(song));
@@ -18388,19 +18606,34 @@ function resetSearchPaging() {
 function searchResultKeyWithPage(q, mode, page) {
   return searchResultKey(q, mode) + '|p=' + (page || 1);
 }
+function asSearchSongList(value) {
+  return Array.isArray(value) ? value : [];
+}
+var SEARCH_ALL_MERGE_LIMIT = 18;
+function searchSongIdentityKey(song) {
+  if (!song) return '';
+  return songProviderKey(song) + ':' + (song.hash || song.mid || song.id || (song.name + '|' + song.artist));
+}
+function searchListsLookSame(a, b) {
+  a = a || [];
+  b = b || [];
+  if (a.length !== b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (searchSongIdentityKey(a[i]) !== searchSongIdentityKey(b[i])) return false;
+  }
+  return true;
+}
 function mergeSongSearchResults(neteaseSongs, qqSongs, limit, q, kgSongs, balanced) {
   var ctx = buildSearchScoreContext(q);
   var out = [];
   var seen = {};
-  var neList = neteaseSongs || [];
-  var qqList = qqSongs || [];
-  var kgList = kgSongs || [];
-  function songKey(song) {
-    return songProviderKey(song) + ':' + (song.hash || song.mid || song.id || (song.name + '|' + song.artist));
-  }
+  var neList = asSearchSongList(neteaseSongs);
+  var qqList = asSearchSongList(qqSongs);
+  var kgList = asSearchSongList(kgSongs);
+  limit = Math.max(6, Number(limit) || SEARCH_PAGE_SIZE);
   function push(song, sourceIndex) {
     if (!song || !song.name) return;
-    var key = songKey(song);
+    var key = searchSongIdentityKey(song);
     if (seen[key]) return;
     seen[key] = true;
     song._searchScore = scoreSongSearchResult(song, q, sourceIndex, ctx);
@@ -18417,8 +18650,13 @@ function mergeSongSearchResults(neteaseSongs, qqSongs, limit, q, kgSongs, balanc
   }
   out.sort(function(a, b){ return (b._searchScore || 0) - (a._searchScore || 0); });
   if (!balanced) return out.slice(0, limit);
-  // Reserve slots so KuGou isn't wiped when NE/QQ scores dominate.
-  var reserve = Math.max(2, Math.floor(limit / 3));
+  /* Guarantee each source a fair slice so All is not NE-only when QQ/KG return hits */
+  var activeProviders = ['netease', 'qq', 'kg'].filter(function(p) {
+    if (p === 'netease') return neList.length;
+    if (p === 'qq') return qqList.length;
+    return kgList.length;
+  });
+  var reserve = Math.max(2, Math.floor(limit / Math.max(1, activeProviders.length)));
   var byProvider = { netease: [], qq: [], kg: [] };
   out.forEach(function(song) {
     var p = songProviderKey(song);
@@ -18426,9 +18664,9 @@ function mergeSongSearchResults(neteaseSongs, qqSongs, limit, q, kgSongs, balanc
   });
   var picked = [];
   var used = {};
-  ['netease', 'qq', 'kg'].forEach(function(p) {
+  activeProviders.forEach(function(p) {
     byProvider[p].slice(0, reserve).forEach(function(song) {
-      var key = songKey(song);
+      var key = searchSongIdentityKey(song);
       if (used[key]) return;
       used[key] = true;
       picked.push(song);
@@ -18436,7 +18674,7 @@ function mergeSongSearchResults(neteaseSongs, qqSongs, limit, q, kgSongs, balanc
   });
   out.forEach(function(song) {
     if (picked.length >= limit) return;
-    var key = songKey(song);
+    var key = searchSongIdentityKey(song);
     if (used[key]) return;
     used[key] = true;
     picked.push(song);
@@ -18456,31 +18694,52 @@ async function fetchMusicSearchPage(q, mode, page) {
   var hasMore = false;
   var songs = [];
   if (mode === 'qq') {
-    var qqOnly = await searchApiJson('/api/qq/search?keywords=' + encodeURIComponent(q) + '&limit=' + pageSize + '&page=' + page);
-    songs = (qqOnly.songs || []).slice();
+    var qqOnly = await searchProviderJson('/api/qq/search?keywords=' + encodeURIComponent(q) + '&limit=' + pageSize + '&page=' + page, SEARCH_NE_TIMEOUT_MS);
+    songs = asSearchSongList(qqOnly && qqOnly.songs).slice();
     hasMore = !!(qqOnly && qqOnly.hasMore);
     if (!hasMore && songs.length >= pageSize) hasMore = true;
+    if (songs.length) searchResultCache[cacheKey] = { at: Date.now(), songs: songs.slice(), hasMore: hasMore };
+    return {
+      songs: songs,
+      hasMore: hasMore,
+      error: (!songs.length && qqOnly && qqOnly.error) ? qqOnly.error : '',
+      bridgeVersion: qqOnly && qqOnly.bridgeVersion
+    };
   } else if (mode === 'kg') {
-    var kgOnly = await searchApiJson('/api/kg/search?keywords=' + encodeURIComponent(q) + '&limit=' + pageSize + '&page=' + page);
-    songs = (kgOnly.songs || []).slice();
+    var kgOnly = await searchProviderJson('/api/kg/search?keywords=' + encodeURIComponent(q) + '&limit=' + pageSize + '&page=' + page, SEARCH_NE_TIMEOUT_MS);
+    songs = asSearchSongList(kgOnly && kgOnly.songs).slice();
     hasMore = !!(kgOnly && kgOnly.hasMore);
     if (!hasMore && songs.length >= pageSize) hasMore = true;
+    if (songs.length) searchResultCache[cacheKey] = { at: Date.now(), songs: songs.slice(), hasMore: hasMore };
+    return {
+      songs: songs,
+      hasMore: hasMore,
+      error: (!songs.length && kgOnly && kgOnly.error) ? kgOnly.error : '',
+      bridgeVersion: kgOnly && kgOnly.bridgeVersion
+    };
   } else if (mode === 'netease') {
-    var neOnly = await searchApiJson('/api/search?keywords=' + encodeURIComponent(q) + '&limit=' + pageSize + '&offset=' + offset);
+    var neOnly = await searchProviderJson('/api/search?keywords=' + encodeURIComponent(q) + '&limit=' + pageSize + '&offset=' + offset, SEARCH_NE_TIMEOUT_MS);
     if (neOnly && neOnly.error) console.warn('Netease search error:', neOnly.error);
-    songs = (neOnly.songs || []).slice();
+    songs = asSearchSongList(neOnly && neOnly.songs).slice();
     hasMore = !!(neOnly && neOnly.hasMore);
     if (!hasMore && songs.length >= pageSize) hasMore = true;
+    if (songs.length) searchResultCache[cacheKey] = { at: Date.now(), songs: songs.slice(), hasMore: hasMore };
+    return {
+      songs: songs,
+      hasMore: hasMore,
+      error: (!songs.length && neOnly && neOnly.error) ? neOnly.error : '',
+      bridgeVersion: neOnly && neOnly.bridgeVersion
+    };
   } else {
     var per = Math.max(8, pageSize);
     var side = Math.max(4, Math.ceil(pageSize / 3));
     var neRes = await searchProviderJson('/api/search?keywords=' + encodeURIComponent(q) + '&limit=' + per + '&offset=' + offset, SEARCH_NE_TIMEOUT_MS);
-    var neteaseSongs = (neRes && neRes.songs) || [];
+    var neteaseSongs = asSearchSongList(neRes && neRes.songs);
     if (neRes && neRes.error) console.warn('Netease search error:', neRes.error);
     var qqRes = await searchProviderJson('/api/qq/search?keywords=' + encodeURIComponent(q) + '&limit=' + side + '&page=' + page, SEARCH_SIDE_TIMEOUT_MS);
     var kgRes = await searchProviderJson('/api/kg/search?keywords=' + encodeURIComponent(q) + '&limit=' + side + '&page=' + page, SEARCH_SIDE_TIMEOUT_MS);
-    var qqSongsMerged = (qqRes && qqRes.songs) || [];
-    var kgSongsMerged = (kgRes && kgRes.songs) || [];
+    var qqSongsMerged = asSearchSongList(qqRes && qqRes.songs);
+    var kgSongsMerged = asSearchSongList(kgRes && kgRes.songs);
     songs = mergeSongSearchResults(neteaseSongs, qqSongsMerged, pageSize, q, kgSongsMerged, true);
     hasMore = neteaseSongs.length >= per || qqSongsMerged.length >= side || kgSongsMerged.length >= side;
   }
@@ -18493,22 +18752,36 @@ async function fetchMusicSearchResults(q, mode, onPartial) {
   searchPagingState.mode = mode;
   searchPagingState.page = 1;
   if (mode === 'song') {
+    /* All = same endpoints as NE/QQ/KG tabs; paint NE first, then merge sides */
+    var searchGen = searchRequestSeq;
     var neteaseSongs = [];
     var qqSongsMerged = [];
     var kgSongsMerged = [];
-    var per = Math.max(8, SEARCH_PAGE_SIZE);
-    var side = Math.max(4, Math.ceil(SEARCH_PAGE_SIZE / 3));
-    var searchGen = searchRequestSeq;
+    var errBits = [];
+    var bridgeVer = '';
+    var mergeLimit = SEARCH_ALL_MERGE_LIMIT;
+
     function emitAllPartial() {
-      if (typeof onPartial !== 'function') return;
-      if (searchGen !== searchRequestSeq) return;
-      var partial = mergeSongSearchResults(neteaseSongs, qqSongsMerged, SEARCH_PAGE_SIZE, q, kgSongsMerged, true);
-      if (partial.length) onPartial(partial, false);
+      if (typeof onPartial !== 'function' || searchGen !== searchRequestSeq) return;
+      try {
+        var partial = mergeSongSearchResults(neteaseSongs, qqSongsMerged, mergeLimit, q, kgSongsMerged, true);
+        if (partial.length) onPartial(partial, false);
+      } catch (emitErr) {
+        console.warn('Aggregate partial render failed:', emitErr);
+      }
     }
     function finishCache() {
       if (searchGen !== searchRequestSeq) return [];
-      var mergedNow = mergeSongSearchResults(neteaseSongs, qqSongsMerged, SEARCH_PAGE_SIZE, q, kgSongsMerged, true);
-      searchPagingState.hasMore = neteaseSongs.length >= per || qqSongsMerged.length >= side || kgSongsMerged.length >= side;
+      var mergedNow = [];
+      try {
+        mergedNow = mergeSongSearchResults(neteaseSongs, qqSongsMerged, mergeLimit, q, kgSongsMerged, true);
+      } catch (mergeErr) {
+        console.warn('Aggregate merge failed:', mergeErr);
+        mergedNow = neteaseSongs.concat(qqSongsMerged, kgSongsMerged).filter(function(s){ return s && s.name; }).slice(0, mergeLimit);
+      }
+      searchPagingState.hasMore = neteaseSongs.length >= SEARCH_PAGE_SIZE
+        || qqSongsMerged.length >= SEARCH_PAGE_SIZE
+        || kgSongsMerged.length >= SEARCH_PAGE_SIZE;
       if (mergedNow.length) {
         searchResultCache[searchResultKeyWithPage(q, mode, 1)] = {
           at: Date.now(),
@@ -18518,48 +18791,55 @@ async function fetchMusicSearchResults(q, mode, onPartial) {
       }
       return mergedNow;
     }
-    /* Identical NE request to the NE tab — do not parallelize with QQ/KG (Bridge congestion) */
-    try {
-      var neRes = await searchApiJson('/api/search?keywords=' + encodeURIComponent(q) + '&limit=' + per + '&offset=0');
-      if (searchGen !== searchRequestSeq) return [];
-      neteaseSongs = (neRes && neRes.songs) || [];
-      if (neRes && neRes.error) console.warn('Netease search error:', neRes.error);
-    } catch (err) {
-      if (searchGen !== searchRequestSeq) return [];
-      console.warn('Netease search failed:', err);
-      neteaseSongs = [];
-    }
-    if (neteaseSongs.length) emitAllPartial();
-    var merged = finishCache();
-    /* Enrich QQ then KG sequentially after UI already shows NE */
-    (async function enrichAggregateSides() {
-      try {
-        var qqRes = await searchProviderJson(
-          '/api/qq/search?keywords=' + encodeURIComponent(q) + '&limit=' + side + '&page=1',
-          SEARCH_SIDE_TIMEOUT_MS
-        );
-        if (searchGen !== searchRequestSeq) return;
-        qqSongsMerged = (qqRes && qqRes.songs) || [];
-        if (qqRes && qqRes.timedOut) console.warn('QQ search timed out');
-        if (qqSongsMerged.length) emitAllPartial();
-        var kgRes = await searchProviderJson(
-          '/api/kg/search?keywords=' + encodeURIComponent(q) + '&limit=' + side + '&page=1',
-          SEARCH_SIDE_TIMEOUT_MS
-        );
-        if (searchGen !== searchRequestSeq) return;
-        kgSongsMerged = (kgRes && kgRes.songs) || [];
-        if (kgRes && kgRes.timedOut) console.warn('KuGou search timed out');
-        finishCache();
-        if (qqSongsMerged.length || kgSongsMerged.length) emitAllPartial();
-      } catch (err) {
-        console.warn('Aggregate side search failed:', err);
+    function noteProviderError(label, page) {
+      if (!page) return;
+      if (page.bridgeVersion) bridgeVer = String(page.bridgeVersion);
+      if (page.error) {
+        errBits.push(label + ':' + String(page.error).slice(0, 80));
+        console.warn(label + ' search error:', page.error);
       }
-    })();
+    }
+
+    try {
+      var nePage = await fetchMusicSearchPage(q, 'netease', 1);
+      if (searchGen !== searchRequestSeq) return [];
+      neteaseSongs = asSearchSongList(nePage && nePage.songs);
+      noteProviderError('NE', nePage);
+      if (neteaseSongs.length) emitAllPartial();
+    } catch (neErr) {
+      errBits.push('NE:' + ((neErr && neErr.message) || neErr));
+      console.warn('Netease aggregate search threw:', neErr);
+    }
+
+    /* QQ + KG in parallel after NE paints — same paths as QQ/KG tabs */
+    var sidePages = await Promise.all([
+      fetchMusicSearchPage(q, 'qq', 1).catch(function(err){ return { songs: [], error: (err && err.message) || String(err) }; }),
+      fetchMusicSearchPage(q, 'kg', 1).catch(function(err){ return { songs: [], error: (err && err.message) || String(err) }; })
+    ]);
+    if (searchGen !== searchRequestSeq) return [];
+    qqSongsMerged = asSearchSongList(sidePages[0] && sidePages[0].songs);
+    kgSongsMerged = asSearchSongList(sidePages[1] && sidePages[1].songs);
+    noteProviderError('QQ', sidePages[0]);
+    noteProviderError('KG', sidePages[1]);
+    console.info('[Search All]', {
+      ne: neteaseSongs.length,
+      qq: qqSongsMerged.length,
+      kg: kgSongsMerged.length,
+      errors: errBits.slice()
+    });
+    if (qqSongsMerged.length || kgSongsMerged.length) emitAllPartial();
+
+    var merged = finishCache() || [];
+    if (!merged.length && errBits.length) {
+      merged._searchError = errBits.join(' | ') + (bridgeVer ? (' | bridge=' + bridgeVer) : '');
+    }
     return merged;
   }
   var pageResult = await fetchMusicSearchPage(q, mode, 1);
-  searchPagingState.hasMore = pageResult.hasMore;
-  return pageResult.songs;
+  searchPagingState.hasMore = !!(pageResult && pageResult.hasMore);
+  var pageSongs = asSearchSongList(pageResult && pageResult.songs);
+  if (!pageSongs.length && pageResult && pageResult.error) pageSongs._searchError = pageResult.error;
+  return pageSongs;
 }
 function buildSearchResultRowHtml(s, i) {
   var vipTag = songVipTagHtml(s);
@@ -18568,10 +18848,9 @@ function buildSearchResultRowHtml(s, i) {
   var playing = isSearchResultPlaying(s);
   var playBadge = playing ? '<span class="search-play-badge">播放中</span>' : '';
   var durationText = searchResultDurationText(s);
-  var thumb = songCoverSrc(s, 80);
-  var imgTag = thumb
-    ? '<img src="' + thumb + '" data-cover-url="' + escHtml(thumb) + '" alt="" loading="lazy" decoding="async" onerror="mineradioRetryCoverImg(this)">'
-    : '<div style="width:42px;height:42px;border-radius:8px;background:rgba(255,255,255,0.06);flex-shrink:0"></div>';
+  var isQQ = songProviderKey(s) === 'qq';
+  var thumb = isQQ ? resolveSongCoverUrl(s, 300) : songCoverSrc(s, 80);
+  var imgTag = qqCoverImgHtml(thumb, '', 42);
   return '<div class="search-result ' + sourceClass + (playing ? ' playing' : '') + '" data-search-index="' + i + '">' +
     '<span class="search-result-index">' + (i + 1) + '</span>' +
     '<div class="search-result-main" onclick="playSearchResult(' + i + ')">' +
@@ -18621,22 +18900,15 @@ function appendSearchResultRows(songs, startIndex) {
   else $results.appendChild(frag);
   updateSearchResultsHead(songs.length);
   updateSearchLoadMoreButton();
+  hydrateSearchResultCovers();
   if (window.gsap && songs.length > startIndex) {
     var added = songs.length - startIndex;
     animateListItems($results, '.search-result:nth-last-child(n+' + (added + (loadMoreBtn ? 1 : 0)) + ')', { x: 0, y: 8, stagger: 0.01, duration: 0.16, limit: added });
   }
 }
-function renderSongSearchResults(songs, opts) {
+function paintSongSearchResults(songs, opts) {
   opts = opts || {};
   var q = searchPagingState.query || ($input && $input.value.trim()) || '';
-  if (opts.softUpdate && playlist.length && songs.length === playlist.length) {
-    playlist = songs || [];
-    updateSearchResultsHead(playlist.length, q);
-    updateSearchLoadMoreButton();
-    refreshSearchResultPlayingState();
-    if (!opts.skipLikeSync) scheduleUiWarmTask(function(){ syncLikeStatusForSongs(playlist, { limit: 10, searchContext: true }); }, mineradioUsesWebMediaBridge() ? 720 : 320);
-    return;
-  }
   if (opts.incremental && playlist.length && songs.length > playlist.length) {
     var prevLen = playlist.length;
     playlist = songs || [];
@@ -18655,13 +18927,47 @@ function renderSongSearchResults(songs, opts) {
   }
   $results.innerHTML = html;
   $results.classList.add('show');
+  hydrateSearchResultCovers();
   if (!opts.skipLikeSync) {
     scheduleUiWarmTask(function(){ syncLikeStatusForSongs(playlist, { limit: 10, searchContext: true }); }, mineradioUsesWebMediaBridge() ? 720 : 320);
   }
   if (!opts.skipAnimate && window.gsap && !mineradioUsesWebMediaBridge()) {
-    animateListItems($results, '.search-result', { x: 0, y: 6, stagger: 0.012, duration: 0.18, limit: SEARCH_PAGE_SIZE });
+    animateListItems($results, '.search-result', { x: 0, y: 6, stagger: 0.012, duration: 0.18, scope: SEARCH_PAGE_SIZE });
   }
   refreshSearchResultPlayingState();
+}
+function renderSongSearchResults(songs, opts) {
+  opts = opts || {};
+  var q = searchPagingState.query || ($input && $input.value.trim()) || '';
+  if (opts.softUpdate && playlist.length && songs.length === playlist.length) {
+    playlist = songs || [];
+    updateSearchResultsHead(playlist.length, q);
+    updateSearchLoadMoreButton();
+    refreshSearchResultPlayingState();
+    prefetchQQCoversForSongs(playlist, { waitMs: 0, limit: 24 }).then(refreshSearchResultQQCoversFromCache);
+    hydrateSearchResultCovers();
+    if (!opts.skipLikeSync) scheduleUiWarmTask(function(){ syncLikeStatusForSongs(playlist, { limit: 10, searchContext: true }); }, mineradioUsesWebMediaBridge() ? 720 : 320);
+    return;
+  }
+  var list = songs || [];
+  var needsPrefetch = !opts.skipCoverPrefetch
+    && mineradioUsesWebMediaBridge()
+    && list.some(function(s){ return songProviderKey(s) === 'qq'; });
+  if (!needsPrefetch) {
+    paintSongSearchResults(list, opts);
+    return;
+  }
+  var paintSeq = ++searchCoverPaintSeq;
+  var slice = opts.incremental && playlist.length && list.length > playlist.length
+    ? list.slice(playlist.length)
+    : list;
+  prefetchQQCoversForSongs(slice, {
+    waitMs: opts.coverWaitMs != null ? opts.coverWaitMs : 620,
+    limit: opts.incremental ? 16 : 22
+  }).then(function(){
+    if (paintSeq !== searchCoverPaintSeq) return;
+    paintSongSearchResults(list, opts);
+  });
 }
 async function loadMoreSearchResults() {
   if (searchPagingState.loading || !searchPagingState.hasMore) return;
@@ -18689,8 +18995,12 @@ async function loadMoreSearchResults() {
     });
     searchPagingState.page = nextPage;
     searchPagingState.hasMore = !!pageResult.hasMore;
-    if (playlist.length > prevLen) appendSearchResultRows(playlist, prevLen);
-    else updateSearchLoadMoreButton();
+    if (playlist.length > prevLen) {
+      var added = playlist.slice(prevLen);
+      await prefetchQQCoversForSongs(added, { waitMs: 480, limit: 16 });
+      if (requestSeq !== searchRequestSeq) return;
+      appendSearchResultRows(playlist, prevLen);
+    } else updateSearchLoadMoreButton();
   } catch (err) {
     console.warn('[SearchLoadMore]', err);
     searchPagingState.loading = false;
@@ -18720,36 +19030,58 @@ async function doSearch(q, opts) {
   }
   beginSearchRequest();
   var requestSeq = ++searchRequestSeq;
+  function inputStillMatches() {
+    return !!(!$input || String($input.value || '').trim() === q);
+  }
   try {
     var mode = searchMode;
     var partialRendered = false;
     var partialLen = 0;
     var songs = await fetchMusicSearchResults(q, mode, function(partial){
-      if (requestSeq !== searchRequestSeq || $input.value.trim() !== q || !partial || !partial.length) return;
-      partialRendered = true;
-      renderSongSearchResults(partial, { skipLikeSync: true, skipAnimate: true, incremental: partialLen > 0 && partial.length > partialLen });
-      partialLen = partial.length;
+      if (requestSeq !== searchRequestSeq || !inputStillMatches() || !partial || !partial.length) return;
+      try {
+        partialRendered = true;
+        renderSongSearchResults(partial, { skipLikeSync: true, skipAnimate: true, incremental: partialLen > 0 && partial.length > partialLen });
+        partialLen = partial.length;
+      } catch (renderErr) {
+        console.warn('Search partial render failed:', renderErr);
+      }
     });
-    if (requestSeq !== searchRequestSeq || $input.value.trim() !== q) return;
+    if (requestSeq !== searchRequestSeq || !inputStillMatches()) return;
+    songs = songs || [];
     if (!songs.length) {
       if (partialRendered) return;
       playlist = [];
       searchLastResultQuery = '';
-      $results.innerHTML = '<div class="search-empty">没有找到相关歌曲</div>';
+      var emptyHint = searchBridgeHintFromError(songs._searchError);
+      if (!songs._searchError) emptyHint = '没有找到相关歌曲';
+      $results.innerHTML = '<div class="search-empty">' + escHtml(emptyHint) + '</div>';
       $results.classList.add('show');
       return;
     }
     searchLastResultQuery = searchResultKey(q, mode);
     if (opts.remember) rememberSearchQuery(q);
-    if (!partialRendered) renderSongSearchResults(songs);
-    else renderSongSearchResults(songs, { skipAnimate: true, softUpdate: songs.length === partialLen, skipLikeSync: songs.length === partialLen });
+    try {
+      if (!partialRendered) {
+        renderSongSearchResults(songs);
+      } else {
+        /* All mode often keeps the same count while swapping in QQ/KG — never soft-skip that */
+        var canSoft = mode !== 'song'
+          && songs.length === partialLen
+          && searchListsLookSame(playlist, songs);
+        renderSongSearchResults(songs, { skipAnimate: true, softUpdate: canSoft, skipLikeSync: canSoft });
+      }
+    } catch (renderErr) {
+      console.warn('Search render failed:', renderErr);
+      if (!(playlist && playlist.length)) throw renderErr;
+    }
     scheduleUiWarmTask(function(){ prefetchSearchNextPage(q, mode); }, 480);
     if (opts.autoPlayFirst) playSearchResult(0);
   } catch (err) {
-    if (err && (err.name === 'AbortError' || String(err.message || '').indexOf('aborted') >= 0)) return;
+    if (err && (err.name === 'AbortError' || /abort/i.test(String(err.message || '')))) return;
     console.error('Search:', err);
-    if (requestSeq === searchRequestSeq && searchResultsStillLoading()) {
-      $results.innerHTML = '<div class="search-empty">搜索失败，请重试</div>';
+    if (requestSeq === searchRequestSeq && (searchResultsStillLoading() || !(playlist && playlist.length))) {
+      $results.innerHTML = '<div class="search-empty">' + escHtml(searchBridgeHintFromError(err)) + '</div>';
       $results.classList.add('show');
     }
   } finally {

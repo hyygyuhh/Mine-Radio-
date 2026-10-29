@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mineradio Bridge</title>
+<style>
+  :root {
+    --ink: #e9eef2;
+    --ink-2: #c9d0d7;
+    --muted: #7e8792;
+    --hair: rgba(255, 255, 255, 0.08);
+    --hair-2: rgba(255, 255, 255, 0.14);
+    --paper: #0e1216;
+    --deep: #07090c;
+    --accent: #2dd4bf;
+    --accent-rgb: 45, 212, 191;
+    --ok: #2dd4bf;
+    --warn: #e7c27d;
+    --bad: #f07a86;
+    --ne: #e06b76;
+    --qq: #2dd4bf;
+    --kg: #38bdf8;
+    --radius: 14px;
+    --bg-0: #080b0e;
+    --bg-1: #0a1014;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* Fill the square popup chrome — transparent body leaves white corner wedges on Windows */
+  html {
+    background: var(--bg-0);
+  }
+
+  body {
+    width: 336px;
+    color: var(--ink);
+    font: 12.5px/1.45 "Noto Sans SC", "PingFang SC", "Segoe UI", system-ui, sans-serif;
+    padding: 0;
+    margin: 0;
+    background: var(--bg-0);
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .shell {
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+    padding: 14px 14px 12px;
+    /* Soft inner rounding only; outer window is always square */
+    border-radius: 0;
+    overflow: hidden;
+    border: 0;
+    background:
+      radial-gradient(120% 70% at 8% -10%, rgba(var(--accent-rgb), 0.14), transparent 46%),
+      radial-gradient(90% 60% at 100% 0%, rgba(56, 189, 248, 0.08), transparent 40%),
+      linear-gradient(168deg, var(--bg-1) 0%, var(--deep) 58%, var(--bg-0) 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .hero {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .brand { min-width: 0; }
+  .brand-mark {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 3px;
+  }
+  .brand-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.16);
+    flex: 0 0 auto;
+  }
+  .brand h1 {
+    font-size: 14.5px;
+    font-weight: 720;
+    letter-spacing: 0.01em;
+    color: #fff;
+  }
+  .brand p {
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  .pill {
+    flex: 0 0 auto;
+    height: 26px;
+    padding: 0 10px;
+    border-radius: 999px;
+    border: 1px solid var(--hair);
+    background: rgba(255, 255, 255, 0.035);
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 650;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    transition: border-color 0.2s, background 0.2s, color 0.2s;
+  }
+  .pill[data-tone="ok"] {
+    border-color: rgba(var(--accent-rgb), 0.3);
+    color: var(--ok);
+    background: rgba(var(--accent-rgb), 0.08);
+  }
+  .pill[data-tone="warn"] {
+    border-color: rgba(231, 194, 125, 0.28);
+    color: var(--warn);
+    background: rgba(231, 194, 125, 0.08);
+  }
+  .pill[data-tone="bad"] {
+    border-color: rgba(240, 122, 134, 0.28);
+    color: var(--bad);
+    background: rgba(240, 122, 134, 0.08);
+  }
+  .pill.is-syncing .pill-dot {
+    animation: pulse 1s ease-in-out infinite;
+  }
+  .pill-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .hint {
+    border: 0;
+    border-radius: var(--radius);
+    background: rgba(255, 255, 255, 0.035);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+    padding: 9px 11px;
+    color: var(--muted);
+    font-size: 11.5px;
+  }
+  .hint strong { color: var(--ink-2); font-weight: 650; }
+  .hint[hidden] { display: none !important; }
+
+  .providers {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .provider {
+    --tone: var(--accent);
+    --ring: rgba(255, 255, 255, 0.07);
+    width: 100%;
+    text-align: left;
+    border: 0;
+    border-radius: var(--radius);
+    background: linear-gradient(145deg, rgba(20, 24, 29, 0.92), rgba(10, 12, 16, 0.94));
+    box-shadow: inset 0 0 0 1px var(--ring);
+    color: inherit;
+    font: inherit;
+    padding: 10px 11px;
+    display: grid;
+    grid-template-columns: 36px 1fr auto;
+    gap: 10px;
+    align-items: center;
+    cursor: pointer;
+    isolation: isolate;
+    transition: box-shadow 0.18s, transform 0.18s, background 0.18s, opacity 0.18s;
+  }
+  .provider:hover {
+    --ring: color-mix(in srgb, var(--tone) 38%, rgba(255, 255, 255, 0.1));
+    transform: translateY(-1px);
+  }
+  .provider:focus-visible {
+    outline: 2px solid rgba(var(--accent-rgb), 0.5);
+    outline-offset: 2px;
+  }
+  .provider[data-provider="ne"] { --tone: var(--ne); }
+  .provider[data-provider="qq"] { --tone: var(--qq); }
+  .provider[data-provider="kg"] { --tone: var(--kg); }
+  .provider.is-loading { opacity: 0.72; }
+  .provider.is-ok { --ring: color-mix(in srgb, var(--tone) 26%, rgba(255, 255, 255, 0.06)); }
+  .provider.is-bad { --ring: rgba(240, 122, 134, 0.18); }
+
+  .avatar-wrap {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.045);
+    border: 0;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+    display: grid;
+    place-items: center;
+    position: relative;
+  }
+  .avatar-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .avatar-wrap img[hidden] { display: none !important; }
+  .avatar-fallback {
+    font-size: 10.5px;
+    font-weight: 760;
+    letter-spacing: 0.04em;
+    color: color-mix(in srgb, var(--tone) 78%, #fff);
+  }
+  .avatar-wrap img:not([hidden]) + .avatar-fallback { display: none; }
+
+  .info { min-width: 0; }
+  .name-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+  .name {
+    font-size: 12.5px;
+    font-weight: 680;
+    color: #fff;
+    white-space: nowrap;
+  }
+  .badge {
+    height: 17px;
+    padding: 0 6px;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--tone) 28%, transparent);
+    background: color-mix(in srgb, var(--tone) 12%, transparent);
+    color: color-mix(in srgb, var(--tone) 85%, #fff);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+  .badge[hidden] { display: none !important; }
+  .meta {
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .meta.is-ok { color: var(--ok); }
+  .meta.is-warn { color: var(--warn); }
+  .meta.is-bad { color: var(--bad); }
+
+  .chev {
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1;
+    transition: transform 0.18s, color 0.18s;
+  }
+  .provider:hover .chev {
+    color: var(--ink-2);
+    transform: translateX(2px);
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 7px;
+  }
+  .site-row {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  .btn-site {
+    height: 32px;
+    border-radius: 11px;
+    border: 0;
+    background: rgba(255, 255, 255, 0.03);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    color: var(--ink-2);
+    font: inherit;
+    font-size: 11.5px;
+    font-weight: 650;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    cursor: pointer;
+    transition: box-shadow 0.18s, background 0.18s, color 0.18s, transform 0.18s;
+  }
+  .btn-site:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.055);
+    box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.28);
+    transform: translateY(-1px);
+  }
+  .btn-site:focus-visible {
+    outline: 2px solid rgba(var(--accent-rgb), 0.5);
+    outline-offset: 2px;
+  }
+  .btn-site .site-host {
+    color: var(--accent);
+    font-weight: 700;
+    letter-spacing: 0.01em;
+  }
+  .btn-site .site-arrow {
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1;
+  }
+  .btn-site:hover .site-arrow { color: var(--ink-2); }
+  .btn {
+    height: 35px;
+    border-radius: 12px;
+    border: 0;
+    background: rgba(255, 255, 255, 0.045);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    color: var(--ink);
+    font: inherit;
+    font-weight: 650;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    isolation: isolate;
+    transition: box-shadow 0.18s, background 0.18s, color 0.18s, transform 0.18s;
+  }
+  .btn:hover {
+    box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.36);
+    color: #fff;
+    transform: translateY(-1px);
+  }
+  .btn:active { transform: translateY(0); }
+  .btn:focus-visible {
+    outline: 2px solid rgba(var(--accent-rgb), 0.5);
+    outline-offset: 2px;
+  }
+  .btn-primary {
+    box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.34);
+    background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.2), rgba(56, 189, 248, 0.12));
+    color: #eafffa;
+  }
+  .btn-primary:hover {
+    box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.5);
+    background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.28), rgba(56, 189, 248, 0.18));
+  }
+  .btn.is-busy {
+    opacity: 0.78;
+    pointer-events: none;
+  }
+  .btn .spin {
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(255, 255, 255, 0.2);
+    border-top-color: var(--accent);
+    animation: spin 0.7s linear infinite;
+    display: none;
+  }
+  .btn.is-busy .spin { display: inline-block; }
+
+  .foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    color: #5f6973;
+    font-size: 10.5px;
+    padding-top: 1px;
+  }
+  .foot-left {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+  .foot code {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    color: var(--muted);
+  }
+  #sync-label {
+    color: #66707a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 220px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.45; transform: scale(0.92); }
+    50% { opacity: 1; transform: scale(1.08); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .provider, .btn, .btn-site, .chev, .pill { transition: none; }
+    .btn .spin, .pill.is-syncing .pill-dot { animation: none; }
+  }
+</style>
+</head>
+<body>
+  <div class="shell">
+    <header class="hero">
+      <div class="brand">
+        <div class="brand-mark">
+          <span class="brand-dot" aria-hidden="true"></span>
+          <h1>Mineradio Bridge</h1>
+        </div>
+        <p>本机 Cookie 代理 · 不上传服务器</p>
+      </div>
+      <div class="pill" id="summary-pill" data-tone="warn" title="登录概况">
+        <span class="pill-dot" aria-hidden="true"></span>
+        <span id="summary-text">—</span>
+      </div>
+    </header>
+
+    <div class="hint" id="page-hint" hidden>
+      <strong>提示：</strong><span id="page-hint-text"></span>
+    </div>
+
+    <section class="providers" aria-label="音乐平台登录状态">
+      <button type="button" class="provider" data-provider="ne" data-url="https://music.163.com/" aria-label="网易云音乐">
+        <div class="avatar-wrap">
+          <img id="ne-avatar" alt="" hidden>
+          <span class="avatar-fallback">NE</span>
+        </div>
+        <div class="info">
+          <div class="name-row">
+            <span class="name">网易云音乐</span>
+            <span class="badge" id="ne-badge" hidden></span>
+          </div>
+          <div class="meta" id="ne-status">读取缓存…</div>
+        </div>
+        <span class="chev" aria-hidden="true">›</span>
+      </button>
+
+      <button type="button" class="provider" data-provider="qq" data-url="https://y.qq.com/" aria-label="QQ 音乐">
+        <div class="avatar-wrap">
+          <img id="qq-avatar" alt="" hidden>
+          <span class="avatar-fallback">QQ</span>
+        </div>
+        <div class="info">
+          <div class="name-row">
+            <span class="name">QQ 音乐</span>
+            <span class="badge" id="qq-badge" hidden></span>
+          </div>
+          <div class="meta" id="qq-status">读取缓存…</div>
+        </div>
+        <span class="chev" aria-hidden="true">›</span>
+      </button>
+
+      <button type="button" class="provider" data-provider="kg" data-url="https://www.kugou.com/" aria-label="酷狗音乐">
+        <div class="avatar-wrap">
+          <img id="kg-avatar" alt="" hidden>
+          <span class="avatar-fallback">KG</span>
+        </div>
+        <div class="info">
+          <div class="name-row">
+            <span class="name">酷狗音乐</span>
+            <span class="badge" id="kg-badge" hidden></span>
+          </div>
+          <div class="meta" id="kg-status">读取缓存…</div>
+        </div>
+        <span class="chev" aria-hidden="true">›</span>
+      </button>
+    </section>
+
+    <div class="actions">
+      <a class="btn btn-primary" id="open-web" href="https://mineradio.art/" target="_blank" rel="noreferrer">打开网页版</a>
+      <button class="btn" id="refresh" type="button" title="手动重新检测登录状态">
+        <span class="spin" aria-hidden="true"></span>
+        <span id="refresh-label">刷新状态</span>
+      </button>
+    </div>
+
+    <div class="site-row">
+      <a class="btn-site" id="open-site" href="https://mineradio.cn/" target="_blank" rel="noreferrer" title="打开 Mineradio 官网">
+        <span>打开官网</span>
+        <span class="site-host">mineradio.cn</span>
+        <span class="site-arrow" aria-hidden="true">›</span>
+      </a>
+    </div>
+
+    <footer class="foot">
+      <div class="foot-left">
+        <span id="sync-label">打开时沿用上次状态</span>
+      </div>
+      <code id="ver">v1.4.2</code>
+    </footer>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

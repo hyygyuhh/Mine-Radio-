@@ -149,22 +149,37 @@ function qqOfficialCoverSize(size) {
 }
 
 function qqAlbumCover(albumMid, size) {
+  albumMid = qqCleanMid(albumMid);
   if (!albumMid) return '';
   const px = qqOfficialCoverSize(size || 300);
   return `https://y.gtimg.cn/music/photo_new/T002R${px}x${px}M000${albumMid}.jpg?max_age=2592000`;
 }
 
 function qqSingerAvatar(singerMid, size) {
+  singerMid = qqCleanMid(singerMid);
   if (!singerMid) return '';
   const px = qqOfficialCoverSize(size || 300);
   return `https://y.gtimg.cn/music/photo_new/T001R${px}x${px}M000${singerMid}.jpg?max_age=2592000`;
 }
 
+function qqAlbumCoverFromNumericId(albumId) {
+  const id = Number(albumId);
+  if (!Number.isFinite(id) || id <= 0) return '';
+  return `https://imgcache.qq.com/music/photo/album_300/${id % 100}/${id}.jpg`;
+}
+
+function qqCleanMid(value) {
+  const mid = String(value == null ? '' : value).trim();
+  if (!mid || mid === '0' || mid === 'null' || mid === 'undefined') return '';
+  return mid;
+}
+
 function qqFeeFromPay(pay) {
   pay = pay || {};
   if (Number(pay.time_free) === 1) return 0;
-  // pay_play=1 需付费播放；pay_month=1 需绿钻；pay_down 只影响下载，不代表不能免费播
-  if (Number(pay.pay_play) === 1 || Number(pay.pay_month) === 1) return 1;
+  // 搜索列表里 pay_month 经常为 1，但不代表不能试听；VIP 角标以付费播放为准
+  if (Number(pay.pay_play) === 1) return 1;
+  if (Number(pay.pay_month) === 1 && Number(pay.pay_play) === 1) return 1;
   return 0;
 }
 
@@ -176,91 +191,154 @@ function qqFeeFromTrack(track) {
   return 0;
 }
 
+function qqDurationMsFromItem(item) {
+  item = item || {};
+  const raw = Number(item.interval || item.songTime || item.songtime || item.duration || item.dt || 0) || 0;
+  if (!raw) return 0;
+  // QQ search interval is seconds; detail may already be ms
+  return raw > 10000 ? raw : raw * 1000;
+}
+
 function mergeQQSearchEnrich(item, detail) {
   if (!item || !detail) return item;
   if (detail.mediaMid) item.mediaMid = detail.mediaMid;
-  if (detail.cover && !item.cover) item.cover = detail.cover;
-  if (detail.albumMid && !item.albumMid) item.albumMid = detail.albumMid;
+  if (detail.cover) item.cover = detail.cover;
+  if (detail.albumMid) item.albumMid = detail.albumMid;
+  if (detail.album && !item.album) item.album = detail.album;
   if (detail.fee != null) item.fee = detail.fee;
+  if (detail.duration && !item.duration) item.duration = detail.duration;
+  if (detail.singerMid) item.singerMid = detail.singerMid;
+  if (detail.artistMid) item.artistMid = detail.artistMid;
+  if (detail.artists && detail.artists.length) {
+    item.artists = detail.artists;
+    if (!item.artist) item.artist = detail.artist || detail.artists.map((a) => a.name).filter(Boolean).join(' / ');
+  }
+  if (!item.singerMid && item.artistMid) item.singerMid = item.artistMid;
+  if (!item.artistMid && item.singerMid) item.artistMid = item.singerMid;
   return item;
+}
+
+function qqSearchNeedsMeta(item) {
+  return !!(item && item.mid && (!item.cover || !item.albumMid || !item.duration || !(item.singerMid || item.artistMid)));
 }
 
 async function qqSongDetailsBatch(items, cookieHeader) {
   items = (items || []).filter((item) => item && item.mid);
   if (!items.length) return items;
-  if (items.length === 1) {
-    try {
-      mergeQQSearchEnrich(items[0], await qqSongDetail(items[0].mid, items[0], cookieHeader));
-    } catch (_) {}
-    return items;
-  }
-  try {
-    const json = await qqMusicRequest({
-      comm: { ct: 24, cv: 0 },
-      songinfo: {
-        module: 'music.pf_song_detail_svr',
-        method: 'get_song_detail_yqq',
-        param: { song_mid: items.map((item) => item.mid).join(',') },
-      },
-    }, cookieHeader);
-    const data = json && json.songinfo && json.songinfo.data;
-    let rawTracks = [];
-    if (Array.isArray(data && data.track_info)) rawTracks = data.track_info;
-    else if (data && data.track_info) rawTracks = [data.track_info];
-    else if (Array.isArray(data)) rawTracks = data;
-    const byMid = {};
-    rawTracks.forEach((raw) => {
-      const track = raw && (raw.track_info || raw.songInfo || raw.songinfo || raw);
-      const mapped = mapQQTrack(track, {});
-      if (mapped && mapped.mid) byMid[mapped.mid] = mapped;
-    });
-    if (Object.keys(byMid).length) {
-      items.forEach((item) => mergeQQSearchEnrich(item, byMid[item.mid]));
-      const missing = items.filter((item) => item && item.mid && item.fee == null && !item.mediaMid);
-      if (!missing.length) return items;
-    }
-  } catch (_) {}
-  await Promise.all(
-    items.map(async (item) => {
-      if (item.fee != null && item.mediaMid) return;
+  /* One-by-one detail is reliable; comma-joined song_mid batch often returns empty */
+  const pending = items.filter(qqSearchNeedsMeta);
+  const concurrency = 4;
+  for (let i = 0; i < pending.length; i += concurrency) {
+    const chunk = pending.slice(i, i + concurrency);
+    await Promise.all(chunk.map(async (item) => {
       try {
         mergeQQSearchEnrich(item, await qqSongDetail(item.mid, item, cookieHeader));
+        if (!item.cover && item.albumMid) item.cover = qqAlbumCover(item.albumMid, 300);
+        if (!item.cover && item.singerMid) item.cover = qqSingerAvatar(item.singerMid, 300);
       } catch (_) {}
-    }),
-  );
+    }));
+  }
   return items;
 }
 
+function asQQArtistList(raw) {
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === 'string' && raw.trim()) return [{ name: raw.trim() }];
+  if (raw && typeof raw === 'object') {
+    if (raw.name || raw.title || raw.mid) return [raw];
+    try { return Object.values(raw); } catch (_) { return []; }
+  }
+  return [];
+}
+
 function mapQQArtists(raw) {
-  return (raw || [])
-    .map((a) => ({ id: a && a.id, mid: a && a.mid, name: (a && (a.name || a.title)) || '' }))
+  return asQQArtistList(raw)
+    .map((a) => {
+      if (typeof a === 'string') return { id: '', mid: '', name: a.trim() };
+      const mid = qqCleanMid(
+        (a && (a.mid || a.singer_mid || a.singerMid || a.pmid || a.singerMidEncrypt)) || '',
+      );
+      return {
+        id: a && (a.id || a.singer_id || a.singerId),
+        mid,
+        name: (a && (a.name || a.title || a.singer_name || a.singerName)) || '',
+      };
+    })
     .filter((a) => a.name);
+}
+
+function qqAlbumMidFromItem(item) {
+  item = item || {};
+  const album = (item.album && typeof item.album === 'object') ? item.album : {};
+  // pmid is what photo_new CDN expects; mid is sometimes empty/stale in search hits
+  return qqCleanMid(
+    album.pmid || album.mid || album.album_mid || album.albumMid
+    || item.albumPmid || item.albummid || item.albumMid || item.album_mid || item.pmid
+    || '',
+  );
+}
+
+function qqCoverFromItem(item, albumMid) {
+  item = item || {};
+  const album = (item.album && typeof item.album === 'object') ? item.album : {};
+  let raw = item.albumimg || item.albumImg || item.albumpic || item.albumPic || item.pic
+    || album.pic || album.picurl || album.picUrl || album.cover || album.img || '';
+  if (raw && typeof raw === 'string') {
+    raw = raw.trim();
+    if (raw.indexOf('//') === 0) raw = 'https:' + raw;
+    if (/^https?:\/\//i.test(raw)) {
+      return raw.replace('://y.qq.com/music/photo_new/', '://y.gtimg.cn/music/photo_new/');
+    }
+  }
+  return qqAlbumCover(albumMid, 300) || '';
 }
 
 function mapQQSearchSong(item) {
   item = item || {};
-  const album = item.album || {};
-  const artists = mapQQArtists(item.singer || []);
-  const mid = item.mid || item.songmid || item.id || '';
-  const albumMid = album.mid || album.pmid || item.albummid || item.albumMid || '';
+  const album = (item.album && typeof item.album === 'object') ? item.album : {};
+  const artists = mapQQArtists(item.singer || item.singerInfo || item.singer_list || []);
+  const mid = qqCleanMid(item.mid || item.songmid || item.song_mid || '');
+  const albumMid = qqAlbumMidFromItem(item);
+  const singerMid = qqCleanMid(
+    (artists[0] && artists[0].mid)
+    || item.singerMid || item.singer_mid || item.singerMID
+    || (Array.isArray(item.singer) && item.singer[0] && (item.singer[0].mid || item.singer[0].singer_mid))
+    || '',
+  );
+  const artistText = artists.map((a) => a.name).join(' / ')
+    || (typeof item.singer === 'string' ? item.singer : '')
+    || item.singername || item.singerName || '';
+  const albumName = album.name || album.title
+    || (typeof item.album === 'string' ? item.album : '')
+    || item.albumname || item.albumName || '';
+  const albumId = album.id || item.albumid || item.albumId || '';
+  const cover = qqCoverFromItem(item, albumMid)
+    || qqAlbumCoverFromNumericId(albumId)
+    || qqSingerAvatar(singerMid, 300)
+    || '';
   return {
     provider: 'qq',
     source: 'qq',
     type: 'qq',
-    id: mid,
+    id: mid || String(item.id || item.docid || ''),
     qqId: item.id || item.docid || '',
     mid,
     songmid: mid,
     mediaMid: (item.file && item.file.media_mid) || item.strMediaMid || item.media_mid || '',
-    name: item.name || item.title || item.songname || '',
-    artist: artists.map((a) => a.name).join(' / ') || item.singer || '',
-    artists: artists.length ? artists : (item.singer ? [{ name: item.singer }] : []),
-    album: album.name || album.title || item.albumname || '',
+    name: item.name || item.title || item.songname || item.songName || '',
+    artist: artistText,
+    artists: artists.length ? artists : (artistText ? [{ name: artistText, mid: singerMid }] : []),
+    singerMid,
+    artistMid: singerMid,
+    artistId: (artists[0] && (artists[0].id || artists[0].mid)) || singerMid || '',
+    album: albumName,
+    albumId: albumId ? String(albumId) : '',
     albumMid,
-    cover: qqAlbumCover(albumMid, 300) || item.albumimg || '',
-    duration: (Number(item.interval) || 0) * 1000,
+    cover,
+    duration: qqDurationMsFromItem(item),
     fee: qqFeeFromTrack(item),
-    playable: false,
+    // Search hits are attemptable; actual login/VIP is checked at play time
+    playable: !!mid,
   };
 }
 
@@ -285,16 +363,25 @@ async function qqDesktopSearch(keywords, limit, page, cookieHeader) {
   }, cookieHeader);
   const block = (json && json.req_1) || (json && json['music.search.SearchCgiService']) || {};
   const data = block.data || {};
-  const body = data.body || {};
-  const song = body.song || {};
-  const list = song.list || song.itemlist || [];
-  return (Array.isArray(list) ? list : []).map(mapQQSearchSong).filter((s) => s.name && s.mid);
+  const body = data.body || data || {};
+  const song = body.song || data.song || {};
+  const list = song.list || song.itemlist || song.songs || body.list || [];
+  try {
+    return (Array.isArray(list) ? list : [])
+      .map((row) => {
+        try { return mapQQSearchSong(row); } catch (_) { return null; }
+      })
+      .filter((s) => s && s.name && s.mid);
+  } catch (_) {
+    return [];
+  }
 }
 
 function mapQQSmartSong(item) {
   item = item || {};
-  const mid = item.mid || item.songmid || item.id || '';
-  const albumMid = item.albummid || item.albumMid || '';
+  const mid = String(item.mid || item.songmid || item.id || '').trim();
+  const albumMid = qqAlbumMidFromItem(item);
+  const artistText = typeof item.singer === 'string' ? item.singer : (mapQQArtists(item.singer).map((a) => a.name).join(' / ') || '');
   return {
     provider: 'qq',
     source: 'qq',
@@ -305,11 +392,11 @@ function mapQQSmartSong(item) {
     songmid: mid,
     albumMid,
     name: item.name || item.songname || item.title || '',
-    artist: item.singer || '',
-    artists: item.singer ? [{ name: item.singer }] : [],
-    album: item.albumname || '',
-    cover: item.albumimg || qqAlbumCover(albumMid, 300) || '',
-    duration: Number(item.duration || 0) * 1000,
+    artist: artistText,
+    artists: artistText ? [{ name: artistText }] : [],
+    album: item.albumname || (typeof item.album === 'string' ? item.album : '') || '',
+    cover: qqCoverFromItem(item, albumMid) || '',
+    duration: Number(item.duration || item.interval || 0) * 1000,
     fee: qqFeeFromTrack(item),
     playable: false,
   };
@@ -319,15 +406,27 @@ function mapQQTrack(track, fallback) {
   track = track || {};
   fallback = fallback || {};
   const albumObj = track.album && typeof track.album === 'object' ? track.album : {};
-  const artists = mapQQArtists(track.singer || track.singerInfo || []);
+  const artists = mapQQArtists(track.singer || track.singerInfo || track.singer_list || fallback.artists || []);
   let artistText = artists.map((a) => a.name).join(' / ');
   if (!artistText && typeof track.singer === 'string') artistText = track.singer;
   if (!artistText && track.singername) artistText = track.singername;
-  const mid = track.mid || track.songmid || track.songMid || fallback.mid || fallback.songmid || '';
-  const albumMid = albumObj.mid || albumObj.pmid || track.albummid || track.albumMid || fallback.albumMid || fallback.albummid || '';
+  if (!artistText) artistText = fallback.artist || '';
+  const mid = qqCleanMid(track.mid || track.songmid || track.songMid || fallback.mid || fallback.songmid || '');
+  const albumMid = qqAlbumMidFromItem(track) || qqCleanMid(fallback.albumMid || fallback.albummid || '');
   const albumName = albumObj.name || albumObj.title || (typeof track.album === 'string' ? track.album : '') || track.albumname || track.albumName || fallback.album || '';
   const qqId = track.id || track.songid || track.songId || track.songID || fallback.qqId || fallback.id || '';
   const interval = Number(track.interval || track.songInterval || track.duration || fallback.interval || 0) || 0;
+  const singerMid = qqCleanMid(
+    (artists[0] && artists[0].mid)
+    || track.singerMid || track.singer_mid
+    || fallback.singerMid || fallback.artistMid
+    || '',
+  );
+  const cover = qqCoverFromItem(track, albumMid)
+    || normalizeQQPlaylistCover(fallback.cover || fallback.albumimg || '')
+    || qqAlbumCoverFromNumericId(albumObj.id || track.albumid || fallback.albumId || '')
+    || qqSingerAvatar(singerMid, 300)
+    || '';
   return {
     provider: 'qq',
     source: 'qq',
@@ -339,19 +438,17 @@ function mapQQTrack(track, fallback) {
     mediaMid: (track.file && track.file.media_mid) || track.strMediaMid || track.media_mid || track.mediaMid || fallback.mediaMid || '',
     name: track.name || track.title || track.songname || track.songName || fallback.name || '',
     artist: artistText || fallback.artist || '',
-    artists: artists.length ? artists : (artistText ? [{ name: artistText }] : fallback.artists || []),
-    artistId: artists[0] && (artists[0].id || artists[0].mid),
-    artistMid: artists[0] && artists[0].mid,
+    artists: artists.length ? artists : (artistText ? [{ name: artistText, mid: singerMid }] : fallback.artists || []),
+    artistId: (artists[0] && (artists[0].id || artists[0].mid)) || singerMid || fallback.artistId || '',
+    artistMid: singerMid,
+    singerMid,
     album: albumName,
+    albumId: String(albumObj.id || track.albumid || fallback.albumId || ''),
     albumMid,
-    cover: qqAlbumCover(albumMid, 300) || normalizeQQPlaylistCover(
-      track.albumimg || track.albumImg || track.albumpic || track.albumPic || track.pic ||
-      albumObj.pic || albumObj.picurl || albumObj.cover ||
-      fallback.cover || fallback.albumimg || ''
-    ),
+    cover,
     duration: interval > 1000 ? interval : interval * 1000 || fallback.duration || 0,
     fee: qqFeeFromTrack(track),
-    playable: false,
+    playable: !!mid,
   };
 }
 
@@ -414,6 +511,18 @@ async function qqSongDetail(mid, fallback, cookieHeader) {
   }, cookieHeader);
   const data = json && json.songinfo && json.songinfo.data;
   return mapQQTrack(data && data.track_info, fallback);
+}
+
+export async function handleQQSongDetail(mid, cookieHeader) {
+  const songmid = String(mid || '').trim();
+  if (!songmid) return { provider: 'qq', error: 'MISSING_MID', song: null };
+  try {
+    const song = await qqSongDetail(songmid, { mid: songmid }, cookieHeader);
+    if (!song || !song.mid) return { provider: 'qq', error: 'NOT_FOUND', song: null };
+    return { provider: 'qq', song };
+  } catch (err) {
+    return { provider: 'qq', error: (err && err.message) || String(err), song: null };
+  }
 }
 
 function mapQQComment(raw) {
@@ -613,14 +722,40 @@ export async function getQQLoginStatus(cookieHeader) {
 
 export async function handleQQSearch(keywords, limit, cookieHeader, page) {
   const safeLimit = Math.max(4, Math.min(30, Number(limit) || 12));
-  let songs = await qqDesktopSearch(keywords, safeLimit, page || 1, cookieHeader);
+  let songs = [];
+  try {
+    songs = await qqDesktopSearch(keywords, safeLimit, page || 1, cookieHeader);
+  } catch (err) {
+    console.warn('[Mineradio Bridge] qq desktop search failed', err);
+    songs = [];
+  }
   if (!songs.length) {
-    const base = await qqSmartboxSearch(keywords, safeLimit);
-    await qqSongDetailsBatch(base, cookieHeader);
-    songs = base;
+    try {
+      const base = await qqSmartboxSearch(keywords, safeLimit);
+      await qqSongDetailsBatch(base, cookieHeader);
+      songs = base;
+    } catch (err) {
+      console.warn('[Mineradio Bridge] qq smartbox search failed', err);
+      songs = [];
+    }
+  } else {
+    /* Always backfill cover/duration for desktop hits — search rows often omit album pmid */
+    const needMeta = songs.filter(qqSearchNeedsMeta).slice(0, Math.min(10, safeLimit));
+    if (needMeta.length) {
+      try {
+        await Promise.race([
+          qqSongDetailsBatch(needMeta, cookieHeader),
+          new Promise((resolve) => setTimeout(resolve, 6000)),
+        ]);
+      } catch (_) {}
+      needMeta.forEach((item) => {
+        if (!item.cover && item.albumMid) item.cover = qqAlbumCover(item.albumMid, 300);
+        if (!item.cover && item.singerMid) item.cover = qqSingerAvatar(item.singerMid, 300);
+      });
+    }
   }
   const seen = new Set();
-  return songs.filter((song) => {
+  return (Array.isArray(songs) ? songs : []).filter((song) => {
     const key = song && (song.mid || song.id || `${song.name}|${song.artist}`);
     if (!key || seen.has(key)) return false;
     seen.add(key);
@@ -741,10 +876,30 @@ export async function handleQQArtistDetail(mid, limit, cookieHeader) {
   const data = block.data || {};
   const info = data.singer_info || data.singerInfo || {};
   const rawSongs = Array.isArray(data.songlist) ? data.songlist : [];
-  const songs = rawSongs
-    .map((raw) => mapQQTrack(raw && (raw.track_info || raw.songInfo || raw.songinfo || raw.song) || raw, {}))
-    .filter((song) => song && song.name && (song.mid || song.id));
   const artistMid = info.mid || singerMid;
+  const songs = rawSongs
+    .map((raw) => mapQQTrack(raw && (raw.track_info || raw.songInfo || raw.songinfo || raw.song) || raw, {
+      singerMid: artistMid,
+      artistMid,
+    }))
+    .filter((song) => song && song.name && (song.mid || song.id));
+  /* Singer songlist often omits album pmid — backfill a short detail batch so covers exist */
+  const needCover = songs.filter((song) => song.mid && (!song.cover || !song.albumMid)).slice(0, 20);
+  if (needCover.length) {
+    try {
+      await Promise.race([
+        qqSongDetailsBatch(needCover, cookieHeader),
+        new Promise((resolve) => setTimeout(resolve, 4500)),
+      ]);
+    } catch (_) {}
+  }
+  songs.forEach((song) => {
+    if (!song.singerMid) song.singerMid = artistMid;
+    if (!song.artistMid) song.artistMid = artistMid;
+    if (!song.cover && song.albumMid) song.cover = qqAlbumCover(song.albumMid, 300);
+    if (!song.cover && song.albumId) song.cover = qqAlbumCoverFromNumericId(song.albumId);
+    if (!song.cover) song.cover = qqSingerAvatar(song.singerMid || artistMid, 300);
+  });
   return {
     provider: 'qq',
     artist: {
@@ -889,7 +1044,7 @@ async function fetchQQFavCatalog(cookieHeader) {
         },
       }, cookieHeader);
       const list = (((json.req_0 || {}).data || {}).songIds) || (((json.req_0 || {}).data || {}).songIdList) || [];
-      list.map(String).forEach((id) => sets.idSet.add(id));
+      (Array.isArray(list) ? list : []).map(String).forEach((id) => sets.idSet.add(id));
     } catch (_) {}
   }
   return sets;
@@ -1198,7 +1353,8 @@ function qqPlaylistDedupeKey(pl) {
 function mergeQQUserPlaylists(lists) {
   const seen = new Set();
   const out = [];
-  (lists || []).flat().forEach((pl) => {
+  const flat = Array.isArray(lists) ? lists.flat() : [];
+  flat.forEach((pl) => {
     if (!pl) return;
     const key = qqPlaylistDedupeKey(pl);
     if (!key) return;

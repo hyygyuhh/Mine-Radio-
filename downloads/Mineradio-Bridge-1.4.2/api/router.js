@@ -31,6 +31,7 @@ import {
   warmQQLoginCookies,
   handleQQSearch,
   handleQQSongUrl,
+  handleQQSongDetail,
   handleQQUserPlaylists,
   handleQQPlaylistTracks,
   handleQQLyric,
@@ -94,6 +95,25 @@ function desktopOnly(path) {
 }
 
 export async function handleApiRequest(input) {
+  try {
+    return await handleApiRequestInner(input);
+  } catch (err) {
+    const path = String((input && input.path) || '/');
+    console.warn('[Mineradio Bridge] API failed', path, err);
+    if (path === '/api/search' || path === '/api/qq/search' || path === '/api/kg/search') {
+      const provider = path.indexOf('qq') >= 0 ? 'qq' : (path.indexOf('kg') >= 0 ? 'kg' : 'netease');
+      return {
+        songs: [],
+        provider,
+        error: (err && err.message) || String(err || 'SEARCH_FAILED'),
+        bridgeVersion: getExtensionVersion(),
+      };
+    }
+    throw err;
+  }
+}
+
+async function handleApiRequestInner(input) {
   const path = String(input.path || '/');
   const method = String(input.method || 'GET').toUpperCase();
   const query = input.query || {};
@@ -107,30 +127,42 @@ export async function handleApiRequest(input) {
 
   const cookies = createCookieBag();
   const url = parseUrl(path, query);
+  const bridgeVersion = getExtensionVersion();
 
   if (path === '/api/search') {
     try {
       const limit = Number(url.searchParams.get('limit') || 20);
       const offset = Number(url.searchParams.get('offset') || 0);
-      const songs = await handleSearch(url.searchParams.get('keywords') || '', limit, await cookies.netease(), offset);
-      return { songs, provider: 'netease', hasMore: songs.length >= Math.max(4, Math.min(50, limit || 20)) };
+      const raw = await handleSearch(url.searchParams.get('keywords') || '', limit, await cookies.netease(), offset);
+      const songs = Array.isArray(raw) ? raw : [];
+      return { songs, provider: 'netease', hasMore: songs.length >= Math.max(4, Math.min(50, limit || 20)), bridgeVersion };
     } catch (err) {
-      return { songs: [], error: err.message || String(err), provider: 'netease' };
+      return { songs: [], error: err.message || String(err), provider: 'netease', bridgeVersion };
     }
   }
 
   if (path === '/api/qq/search') {
-    const limit = Number(url.searchParams.get('limit') || 12);
-    const page = Number(url.searchParams.get('page') || 1);
-    const songs = await handleQQSearch(url.searchParams.get('keywords') || '', limit, await cookies.qq(), page);
-    return { provider: 'qq', songs, hasMore: songs.length >= Math.max(4, Math.min(30, limit || 12)) };
+    try {
+      const limit = Number(url.searchParams.get('limit') || 12);
+      const page = Number(url.searchParams.get('page') || 1);
+      const raw = await handleQQSearch(url.searchParams.get('keywords') || '', limit, await cookies.qq(), page);
+      const songs = Array.isArray(raw) ? raw : [];
+      return { provider: 'qq', songs, hasMore: songs.length >= Math.max(4, Math.min(30, limit || 12)), bridgeVersion };
+    } catch (err) {
+      return { provider: 'qq', songs: [], error: err.message || String(err), bridgeVersion };
+    }
   }
 
   if (path === '/api/kg/search') {
-    const limit = Number(url.searchParams.get('limit') || 16);
-    const page = Number(url.searchParams.get('page') || 1);
-    const songs = await handleKGSearch(url.searchParams.get('keywords') || '', limit, await cookies.kg(), page);
-    return { provider: 'kg', songs, hasMore: songs.length >= Math.max(4, Math.min(30, limit || 16)) };
+    try {
+      const limit = Number(url.searchParams.get('limit') || 16);
+      const page = Number(url.searchParams.get('page') || 1);
+      const raw = await handleKGSearch(url.searchParams.get('keywords') || '', limit, await cookies.kg(), page);
+      const songs = Array.isArray(raw) ? raw : [];
+      return { provider: 'kg', songs, hasMore: songs.length >= Math.max(4, Math.min(30, limit || 16)), bridgeVersion };
+    } catch (err) {
+      return { provider: 'kg', songs: [], error: err.message || String(err), bridgeVersion };
+    }
   }
 
   if (path === '/api/song/url') {
@@ -151,6 +183,14 @@ export async function handleApiRequest(input) {
       isVip: !!qqStatus.isVip,
       vipLabel: qqStatus.vipLabel || '无VIP',
     };
+  }
+
+  if (path === '/api/qq/song/detail') {
+    try {
+      return await handleQQSongDetail(url.searchParams.get('mid') || url.searchParams.get('songmid'), await cookies.qq());
+    } catch (err) {
+      return { provider: 'qq', error: err.message || String(err), song: null };
+    }
   }
 
   if (path === '/api/kg/song/url') {
@@ -265,7 +305,11 @@ export async function handleApiRequest(input) {
 
   if (path === '/api/qq/song/like/check') {
     const ids = String(url.searchParams.get('ids') || url.searchParams.get('id') || '').split(',').map((s) => s.trim()).filter(Boolean);
-    return handleQQSongLikeCheck(ids, await cookies.qq());
+    try {
+      return await handleQQSongLikeCheck(ids, await cookies.qq());
+    } catch (err) {
+      return { provider: 'qq', error: err.message || String(err), loggedIn: false, liked: {}, ids };
+    }
   }
 
   if (path === '/api/qq/song/like') {
@@ -277,7 +321,11 @@ export async function handleApiRequest(input) {
 
   if (path === '/api/kg/song/like/check') {
     const ids = String(url.searchParams.get('ids') || url.searchParams.get('id') || '').split(',').map((s) => s.trim()).filter(Boolean);
-    return handleKGSongLikeCheck(ids, await cookies.kg());
+    try {
+      return await handleKGSongLikeCheck(ids, await cookies.kg());
+    } catch (err) {
+      return { provider: 'kg', error: err.message || String(err), loggedIn: false, liked: {}, ids };
+    }
   }
 
   if (path === '/api/kg/song/like') {
@@ -524,31 +572,63 @@ function getExtensionVersion() {
   }
 }
 
+function emptyBridgeLogin(provider) {
+  if (provider === 'qq') {
+    return { loggedIn: false, nickname: '', avatar: '', playbackKeyReady: false, vipType: 0, isVip: false, vipLabel: '无VIP' };
+  }
+  if (provider === 'kg') {
+    return { loggedIn: false, nickname: '', avatar: '', vipType: 0, isVip: false, vipLabel: '无VIP' };
+  }
+  return { loggedIn: false, nickname: '', avatar: '', vipType: 0, vipLevel: 'none', isVip: false, isSvip: false, vipLabel: '无VIP' };
+}
+
+async function safeBridgeLogin(provider, runner) {
+  try {
+    const value = await Promise.race([
+      Promise.resolve().then(runner),
+      new Promise((_, reject) => setTimeout(() => reject(new Error(provider + '_STATUS_TIMEOUT')), 10000)),
+    ]);
+    return value || emptyBridgeLogin(provider);
+  } catch (err) {
+    console.warn('[Mineradio Bridge] status failed', provider, err);
+    return emptyBridgeLogin(provider);
+  }
+}
+
 export async function getBridgeStatus() {
   const [neteaseCookie, qqCookie, kgCookie] = await Promise.all([
-    getNeteaseCookie(),
-    getQQCookie(),
-    ensureKGCookie(),
+    getNeteaseCookie().catch(() => ''),
+    getQQCookie().catch(() => ''),
+    ensureKGCookie().catch(() => ''),
   ]);
   const [netease, qq, kg] = await Promise.all([
-    getLoginInfo(neteaseCookie),
-    getQQLoginStatus(qqCookie),
-    getKGLoginStatus(kgCookie),
+    safeBridgeLogin('ne', () => getLoginInfo(neteaseCookie)),
+    safeBridgeLogin('qq', () => getQQLoginStatus(qqCookie)),
+    safeBridgeLogin('kg', () => getKGLoginStatus(kgCookie)),
   ]);
   return {
     version: getExtensionVersion(),
-    netease: { loggedIn: netease.loggedIn, nickname: netease.nickname || '', avatar: netease.avatar || '' },
+    netease: {
+      loggedIn: !!netease.loggedIn,
+      nickname: netease.nickname || '',
+      avatar: netease.avatar || '',
+      vipType: netease.vipType || 0,
+      vipLevel: netease.vipLevel || 'none',
+      isVip: !!netease.isVip,
+      isSvip: !!netease.isSvip,
+      vipLabel: netease.vipLabel || '',
+    },
     qq: {
-      loggedIn: qq.loggedIn,
+      loggedIn: !!qq.loggedIn,
       nickname: qq.nickname || '',
       avatar: qq.avatar || '',
-      playbackKeyReady: qq.playbackKeyReady,
+      playbackKeyReady: !!qq.playbackKeyReady,
       vipType: qq.vipType || 0,
       isVip: !!qq.isVip,
       vipLabel: qq.vipLabel || '',
     },
     kg: {
-      loggedIn: kg.loggedIn,
+      loggedIn: !!kg.loggedIn,
       nickname: kg.nickname || '',
       avatar: kg.avatar || '',
       isVip: !!kg.isVip,

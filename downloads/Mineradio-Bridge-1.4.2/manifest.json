@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Mineradio Bridge",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "为 Mineradio 网页版提供本地音乐 API 代理，读取浏览器已登录的网易云/QQ/酷狗 Cookie。",
   "icons": {
     "16": "icons/icon16.png",

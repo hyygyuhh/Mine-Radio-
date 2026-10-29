@@ -264,21 +264,35 @@ async function saveKGVipSessionCache(userId, patch) {
   const prev = (await loadKGVipSessionCache(userId)) || {
     userId, vipType: 0, vipToken: '', vipLabel: '', expireTime: '', isVip: false, appToken: '', sourceToken: '', authAt: 0, at: 0,
   };
+  const explicitVip = Object.prototype.hasOwnProperty.call(patch, 'isVip');
+  const nextVip = explicitVip
+    ? !!patch.isVip
+    : !!(prev.isVip || Number(patch.vipType) > 0);
   const next = {
     userId,
-    vipType: Number(patch.vipType) || prev.vipType || 0,
+    vipType: explicitVip && !patch.isVip
+      ? (Number(patch.vipType) || 0)
+      : (Number(patch.vipType) || prev.vipType || 0),
     vipToken: String(patch.vipToken != null && patch.vipToken !== '' ? patch.vipToken : (prev.vipToken || '')),
-    vipLabel: String(patch.vipLabel || prev.vipLabel || ''),
-    expireTime: String(patch.expireTime || prev.expireTime || ''),
+    vipLabel: explicitVip && !patch.isVip
+      ? (patch.vipLabel || '无VIP')
+      : String(patch.vipLabel || prev.vipLabel || ''),
+    expireTime: explicitVip && !patch.isVip
+      ? String(patch.expireTime || '')
+      : String(patch.expireTime || prev.expireTime || ''),
     appToken: String(patch.appToken != null && patch.appToken !== '' ? patch.appToken : (prev.appToken || '')),
     sourceToken: String(patch.sourceToken != null ? patch.sourceToken : (prev.sourceToken || '')),
     authAt: Number(patch.authAt) || prev.authAt || 0,
-    isVip: !!(patch.isVip || prev.isVip || Number(patch.vipType) > 0 || prev.vipToken || patch.vipToken),
+    isVip: nextVip,
     at: Date.now(),
   };
-  if (!next.isVip && next.vipToken) next.isVip = true;
+  /* vip_token alone is not membership proof — free accounts may still carry one */
   if (next.isVip && !next.vipType) next.vipType = 6;
-  if (next.isVip && !next.vipLabel) next.vipLabel = 'VIP';
+  if (next.isVip && (!next.vipLabel || next.vipLabel === '无VIP')) next.vipLabel = 'VIP';
+  if (!next.isVip) {
+    next.vipType = Number(patch.vipType) || 0;
+    if (!next.vipLabel || next.vipLabel === 'VIP') next.vipLabel = '无VIP';
+  }
   kgVipSessionCache = next;
   try { await chrome.storage.local.set({ kgVipSession: next }); } catch (_) {}
   return next;
@@ -404,13 +418,16 @@ async function refreshKGLoginByToken(cookieHeader) {
         if (vipType) cookiePatch.vip_type = String(vipType);
         if (Object.keys(cookiePatch).length) await setBrowserCookies('https://www.kugou.com/', cookiePatch);
       } catch (_) {}
+      const authIsVip = vipType > 0 || Number(data.is_vip) === 1;
       await saveKGVipSessionCache(userId, {
         appToken: nextToken || '',
         sourceToken: token,
         vipToken,
-        vipType: vipType || (vipToken ? 6 : 0),
-        isVip: !!(vipType > 0 || vipToken || data.is_vip),
-        vipLabel: vipType === 33 || vipType === 4 ? '超级VIP' : (vipType || vipToken ? 'VIP' : ''),
+        vipType: authIsVip ? (vipType || 6) : 0,
+        isVip: authIsVip,
+        vipLabel: authIsVip
+          ? (vipType === 33 || vipType === 4 ? '超级VIP' : 'VIP')
+          : '无VIP',
         authAt: Date.now(),
       });
       return {
@@ -522,7 +539,7 @@ function parseKGUserCenterVip(data) {
   if (!data || typeof data !== 'object') {
     return { vipType: 0, isVip: false, vipLabel: '', expireTime: '' };
   }
-  // Official responses often keep vip_type=0 and put real membership in busi_vip / m_type / su_vip.
+  // Prefer busi_vip / explicit end-dated fields. Residual m_type/vip_type without a valid end is not VIP.
   const extracted = extractKGVipFromPayload(data);
   const meta = resolveKGVipMeta(data);
   let vipType = Number(extracted.vipType) || 0;
@@ -534,13 +551,15 @@ function parseKGUserCenterVip(data) {
     let vipTypeRaw = Number(data.vip_type || data.vipType || 0) || 0;
     if (!vipTypeRaw) {
       if (Number(data.su_vip) > 0) vipTypeRaw = 4;
-      else if (Number(data.m_type) > 0) vipTypeRaw = 7;
-      else if (Number(data.y_type) > 0 || Number(data.music_vip) > 0) vipTypeRaw = 2;
       else if (Number(data.is_vip) === 1 || Number(data.MusicPack) === 1) vipTypeRaw = 2;
+      else if (Number(data.y_type) > 0 || Number(data.music_vip) > 0) vipTypeRaw = 2;
+      else if (Number(data.m_type) > 0) vipTypeRaw = 7;
     }
     const mapped = mapKGUserCenterVipType(vipTypeRaw);
     const { endMs, hasEnd } = parseKGUserCenterVipEnd(data);
-    if (vipTypeRaw > 0 && (!hasEnd || endMs > Date.now())) {
+    const endOk = hasEnd && endMs > Date.now();
+    /* Require a valid unexpired end time for cookie-ish residual types */
+    if (vipTypeRaw > 0 && endOk) {
       isVip = true;
       vipType = Math.max(vipType, mapped || 6);
       expireTime = expireTime || formatKGExpireTime(endMs);
@@ -1423,30 +1442,34 @@ function parseKGVipFromData(data) {
   ) || 0;
   const productType = String(data.product_type || nested.product_type || data.busi_type || nested.busi_type || '').toLowerCase();
   const isVipFlag = Number(data.is_vip ?? data.isVip ?? nested.is_vip ?? nested.isVip ?? data.isVipUser ?? -1);
+  const endAlive = (value) => !!(value && !isExpiredKGVipTime(value));
   let isVip = !!(
-    (vipType > 0 && (!vipEnd || !isExpiredKGVipTime(vipEnd))) ||
+    (vipType > 0 && (!vipEnd || endAlive(vipEnd))) ||
     isVipFlag === 1 ||
     Number(data.vip) === 1 ||
     Number(nested.vip) === 1 ||
     Number(data.MusicPack) === 1 ||
     Number(data.musicpack) === 1 ||
-    Number(data.y_type) > 0 ||
-    Number(data.music_vip) > 0 ||
+    ((Number(data.y_type) > 0 || Number(data.music_vip) > 0) && (!vipEnd || endAlive(vipEnd))) ||
     (productType && !/^(free|none|0|normal)$/.test(productType) && Number(data.is_vip) === 1) ||
-    (vipEnd && !isExpiredKGVipTime(vipEnd)) ||
-    (data.svip_end_time && !isExpiredKGVipTime(data.svip_end_time)) ||
-    (data.musicvip_end_time && !isExpiredKGVipTime(data.musicvip_end_time)) ||
-    (nested.vip_end_time && !isExpiredKGVipTime(nested.vip_end_time))
+    (isVipFlag === 1 && endAlive(vipEnd)) ||
+    endAlive(data.svip_end_time) ||
+    endAlive(data.musicvip_end_time) ||
+    endAlive(nested.vip_end_time)
   );
-  if (Number(data.is_vip) === 1 && data.vip_end_time && !isExpiredKGVipTime(data.vip_end_time)) {
+  /* Do not treat a lone end-date field as VIP without type/flag */
+  if (Number(data.is_vip) === 1 && endAlive(data.vip_end_time)) {
     isVip = true;
     vipType = Math.max(vipType, KG_PRODUCT_VIP_TYPE[productType] || 6);
   }
-  if (Number(data.m_type) > 0 && data.m_end_time && !isExpiredKGVipTime(data.m_end_time)) {
+  if (Number(data.m_type) > 0 && endAlive(data.m_end_time)) {
     isVip = true;
     vipType = Math.max(vipType, Number(data.m_type) || 6);
   }
-  if (Number(data.su_vip) > 0 || (data.su_vip_end_time && !isExpiredKGVipTime(data.su_vip_end_time))) {
+  if (Number(data.su_vip) > 0 && (!data.su_vip_end_time || endAlive(data.su_vip_end_time))) {
+    isVip = true;
+    vipType = Math.max(vipType, 33);
+  } else if (endAlive(data.su_vip_end_time) && Number(data.su_vip) > 0) {
     isVip = true;
     vipType = Math.max(vipType, 33);
   }
@@ -1624,11 +1647,8 @@ export async function getKGUserVipDetail(cookieHeader) {
   merged = mergeKGVipState(merged, userCenter || {});
   merged = mergeKGVipState(merged, union || {});
   merged = mergeKGVipState(merged, mobileVip || {});
-  if (!merged.isVip && kgCookieHasVipSession(cookieHeader)) {
-    merged = mergeKGVipState(merged, { vipType: kgCookieVipType(cookieHeader) || 6, isVip: true });
-  }
   const cached = await loadKGVipSessionCache(userId);
-  if (!merged.isVip && cached && cached.isVip) {
+  if (!merged.isVip && cached && cached.isVip && kgExpireStillActive(cached.expireTime)) {
     merged = mergeKGVipState(merged, cached);
   }
   const vipToken = (detail && detail.vipToken)
@@ -1641,15 +1661,13 @@ export async function getKGUserVipDetail(cookieHeader) {
   const expireTime = (detail && detail.expireTime)
     || (userCenter && userCenter.expireTime)
     || '';
-  if (merged.isVip || vipToken) {
-    await saveKGVipSessionCache(userId, {
-      vipType: merged.vipType || 6,
-      isVip: !!(merged.isVip || vipToken),
-      vipLabel,
-      expireTime,
-      vipToken,
-    });
-  }
+  await saveKGVipSessionCache(userId, {
+    vipType: merged.isVip ? (merged.vipType || 6) : 0,
+    isVip: !!merged.isVip,
+    vipLabel: merged.isVip ? vipLabel : '无VIP',
+    expireTime: merged.isVip ? expireTime : '',
+    vipToken: vipToken || '',
+  });
   if (!merged.isVip && !detail && !userCenter && !union && !mobileVip) {
     return {
       provider: 'kg',
@@ -1798,16 +1816,16 @@ async function getKGPlayContext(cookieHeader) {
   const userId = kgCookieUserId(cookieHeader);
   const token = kgCookieToken(cookieHeader);
   const loggedIn = !!(userId && token);
-  const vipCached = loggedIn ? await loadKGVipSessionCache(userId) : null;
-  let vipType = kgCookieVipType(cookieHeader) || (vipCached && vipCached.vipType) || 0;
-  let isVip = kgCookieHasVipSession(cookieHeader) || !!(vipCached && vipCached.isVip);
-  let vipLabel = isVip ? ((vipCached && vipCached.vipLabel) || 'VIP') : '无VIP';
-  const session = { loggedIn, userId, vipType, isVip, vipLabel, vipResolved: false };
+  const session = {
+    loggedIn,
+    userId,
+    vipType: 0,
+    isVip: false,
+    vipLabel: '无VIP',
+    vipResolved: false,
+  };
   if (loggedIn) {
     const vipInfo = await resolveKGSessionVip(cookieHeader, {
-      vipType,
-      isVip,
-      vipLabel,
       nickname: kgCookieNickname(cookieHeader),
       avatar: kgCookieAvatar(cookieHeader),
     });
@@ -1926,15 +1944,21 @@ async function fetchKGUserCenterVip(cookieHeader) {
   return null;
 }
 
+function kgExpireStillActive(expireTime) {
+  if (!expireTime) return false;
+  return !isExpiredKGVipTime(expireTime);
+}
+
 async function resolveKGSessionVip(cookieHeader, seed) {
   seed = seed || {};
   cookieHeader = await enrichKGCookieHeader(cookieHeader);
   const userId = kgCookieUserId(cookieHeader);
   const cached = userId ? await loadKGVipSessionCache(userId) : null;
-  let vipType = Number(seed.vipType) || kgCookieVipType(cookieHeader) || (cached && cached.vipType) || 0;
-  let isVip = !!(seed.isVip || kgCookieHasVipSession(cookieHeader) || (cached && cached.isVip));
-  let vipLabel = seed.vipLabel || (cached && cached.vipLabel) || (isVip ? 'VIP' : '无VIP');
-  let expireTime = seed.expireTime || (cached && cached.expireTime) || '';
+  /* Start from live APIs only — cookie/vip_token/stale cache often false-positive free accounts */
+  let vipType = 0;
+  let isVip = false;
+  let vipLabel = '无VIP';
+  let expireTime = '';
   let nickname = seed.nickname || '';
   let avatar = seed.avatar || '';
   let vipToken = resolveKGEffectiveVipToken(cookieHeader, cached);
@@ -1955,7 +1979,9 @@ async function resolveKGSessionVip(cookieHeader, seed) {
       break;
     }
   }
+  let liveHit = false;
   if (userCenter) {
+    liveHit = true;
     ({ vipType, isVip } = mergeKGVipState({ vipType, isVip }, userCenter));
     if (userCenter.vipLabel) vipLabel = userCenter.vipLabel;
     if (userCenter.expireTime) expireTime = userCenter.expireTime;
@@ -1963,25 +1989,46 @@ async function resolveKGSessionVip(cookieHeader, seed) {
     if (userCenter.avatar) avatar = userCenter.avatar;
   }
   if (vipDetail) {
+    liveHit = true;
     ({ vipType, isVip } = mergeKGVipState({ vipType, isVip }, vipDetail));
     if (vipDetail.vipLabel) vipLabel = vipDetail.vipLabel;
     if (vipDetail.expireTime) expireTime = vipDetail.expireTime;
   }
   if (profile) {
+    liveHit = true;
     if (profile.nickname) nickname = profile.nickname;
     if (profile.avatar) avatar = profile.avatar;
     ({ vipType, isVip } = mergeKGVipState({ vipType, isVip }, profile));
   }
-  if (union) ({ vipType, isVip } = mergeKGVipState({ vipType, isVip }, union));
-  if (mobileVip) ({ vipType, isVip } = mergeKGVipState({ vipType, isVip }, mobileVip));
-  if (!isVip && (kgCookieHasVipSession(cookieHeader) || vipToken || (cached && cached.isVip))) {
-    vipType = vipType || (cached && cached.vipType) || 6;
-    isVip = true;
-    vipLabel = vipLabel === '无VIP' ? ((cached && cached.vipLabel) || 'VIP') : vipLabel;
+  if (union) {
+    liveHit = true;
+    ({ vipType, isVip } = mergeKGVipState({ vipType, isVip }, union));
   }
-  if (isVip && vipLabel === '无VIP') vipLabel = 'VIP';
-  if (userId && (isVip || vipToken || vipType > 0)) {
-    await saveKGVipSessionCache(userId, { vipType, isVip, vipLabel, expireTime, vipToken });
+  if (mobileVip) {
+    liveHit = true;
+    ({ vipType, isVip } = mergeKGVipState({ vipType, isVip }, mobileVip));
+  }
+  /* Only fall back to cache when live APIs returned nothing usable */
+  if (!liveHit && cached && cached.isVip && kgExpireStillActive(cached.expireTime)) {
+    vipType = Number(cached.vipType) || 6;
+    isVip = true;
+    vipLabel = cached.vipLabel || 'VIP';
+    expireTime = cached.expireTime || '';
+  }
+  if (isVip && (!vipLabel || vipLabel === '无VIP')) vipLabel = 'VIP';
+  if (!isVip) {
+    vipType = 0;
+    vipLabel = '无VIP';
+    expireTime = '';
+  }
+  if (userId) {
+    await saveKGVipSessionCache(userId, {
+      vipType,
+      isVip,
+      vipLabel,
+      expireTime,
+      vipToken: vipToken || '',
+    });
   }
   return { vipType, isVip, vipLabel, expireTime, nickname, avatar, vipToken, vipResolved: true };
 }
@@ -2114,19 +2161,25 @@ export async function getKGLoginStatus(cookieHeader) {
   const userId = kgCookieUserId(cookieHeader);
   const token = kgCookieToken(cookieHeader);
   const loggedIn = !!(userId && token);
-  const cached = loggedIn ? await loadKGVipSessionCache(userId) : null;
   let nickname = kgCookieNickname(cookieHeader);
   let avatar = kgCookieAvatar(cookieHeader);
-  let vipType = kgCookieVipType(cookieHeader) || (cached && cached.vipType) || 0;
-  let isVip = kgCookieHasVipSession(cookieHeader) || !!(cached && cached.isVip);
-  let vipLabel = isVip ? ((cached && cached.vipLabel) || 'VIP') : '无VIP';
-  let expireTime = (cached && cached.expireTime) || '';
+  let vipType = 0;
+  let isVip = false;
+  let vipLabel = '无VIP';
+  let expireTime = '';
+  let vipToken = '';
   if (loggedIn) {
-    const vipInfo = await resolveKGSessionVip(cookieHeader, { vipType, isVip, vipLabel, nickname, avatar, expireTime });
-    ({ vipType, isVip, vipLabel, expireTime } = vipInfo);
-    if (vipInfo.nickname) nickname = vipInfo.nickname;
-    if (vipInfo.avatar) avatar = vipInfo.avatar;
-    rememberKGPlaySession(cookieHeader, { loggedIn, userId, vipType, isVip, vipLabel, vipResolved: true });
+    try {
+      const vipInfo = await resolveKGSessionVip(cookieHeader, { nickname, avatar });
+      ({ vipType, isVip, vipLabel, expireTime } = vipInfo);
+      vipToken = vipInfo.vipToken || '';
+      if (vipInfo.nickname) nickname = vipInfo.nickname;
+      if (vipInfo.avatar) avatar = vipInfo.avatar;
+      rememberKGPlaySession(cookieHeader, { loggedIn, userId, vipType, isVip, vipLabel, vipResolved: true });
+    } catch (err) {
+      console.warn('[Mineradio Bridge] kg vip resolve failed', err);
+      vipToken = resolveKGEffectiveVipToken(cookieHeader, null);
+    }
   }
   return {
     provider: 'kg',
@@ -2140,7 +2193,7 @@ export async function getKGLoginStatus(cookieHeader) {
     vipLevel: isVip ? (vipType >= 33 ? 'svip' : 'vip') : 'none',
     vipLabel,
     expireTime,
-    hasVipToken: !!resolveKGEffectiveVipToken(cookieHeader, cached),
+    hasVipToken: !!vipToken || !!resolveKGEffectiveVipToken(cookieHeader, null),
     session: analyzeKGCookieSession(cookieHeader),
     hasKuGooSession: !!(parseKGCookieObject(cookieHeader).KugooID || parseKGCookieObject(cookieHeader).KugooID),
     message: !loggedIn
@@ -2181,11 +2234,16 @@ export async function handleKGSearch(keywords, limit, cookieHeader, page) {
         referer: 'https://www.kugou.com/',
         headers: attempt.headers,
       });
-      list = (body && body.data && body.data.lists) || (body && body.lists) || [];
-      if (Array.isArray(list) && list.length) break;
+      const raw = (body && body.data && body.data.lists) || (body && body.lists) || [];
+      list = Array.isArray(raw) ? raw : [];
+      if (list.length) break;
     } catch (_) {}
   }
-  return list.map((item) => mapKGSong(item, true)).filter((s) => s.hash && s.name);
+  return (Array.isArray(list) ? list : [])
+    .map((item) => {
+      try { return mapKGSong(item, true); } catch (_) { return null; }
+    })
+    .filter((s) => s && s.hash && s.name);
 }
 
 async function fetchKGPlayInfo(hash, albumAudioId, cookieHeader) {

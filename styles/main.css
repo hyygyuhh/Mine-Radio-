@@ -178,7 +178,7 @@ body.empty-home-active.diy-mode #search-area:not(.has-results) #search-mode-tabs
 .search-result-index{width:18px;text-align:right;font-size:10px;font-weight:700;color:rgba(255,255,255,.22);flex-shrink:0;font-variant-numeric:tabular-nums}
 .search-result.playing .search-result-index{color:rgba(0,245,212,.72)}
 .search-result-main{display:flex;align-items:center;gap:11px;flex:1;min-width:0}
-.search-result img{width:42px;height:42px;border-radius:8px;object-fit:cover;background:rgba(255,255,255,0.05);flex-shrink:0}
+.search-result img{width:42px;height:42px;border-radius:8px;object-fit:cover;background:#18181f;flex-shrink:0}
 .search-result-info{flex:1;min-width:0}
 .search-result-title{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:rgba(255,255,255,0.92);margin-bottom:2px;display:flex;align-items:center;gap:6px}
 .search-result-meta{font-size:11px;font-weight:300;color:rgba(255,255,255,0.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -1091,7 +1091,7 @@ body.login-guide-active #login-guide-canvas{opacity:1}
 .comment-item{transition:background .18s,border-color .18s}
 .comment-item:hover{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.12)}
 .comment-item.top-comment{border-color:rgba(244,210,138,.18);background:rgba(244,210,138,.035)}
-.detail-cover{width:72px;height:72px;border-radius:12px;object-fit:cover;background:rgba(255,255,255,.07);flex-shrink:0;box-shadow:0 14px 36px rgba(0,0,0,.34)}
+.detail-cover{width:72px;height:72px;border-radius:12px;object-fit:cover;background:#18181f;flex-shrink:0;box-shadow:0 14px 36px rgba(0,0,0,.34)}
 .detail-artist-avatar{display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 35% 24%,rgba(255,255,255,.18),rgba(255,255,255,.04) 44%,rgba(255,255,255,.025));border:1px solid rgba(255,255,255,.075);color:rgba(255,255,255,.74);font-size:20px;font-weight:800}
 .detail-title{font-size:18px;font-weight:760;color:rgba(255,255,255,.96);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .detail-sub{margin-top:4px;font-size:11px;color:rgba(255,255,255,.45);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -1116,7 +1116,7 @@ body.login-guide-active #login-guide-canvas{opacity:1}
 .artist-song-item.playing{background:rgba(0,245,212,.06);border-color:rgba(0,245,212,.24);box-shadow:inset 2px 0 0 rgba(0,245,212,.72),0 10px 28px rgba(0,245,212,.05);transform:none}
 .artist-song-rank{width:26px;color:rgba(244,210,138,.62);font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;text-align:center;flex-shrink:0}
 .artist-song-rank-top{color:rgba(0,245,212,.82)}
-.artist-song-cover{width:42px;height:42px;border-radius:9px;object-fit:cover;background:rgba(255,255,255,.08);flex:0 0 auto;box-shadow:0 10px 24px rgba(0,0,0,.28)}
+.artist-song-cover{width:42px;height:42px;border-radius:9px;object-fit:cover;background:#18181f;flex:0 0 auto;box-shadow:0 10px 24px rgba(0,0,0,.28)}
 .artist-song-name{font-size:12.5px;color:rgba(255,255,255,.90);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px}
 .artist-song-side{display:flex;align-items:center;gap:8px;flex-shrink:0;margin-left:auto}
 .artist-song-duration{font-size:10.5px;color:rgba(255,255,255,.34);font-variant-numeric:tabular-nums;min-width:36px;text-align:right}

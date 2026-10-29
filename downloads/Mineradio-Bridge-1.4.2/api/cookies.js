@@ -346,26 +346,33 @@ export function kgCookieWebToken(cookieHeader) {
 
 export function kgCookieVipType(cookieHeader) {
   const obj = parseKGCookieObject(cookieHeader);
+  const endRaw = obj.vip_endtime || obj.vip_end_time || obj.m_end_time || obj.su_vip_end_time || '';
+  const endMs = endRaw ? Date.parse(String(endRaw).replace(/-/g, '/')) : NaN;
+  const endOk = Number.isFinite(endMs) && endMs > Date.now();
   const direct = Number(
     obj.vip_type || obj.VIPType || obj.VipType || obj.vipType || obj.musicvip ||
-    obj.MusicPack || obj.musicpack || obj.VipLevel || obj.vip_level || 0,
+    obj.VipLevel || obj.vip_level || 0,
   ) || 0;
-  if (direct > 0) return direct;
-  if (Number(obj.su_vip) > 0) return 33;
-  if (Number(obj.m_type) > 0) return 3;
-  if (Number(obj.y_type) > 0 || Number(obj.music_vip) > 0) return 6;
-  if (String(obj.vip_token || obj.vipToken || '').trim()) return 6;
-  if (Number(obj.is_vip) === 1 || Number(obj.IsVIP) === 1 || Number(obj.isVIP) === 1 || Number(obj.MusicPack) === 1) return 6;
+  /* Residual m_type / vip_token alone is common on free accounts — require live end date when possible */
+  if (direct > 0 && (!endRaw || endOk)) return direct;
+  if (Number(obj.su_vip) > 0 && (!obj.su_vip_end_time || endOk)) return 33;
+  if (Number(obj.m_type) > 0 && endOk) return 3;
+  if ((Number(obj.y_type) > 0 || Number(obj.music_vip) > 0) && (!endRaw || endOk)) return 6;
+  if (Number(obj.is_vip) === 1 || Number(obj.IsVIP) === 1 || Number(obj.isVIP) === 1) {
+    if (!endRaw || endOk) return 6;
+  }
+  if (Number(obj.MusicPack) === 1 && (!endRaw || endOk)) return 6;
   const vipEndRaw = obj.vip_endtime || obj.vip_end_time || '';
   if (vipEndRaw) {
-    const endMs = Date.parse(String(vipEndRaw).replace(/-/g, '/'));
-    if (Number.isFinite(endMs) && endMs > Date.now()) return 6;
+    const vipEndMs = Date.parse(String(vipEndRaw).replace(/-/g, '/'));
+    if (Number.isFinite(vipEndMs) && vipEndMs > Date.now() && (direct > 0 || Number(obj.is_vip) === 1)) return 6;
   }
   return 0;
 }
 
 export function kgCookieHasVipSession(cookieHeader) {
-  return kgCookieVipType(cookieHeader) > 0 || !!kgCookieVipToken(cookieHeader);
+  /* vip_token alone is not enough — free web sessions often still carry one */
+  return kgCookieVipType(cookieHeader) > 0;
 }
 
 export function analyzeKGCookieSession(cookieHeader) {

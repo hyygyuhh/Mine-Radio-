@@ -1,5 +1,14 @@
 import { handleApiRequest, getBridgeStatus } from './api/router.js';
 import { ensureKGCookie } from './api/kugou.js';
+import { createRequestQueue } from './api/queue.js';
+
+/* Limit parallel work only — queue length is unlimited (large playlists enqueue many jobs) */
+const apiQueue = createRequestQueue({ concurrency: 3, jobTimeoutMs: 25000 });
+
+function runQueuedApi(payload) {
+  const path = payload && payload.path;
+  return apiQueue.enqueue(() => handleApiRequest(payload || {}), { path });
+}
 
 const injectedTabs = new Set();
 const MEDIA_RULE_DEFS = [
@@ -241,10 +250,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
   if (message.type === 'MINERADIO_API') {
-    handleApiRequest(message.payload || {})
+    runQueuedApi(message.payload || {})
       .then((data) => sendResponse({ ok: true, data }))
       .catch((err) => sendResponse({ ok: false, error: (err && err.message) || String(err) }));
     return true;
+  }
+  if (message.type === 'MINERADIO_QUEUE_STATS') {
+    sendResponse({ ok: true, data: apiQueue.stats() });
+    return false;
   }
   return undefined;
 });
@@ -264,7 +277,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
     return true;
   }
   if (message.type !== 'MINERADIO_API') return;
-  handleApiRequest(message.payload || {})
+  runQueuedApi(message.payload || {})
     .then((data) => sendResponse({ ok: true, data }))
     .catch((err) => sendResponse({ ok: false, error: (err && err.message) || String(err) }));
   return true;
