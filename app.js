@@ -17447,10 +17447,9 @@ var SEARCH_CACHE_TTL_MS = 120000;
 var SEARCH_INPUT_DEBOUNCE_MS = 100;
 var SEARCH_PARTIAL_EMIT_MS = 36;
 var SEARCH_PAGE_SIZE = 10;
-/* Aggregate: never let QQ/KG hang keep the UI on “正在搜索” */
-var SEARCH_NE_TIMEOUT_MS = 8000;
-var SEARCH_SIDE_TIMEOUT_MS = 3500;
-var SEARCH_SIDE_GRACE_MS = 600;
+/* Aggregate: NE alone first (parallel QQ/KG congests Bridge and blanks All) */
+var SEARCH_NE_TIMEOUT_MS = 12000;
+var SEARCH_SIDE_TIMEOUT_MS = 8000;
 var searchPagingState = { query: '', mode: '', page: 0, hasMore: false, loading: false };
 var detailResponseCache = Object.create(null);
 var DETAIL_CACHE_TTL_MS = 180000;
@@ -18473,17 +18472,15 @@ async function fetchMusicSearchPage(q, mode, page) {
     hasMore = !!(neOnly && neOnly.hasMore);
     if (!hasMore && songs.length >= pageSize) hasMore = true;
   } else {
-    var per = Math.max(6, Math.ceil(pageSize / 2));
+    var per = Math.max(8, pageSize);
     var side = Math.max(4, Math.ceil(pageSize / 3));
     var neRes = await searchProviderJson('/api/search?keywords=' + encodeURIComponent(q) + '&limit=' + per + '&offset=' + offset, SEARCH_NE_TIMEOUT_MS);
-    var sideResult = await Promise.all([
-      searchProviderJson('/api/qq/search?keywords=' + encodeURIComponent(q) + '&limit=' + side + '&page=' + page, SEARCH_SIDE_TIMEOUT_MS),
-      searchProviderJson('/api/kg/search?keywords=' + encodeURIComponent(q) + '&limit=' + side + '&page=' + page, SEARCH_SIDE_TIMEOUT_MS)
-    ]);
     var neteaseSongs = (neRes && neRes.songs) || [];
-    var qqSongsMerged = (sideResult[0] && sideResult[0].songs) || [];
-    var kgSongsMerged = (sideResult[1] && sideResult[1].songs) || [];
     if (neRes && neRes.error) console.warn('Netease search error:', neRes.error);
+    var qqRes = await searchProviderJson('/api/qq/search?keywords=' + encodeURIComponent(q) + '&limit=' + side + '&page=' + page, SEARCH_SIDE_TIMEOUT_MS);
+    var kgRes = await searchProviderJson('/api/kg/search?keywords=' + encodeURIComponent(q) + '&limit=' + side + '&page=' + page, SEARCH_SIDE_TIMEOUT_MS);
+    var qqSongsMerged = (qqRes && qqRes.songs) || [];
+    var kgSongsMerged = (kgRes && kgRes.songs) || [];
     songs = mergeSongSearchResults(neteaseSongs, qqSongsMerged, pageSize, q, kgSongsMerged, true);
     hasMore = neteaseSongs.length >= per || qqSongsMerged.length >= side || kgSongsMerged.length >= side;
   }
@@ -18502,28 +18499,14 @@ async function fetchMusicSearchResults(q, mode, onPartial) {
     var per = Math.max(8, SEARCH_PAGE_SIZE);
     var side = Math.max(4, Math.ceil(SEARCH_PAGE_SIZE / 3));
     var searchGen = searchRequestSeq;
-    function emitAllPartial(immediate) {
+    function emitAllPartial() {
       if (typeof onPartial !== 'function') return;
       if (searchGen !== searchRequestSeq) return;
-      function flush() {
-        searchPartialEmitTimer = null;
-        searchPartialEmitPending = false;
-        if (searchGen !== searchRequestSeq) return;
-        var partial = mergeSongSearchResults(neteaseSongs, qqSongsMerged, SEARCH_PAGE_SIZE, q, kgSongsMerged, true);
-        if (partial.length) onPartial(partial, false);
-      }
-      if (immediate) {
-        clearTimeout(searchPartialEmitTimer);
-        searchPartialEmitTimer = null;
-        flush();
-        return;
-      }
-      searchPartialEmitPending = true;
-      if (searchPartialEmitTimer) return;
-      searchPartialEmitTimer = setTimeout(flush, SEARCH_PARTIAL_EMIT_MS);
+      var partial = mergeSongSearchResults(neteaseSongs, qqSongsMerged, SEARCH_PAGE_SIZE, q, kgSongsMerged, true);
+      if (partial.length) onPartial(partial, false);
     }
     function finishCache() {
-      if (searchGen !== searchRequestSeq) return;
+      if (searchGen !== searchRequestSeq) return [];
       var mergedNow = mergeSongSearchResults(neteaseSongs, qqSongsMerged, SEARCH_PAGE_SIZE, q, kgSongsMerged, true);
       searchPagingState.hasMore = neteaseSongs.length >= per || qqSongsMerged.length >= side || kgSongsMerged.length >= side;
       if (mergedNow.length) {
@@ -18535,40 +18518,43 @@ async function fetchMusicSearchResults(q, mode, onPartial) {
       }
       return mergedNow;
     }
-    /* Parallel: paint as soon as NE (or any source) returns; do not await hung QQ/KG */
-    var nePromise = searchProviderJson('/api/search?keywords=' + encodeURIComponent(q) + '&limit=' + per + '&offset=0', SEARCH_NE_TIMEOUT_MS);
-    var qqPromise = searchProviderJson('/api/qq/search?keywords=' + encodeURIComponent(q) + '&limit=' + side + '&page=1', SEARCH_SIDE_TIMEOUT_MS);
-    var kgPromise = searchProviderJson('/api/kg/search?keywords=' + encodeURIComponent(q) + '&limit=' + side + '&page=1', SEARCH_SIDE_TIMEOUT_MS);
-    qqPromise.then(function(r){
-      if (searchGen !== searchRequestSeq) return;
-      qqSongsMerged = (r && r.songs) || [];
-      if (r && r.timedOut) console.warn('QQ search timed out');
-      emitAllPartial(true);
-    });
-    kgPromise.then(function(r){
-      if (searchGen !== searchRequestSeq) return;
-      kgSongsMerged = (r && r.songs) || [];
-      if (r && r.timedOut) console.warn('KuGou search timed out');
-      emitAllPartial(true);
-    });
-    var neRes = await nePromise;
-    if (searchGen !== searchRequestSeq) return [];
-    neteaseSongs = (neRes && neRes.songs) || [];
-    if (neRes && neRes.error) console.warn('Netease search error:', neRes.error);
-    if (neteaseSongs.length) emitAllPartial(true);
-    /* Brief grace for fast QQ/KG; then return so UI leaves “正在搜索” */
-    await Promise.race([
-      Promise.all([qqPromise, kgPromise]),
-      new Promise(function(resolve){ setTimeout(resolve, SEARCH_SIDE_GRACE_MS); })
-    ]);
-    if (searchGen !== searchRequestSeq) return neteaseSongs.slice();
+    /* Identical NE request to the NE tab — do not parallelize with QQ/KG (Bridge congestion) */
+    try {
+      var neRes = await searchApiJson('/api/search?keywords=' + encodeURIComponent(q) + '&limit=' + per + '&offset=0');
+      if (searchGen !== searchRequestSeq) return [];
+      neteaseSongs = (neRes && neRes.songs) || [];
+      if (neRes && neRes.error) console.warn('Netease search error:', neRes.error);
+    } catch (err) {
+      if (searchGen !== searchRequestSeq) return [];
+      console.warn('Netease search failed:', err);
+      neteaseSongs = [];
+    }
+    if (neteaseSongs.length) emitAllPartial();
     var merged = finishCache();
-    /* Late QQ/KG still patch the list via onPartial after return */
-    Promise.all([qqPromise, kgPromise]).then(function(){
-      if (searchGen !== searchRequestSeq) return;
-      var late = finishCache();
-      if (late.length) emitAllPartial(true);
-    });
+    /* Enrich QQ then KG sequentially after UI already shows NE */
+    (async function enrichAggregateSides() {
+      try {
+        var qqRes = await searchProviderJson(
+          '/api/qq/search?keywords=' + encodeURIComponent(q) + '&limit=' + side + '&page=1',
+          SEARCH_SIDE_TIMEOUT_MS
+        );
+        if (searchGen !== searchRequestSeq) return;
+        qqSongsMerged = (qqRes && qqRes.songs) || [];
+        if (qqRes && qqRes.timedOut) console.warn('QQ search timed out');
+        if (qqSongsMerged.length) emitAllPartial();
+        var kgRes = await searchProviderJson(
+          '/api/kg/search?keywords=' + encodeURIComponent(q) + '&limit=' + side + '&page=1',
+          SEARCH_SIDE_TIMEOUT_MS
+        );
+        if (searchGen !== searchRequestSeq) return;
+        kgSongsMerged = (kgRes && kgRes.songs) || [];
+        if (kgRes && kgRes.timedOut) console.warn('KuGou search timed out');
+        finishCache();
+        if (qqSongsMerged.length || kgSongsMerged.length) emitAllPartial();
+      } catch (err) {
+        console.warn('Aggregate side search failed:', err);
+      }
+    })();
     return merged;
   }
   var pageResult = await fetchMusicSearchPage(q, mode, 1);
