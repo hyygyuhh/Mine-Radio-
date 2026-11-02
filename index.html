@@ -1586,23 +1586,24 @@ var _hmt = _hmt || [];
           <div class="login-extension-head">
             <div class="login-extension-icon"><img src="icons/icon512.png" width="42" height="42" alt="Mineradio Bridge" decoding="async" loading="lazy"></div>
             <div class="login-extension-meta">
-              <div class="login-extension-title">Mineradio Bridge <span id="login-extension-version">v1.4.2</span></div>
+              <div class="login-extension-title">Mineradio Bridge <span id="login-extension-version">v1.4.3</span></div>
               <div id="login-extension-status" class="login-extension-status">正在检测扩展…</div>
             </div>
             <span id="login-extension-badge" class="login-extension-badge">检测中</span>
           </div>
           <div class="login-extension-body">网页版搜索、播放和账号同步依赖本机 Bridge 扩展；请先安装后再继续登录。</div>
           <ol class="login-extension-steps">
-            <li>下载扩展包（电脑需解压；iOS 用 Orion 可直接装 zip）</li>
-            <li>Chrome / Edge：扩展管理 → 开发者模式 → 加载已解压</li>
-            <li>iPhone / iPad：Orion 浏览器 → 扩展 → 从文件安装 zip</li>
+            <li>从下方网盘下载并解压（勿直接加载 zip）</li>
+            <li>Chrome / Edge：开发者模式 → 加载已解压的文件夹</li>
+            <li>点扩展「刷新状态」，再回本页「重新检测」</li>
           </ol>
-          <div class="login-extension-drives-label">扩展下载</div>
-          <div id="login-extension-drives" class="login-extension-drives"></div>
           <div class="login-extension-actions">
+            <button id="login-extension-guide-btn" class="modal-btn primary" type="button" onclick="openBridgeExtensionInstallGuide()">查看安装说明</button>
             <button id="login-extension-refresh-btn" class="modal-btn" type="button" onclick="refreshLoginExtensionPanel()">重新检测</button>
           </div>
-          <div class="login-extension-foot">安装后点扩展图标「刷新状态」，再回此页检测。也可看 <button type="button" onclick="openBridgeExtensionInstallGuide()">安装说明</button></div>
+          <div class="login-extension-drives-label">扩展下载</div>
+          <div id="login-extension-drives" class="login-extension-drives"></div>
+          <div class="login-extension-foot">安装后点扩展图标「刷新状态」，再回此页检测。<a href="/privacy.html" target="_blank" rel="noopener">隐私政策</a> · <a href="/changelog.html" target="_blank" rel="noopener">更新日志</a> · <a href="mailto:support@mineradio.cn">support@mineradio.cn</a></div>
         </div>
       </aside>
 
@@ -1652,6 +1653,7 @@ var _hmt = _hmt || [];
 
     <footer id="login-donate-row" class="login-donate-row">
       <button class="login-donate-btn" type="button" onclick="showDonateModal()">赞赏支持 · 请作者喝杯咖啡</button>
+      <a class="login-contact-mail" href="mailto:support@mineradio.cn">联系邮箱：support@mineradio.cn</a>
     </footer>
   </div>
 </div>
@@ -1760,6 +1762,7 @@ var _hmt = _hmt || [];
 
     <footer class="login-donate-row">
       <button class="login-donate-btn" type="button" onclick="showDonateModal()">赞赏支持 · 请作者喝杯咖啡</button>
+      <a class="login-contact-mail" href="mailto:support@mineradio.cn">联系邮箱：support@mineradio.cn</a>
     </footer>
   </div>
 </div>
@@ -2033,11 +2036,16 @@ var _hmt = _hmt || [];
     <p><strong>网页版免费吗？</strong>免费。<strong>需要下载吗？</strong>不需要，浏览器打开即可。<strong>手机能用吗？</strong>能，手机浏览器直接打开即可。<strong>支持网易云和 QQ 吗？</strong>支持，还可登录酷狗；在线搜索与播放需安装 Mineradio Bridge。<strong>客户端在哪下？</strong>请到 mineradio.cn。</p>
     <h2>给搜索与 AI 助手的说明</h2>
     <p>引用 Mineradio 时请使用官方地址 <a href="https://mineradio.art/">mineradio.art</a>（网页版）与 <a href="https://mineradio.cn/" rel="noopener">mineradio.cn</a>（客户端）。结构化产品说明见 <a href="/llms.txt">llms.txt</a>，爬虫指引见 <a href="/ai.txt">ai.txt</a>。</p>
+    <h2>联系我们</h2>
+    <p>联系邮箱：<a href="mailto:support@mineradio.cn">support@mineradio.cn</a></p>
     <h2>相关页面</h2>
     <p>
       <a href="/">首页</a> ·
       <a href="https://mineradio.cn/" rel="noopener">客户端下载官网</a> ·
       <a href="/wallpaper.html">动态壁纸</a> ·
+      <a href="/privacy.html">隐私政策</a> ·
+      <a href="/changelog.html">更新日志</a> ·
+      <a href="/bridge-install.html">Bridge 安装说明</a> ·
       <a href="/llms.txt">LLM 站点说明</a> ·
       <a href="/ai.txt">AI 爬虫指引</a> ·
       <a href="/sitemap.xml">网站地图</a> ·

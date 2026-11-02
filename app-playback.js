@@ -7183,11 +7183,16 @@ function renderUserBtn() {
   }
   updatePlaybackQualityUi();
 }
-var MINERADIO_BRIDGE_EXTENSION_VERSION = '1.4.2';
-// Bridge 扩展下载源（夸克网盘 / 百度网盘）。提取码见 code 字段，可一键复制。
+var MINERADIO_BRIDGE_EXTENSION_VERSION = '1.4.3';
+// 当前版网盘包。完整版本表见 bridge-downloads.json / bridge-install.html
 var BRIDGE_CLOUD_DRIVES = [
-  { key: 'quark', name: '夸克网盘', url: 'https://pan.quark.cn/s/688b8c18e96c', code: '5fec3bso6w' },
-  { key: 'baidu', name: '百度网盘', url: 'https://pan.baidu.com/s/1LZBhcTdpTuyWjo7cFMZ8Iw?pwd=trd6', code: 'trd6' }
+  { key: 'quark', name: '夸克网盘', url: 'https://pan.quark.cn/s/bccc79460d77' },
+  { key: 'baidu', name: '百度网盘', url: 'https://pan.baidu.com/s/1TlZXYtIJhTEsKwJsRdtppw?pwd=bmcf' }
+];
+// 上一版回退（当前版可用时优先用 BRIDGE_CLOUD_DRIVES）
+var BRIDGE_LEGACY_CLOUD_DRIVES = [
+  { key: 'quark', name: '夸克网盘', url: 'https://pan.quark.cn/s/688b8c18e96c', version: '1.4.2' },
+  { key: 'baidu', name: '百度网盘', url: 'https://pan.baidu.com/s/1-mqeiNLGD8LU7zc6GZVbXA?pwd=x5jv', version: '1.4.2' }
 ];
 var loginExtensionProbeTimer = null;
 var bridgeExtensionWatchTimer = null;
@@ -7339,8 +7344,36 @@ function onBridgeExtensionVisibility() {
   if (!document.hidden) {
     refreshBridgeExtensionWatch(false);
     if (!isBridgeExtensionReady() && !bridgeInstallNoticeDismissed) ensureBridgeInstallNoticeFlow();
+    maybeSyncLoginAfterOfficialReturn();
   }
 }
+var loginReturnSyncTimer = null;
+var loginReturnSyncBusy = false;
+/** After「官网登录」tab returns, auto-import cookies while login modal is open. */
+function maybeSyncLoginAfterOfficialReturn() {
+  if (document.hidden) return;
+  if (!mineradioUsesWebMediaBridge()) return;
+  var modal = document.getElementById('login-modal');
+  if (!modal || !modal.classList.contains('show')) return;
+  var provider = normalizeAuthProvider(loginProvider);
+  if (typeof hasAuthCookieImportIntent !== 'function' || !hasAuthCookieImportIntent(provider)) return;
+  if (loginReturnSyncBusy) return;
+  if (loginReturnSyncTimer) clearTimeout(loginReturnSyncTimer);
+  loginReturnSyncTimer = setTimeout(function () {
+    loginReturnSyncTimer = null;
+    if (document.hidden) return;
+    if (!modal.classList.contains('show')) return;
+    if (!hasAuthCookieImportIntent(provider)) return;
+    loginReturnSyncBusy = true;
+    Promise.resolve(refreshProviderLoginStatus()).finally(function () {
+      loginReturnSyncBusy = false;
+    });
+  }, 700);
+}
+function onLoginOfficialReturnVisibility() {
+  if (!document.hidden) maybeSyncLoginAfterOfficialReturn();
+}
+document.addEventListener('visibilitychange', onLoginOfficialReturnVisibility);
 async function refreshBridgeExtensionWatch(manual) {
   if (!mineradioUsesWebMediaBridge()) return null;
   var bridge = window.__mineradioWebBridge;
@@ -7367,7 +7400,11 @@ function resolveBridgeExtensionDownloadUrl() {
   return versioned;
 }
 function bridgeExtensionInstallGuideUrl() {
-  return 'https://tcnqaj820g6y.feishu.cn/docx/C7Xjd3uvFokseqxBFqZc34eSnyd';
+  try {
+    var origin = String(window.location && window.location.origin || '');
+    if (/^https?:\/\//i.test(origin)) return origin.replace(/\/$/, '') + '/bridge-install.html';
+  } catch (_) {}
+  return 'https://mineradio.art/bridge-install.html';
 }
 function compareBridgeExtensionVersion(a, b) {
   a = String(a || '0').replace(/^v/i, '').split('.').map(function(n){ return Number(n) || 0; });
@@ -7471,77 +7508,57 @@ async function refreshLoginExtensionPanel() {
   else stopLoginExtensionProbe();
 }
 function downloadMineradioBridgeExtension() {
-  // 已改为网盘分发，打开首个网盘分享链接
-  if (BRIDGE_CLOUD_DRIVES && BRIDGE_CLOUD_DRIVES.length) {
-    try { window.open(BRIDGE_CLOUD_DRIVES[0].url, '_blank', 'noopener,noreferrer'); } catch (_) {}
-    showToast('已打开 ' + BRIDGE_CLOUD_DRIVES[0].name + ' 分享页，请使用提取码下载');
+  var drives = (BRIDGE_CLOUD_DRIVES && BRIDGE_CLOUD_DRIVES.length)
+    ? BRIDGE_CLOUD_DRIVES
+    : (BRIDGE_LEGACY_CLOUD_DRIVES || []);
+  if (drives.length) {
+    try { window.open(drives[0].url, '_blank', 'noopener,noreferrer'); } catch (_) {}
+    var ver = drives[0].version ? (' v' + drives[0].version) : '';
+    showToast('已打开 ' + drives[0].name + '（' + (ver || ('v' + MINERADIO_BRIDGE_EXTENSION_VERSION)) + '）');
     return;
   }
-  var url = resolveBridgeExtensionDownloadUrl();
-  try {
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = 'Mineradio-Bridge-' + MINERADIO_BRIDGE_EXTENSION_VERSION + '.zip';
-    a.rel = 'noopener noreferrer';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    showToast('已开始下载 Bridge 扩展，解压后在浏览器加载');
-  } catch (_) {
-    window.open(url, '_blank', 'noopener,noreferrer');
-  }
+  openBridgeExtensionInstallGuide();
+  showToast('请到安装说明页下载 Bridge 扩展');
 }
-function renderBridgeCloudDrives() {
-  var container = document.getElementById('login-extension-drives');
-  if (!container) return;
-  var html = BRIDGE_CLOUD_DRIVES.map(function (drive) {
+function renderBridgeDriveCards(drives, opts) {
+  opts = opts || {};
+  return (drives || []).map(function (drive) {
     var safeUrl = String(drive.url || '').replace(/"/g, '&quot;');
     var safeName = String(drive.name || '').replace(/"/g, '&quot;');
     var safeKey = String(drive.key || '').replace(/[^a-zA-Z0-9_-]/g, '');
     var initial = safeName.charAt(0);
-    var code = String(drive.code || '').trim();
-    var codeHtml = code
-      ? ('<span class="bridge-drive-code">提取码 <b>' + code.replace(/"/g, '&quot;') + '</b></span>' +
-         '<button class="modal-btn bridge-drive-copy" type="button" onclick="copyBridgeDriveCode(\'' + safeKey + '\')">复制提取码</button>')
-      : '';
+    var ver = String(drive.version || opts.version || '').trim();
+    var title = safeName + (ver ? (' · v' + ver.replace(/"/g, '')) : '');
     return '' +
       '<div class="bridge-drive-card bridge-drive-' + safeKey + '">' +
         '<div class="bridge-drive-card-top">' +
           '<span class="bridge-drive-icon">' + initial + '</span>' +
-          '<span class="bridge-drive-name">' + safeName + '</span>' +
+          '<span class="bridge-drive-name">' + title + '</span>' +
         '</div>' +
         '<a class="modal-btn primary bridge-drive-link" href="' + safeUrl + '" target="_blank" rel="noopener noreferrer">下载扩展</a>' +
-        codeHtml +
       '</div>';
   }).join('');
-  container.innerHTML = html;
 }
-function copyBridgeDriveCode(key) {
-  var drive = (BRIDGE_CLOUD_DRIVES || []).find(function (d) { return d.key === key; });
-  if (!drive) return;
-  var text = String(drive.code || '');
-  var done = function () { showToast('已复制 ' + drive.name + ' 提取码：' + text); };
-  var fail = function () {
-    try {
-      var ta = document.createElement('textarea');
-      ta.value = text;
-      ta.style.position = 'fixed';
-      ta.style.top = '-9999px';
-      ta.style.opacity = '0';
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-      done();
-    } catch (_) {
-      showToast('请手动复制提取码：' + text);
-    }
-  };
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(done).catch(fail);
-  } else {
-    fail();
+function renderBridgeCloudDrives() {
+  var container = document.getElementById('login-extension-drives');
+  if (!container) return;
+  var current = (BRIDGE_CLOUD_DRIVES || []).filter(function (d) { return d && d.url; });
+  if (current.length) {
+    container.innerHTML = renderBridgeDriveCards(current, { version: MINERADIO_BRIDGE_EXTENSION_VERSION });
+    return;
   }
+  var legacy = (BRIDGE_LEGACY_CLOUD_DRIVES || []).filter(function (d) { return d && d.url; });
+  var html = '' +
+    '<div class="bridge-drive-card" style="grid-column:1/-1">' +
+      '<div class="bridge-drive-card-top">' +
+        '<span class="bridge-drive-name">v' + MINERADIO_BRIDGE_EXTENSION_VERSION + ' 网盘包准备中</span>' +
+      '</div>' +
+      (legacy.length
+        ? '<span class="bridge-drive-hint">下方可临时下载上一版 v1.4.2；完整步骤见上方「查看安装说明」</span>'
+        : '<span class="bridge-drive-hint">完整步骤见上方「查看安装说明」</span>') +
+    '</div>';
+  if (legacy.length) html += renderBridgeDriveCards(legacy);
+  container.innerHTML = html;
 }
 function openBridgeExtensionInstallGuide() {
   try { window.open(bridgeExtensionInstallGuideUrl(), '_blank', 'noopener,noreferrer'); } catch (_) {}

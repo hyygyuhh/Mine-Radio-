@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>隐私政策 · Mineradio</title>
+<meta name="description" content="Mineradio 网页版与 Mineradio Bridge 扩展的隐私政策：Cookie 本机处理、匿名统计范围与联系方式。">
+<link rel="canonical" href="https://mineradio.art/privacy.html">
+<link rel="icon" href="icons/icon32.png" type="image/png">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+  <main class="wrap">
+    <a class="brand" href="/">
+      <img src="icons/icon48.png" width="28" height="28" alt="">
+      <span>Mineradio</span>
+    </a>
+    <h1>隐私政策</h1>
+    <p class="meta">适用于 mineradio.art 网页版与 Mineradio Bridge 浏览器扩展 · 最近更新：2026-11-03</p>
+
+    <div class="card">
+      <p><strong>一句话：</strong>听歌登录用的 Cookie 留在你的浏览器本机；我们不收集账号密码、听歌记录或歌单内容。可选的匿名统计只含随机安装 ID 与扩展版本号。</p>
+    </div>
+
+    <h2>1. 我们是谁</h2>
+    <p>Mineradio（mineradio.art）提供免费网页版在线听歌与可视化体验。客户端下载见 <a href="https://mineradio.cn/" rel="noopener">mineradio.cn</a>。联系邮箱：<a href="mailto:support@mineradio.cn">support@mineradio.cn</a>。</p>
+
+    <h2>2. 网页版处理的数据</h2>
+    <ul>
+      <li><strong>本机偏好</strong>：播放设置、界面状态等保存在浏览器 localStorage，不上传到我们的服务器。</li>
+      <li><strong>音乐平台会话</strong>：登录态通过本机 Cookie（及 Mineradio Bridge）访问网易云 / QQ 音乐 / 酷狗等平台接口；Cookie 不会发往 mineradio.art 服务器。</li>
+      <li><strong>静态托管</strong>：访问网页时，托管方（如 GitHub Pages / CDN）可能产生常规访问日志（IP、User-Agent、路径），用于可用性与安全，不作听歌画像。</li>
+    </ul>
+
+    <h2>3. Mineradio Bridge 扩展</h2>
+    <ul>
+      <li><strong>用途</strong>：在本机读取你已在音乐官网登录的 Cookie，代理网页版所需的音乐 API 请求。</li>
+      <li><strong>权限</strong>：cookies、storage、tabs、alarms、declarativeNetRequest 与相关主机权限，仅用于上述代理与媒体 Referer。</li>
+      <li><strong>退出登录</strong>：在网页版退出对应平台时，扩展会清除该平台相关登录 Cookie。</li>
+      <li><strong>不会</strong>：上传你的账号密码、完整 Cookie 内容、听歌历史或搜索关键词到 Mineradio 服务器。</li>
+    </ul>
+
+    <h2>4. 匿名活跃统计（可选）</h2>
+    <p>扩展可能向 <code>https://mineradio.art/bridge/</code> 发送匿名心跳，仅包含：</p>
+    <ul>
+      <li>随机生成的安装 ID（UUID，与个人身份无关）</li>
+      <li>扩展版本号</li>
+      <li>UTC 日期（用于日活去重）</li>
+    </ul>
+    <p>公开汇总见 <a href="https://mineradio.art/bridge/stats">/bridge/stats</a>。不含 Cookie、账号、曲目或搜索内容。</p>
+
+    <h2>5. 第三方</h2>
+    <p>播放与登录依赖各音乐平台官方服务及其隐私政策。动态壁纸、天气等可选功能可能请求公开第三方 API；详见各功能说明。</p>
+
+    <h2>6. 你的选择</h2>
+    <ul>
+      <li>可不安装 Bridge，仅使用不依赖扩展的功能。</li>
+      <li>可随时在浏览器中卸载扩展、清除站点数据或退出音乐平台账号。</li>
+      <li>疑问请邮件 <a href="mailto:support@mineradio.cn">support@mineradio.cn</a>。</li>
+    </ul>
+
+    <h2>7. 政策更新</h2>
+    <p>我们可能不时更新本政策；重大变更会尽量在本页注明日期。继续使用即表示知悉更新后的说明。</p>
+
+    <p class="nav">
+      <a href="/">返回首页</a> ·
+      <a href="/bridge-install.html">安装说明</a> ·
+      <a href="/changelog.html">更新日志</a> ·
+      <a href="mailto:support@mineradio.cn">联系我们</a>
+    </p>
+  </main>
+</body>
+</html>

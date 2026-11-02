@@ -22,6 +22,8 @@
     { id: 'tempera', label: '凝彩', desc: '色块与字形动势' },
     { id: 'pendolo', label: '时计', desc: '钟摆弧线歌词' },
     { id: 'hanabi', label: '火花', desc: '烟花 PV 歌词舞台' },
+    { id: 'nebbia', label: '雾笺', desc: '雨夜车窗手写' },
+    { id: 'machi', label: '町景', desc: '微缩街景招牌' },
     { id: 'still', label: '静止', desc: '静帧字幕' }
   ];
   var FOLIA_BACKGROUNDS = ['common', 'monet', 'nomand', 'latent', 'sora', 'url'];
@@ -47,7 +49,59 @@
     sonnet: { cameraIntensity: 1, typographyMotion: 1, mgDensity: 1, showOnlyText: false, showGuide: true, showBackgroundMg: true, showFixedGeo: true, showGiantDecorativeText: true, showBackgroundDecor: true, enableTransitions: true, outerFrameMode: 'full', textureResolution: 1.5, postProcessEnabled: false, postProcessGrain: 0.2, postProcessContrast: 0, postProcessRgbShift: 0, postProcessHalftone: 0, postProcessVignette: 0.85, postProcessLensDistortion: 0.3, postProcessLensDispersion: 0.6 },
     tempera: { cameraIntensity: 1, glyphMotion: 1, wholeLineLyrics: false, glyphSettleStretch: 0.5, colorMode: 'duo', showBlocks: true, showDecor: true, showCornerMarks: true, textInversion: true, enableTransitions: true, textureResolution: 1.5, postProcessEnabled: true, postProcessGrain: 0.2, postProcessContrast: 0, postProcessRgbShift: 0, postProcessVignette: 0.85, postProcessLensDistortion: 0.3, layerImages: [], layerImageDepth: 'back', layerImageFrequency: 0.6 },
     pendolo: { arcRadius: 0.42, arcAngleDeg: 100, wheelCenterX: 0, wheelCenterY: 0.5, tickSnappiness: 2, activeScale: 1.25, showGearDecor: 'subtle', showCenterGradient: true, showCoverOnWatchFace: false, enableLineGlow: false },
-    hanabi: { colorMode: 'mixed', sparkAmount: 1, ornamentAmount: 1, textMotion: 1, blockOpacity: 1, riseSpeed: 1, spin: 1, ambient: 1, glow: 1, bloom: 0.8, chorusBloom: 1.3, launches: true, overlayFrame: true, textOnly: false, sky: 0.85, collage: 1, renderQuality: 'full' }
+    hanabi: { colorMode: 'mixed', sparkAmount: 1, ornamentAmount: 1, textMotion: 1, blockOpacity: 1, riseSpeed: 1, spin: 1, ambient: 1, glow: 1, bloom: 0.8, chorusBloom: 1.3, launches: true, overlayFrame: true, textOnly: false, sky: 0.85, collage: 1, renderQuality: 'full' },
+    nebbia: {
+      render: { scale: 'global', antialias: 'global' },
+      appear: ['write', 'fade'],
+      fade: ['fog'],
+      layouts: ['ribbon', 'lines2', 'lines3', 'cross', 'pillar', 'header', 'badge', 'columns', 'orbit'],
+      behind: 'night',
+      glass: 'rain',
+      scenery: ['spot', 'buildings', 'lights', 'cars', 'road'],
+      rain: 'slant',
+      credits: true,
+      jitter: 0.6,
+      warp: 0.6,
+      mist: 0.75,
+      hold: 1.2,
+      refog: 4,
+      strokeWidth: 0.09,
+      writeSpeed: 1,
+      doodle: 0.3,
+      busSpeed: 1,
+      neon: 1,
+      spot: 0.5,
+      spotX: 0.8,
+      rainHit: 1,
+      rainBig: 1,
+      bump: 1,
+      jellies: 16,
+      jellySize: 1,
+      bubbles: 0.6,
+      dew: 1,
+      dewSize: 1,
+      dewGlint: 1
+    },
+    machi: {
+      scene: 'auto',
+      timeOfDay: 'auto',
+      weather: 'auto',
+      camera: 'default',
+      views: {
+        konbini: { azimuth: 0, elevation: 0, zoom: 1, panX: 0, panZ: 0 },
+        station: { azimuth: 0, elevation: 0, zoom: 1, panX: 0, panZ: 0 },
+        kowloon: { azimuth: 0, elevation: 0, zoom: 1, panX: 0, panZ: 0 }
+      },
+      motion: false,
+      motionSpeed: 1,
+      aperture: 8,
+      dof: 1,
+      dofRange: 1,
+      tiltShift: 0.3,
+      focus: 'center',
+      focusOffset: 0,
+      quality: { renderScale: 'global', antialias: 'global', shadows: 'high', reflections: 'high', glow: true, adaptive: true, revision: 2 }
+    }
   };
   function rangeField(key, label, min, max, step) {
     return { key: key, label: label, type: 'range', min: min, max: max, step: step };
@@ -239,6 +293,98 @@
       rangeField('ornamentAmount', 'MG 装饰件', 0, 2, 0.05),
       choiceField('colorMode', '配色', [{ v: 'mixed', l: '混合' }, { v: 'vivid', l: '鲜艳' }, { v: 'theme', l: '主题' }]),
       choiceField('renderQuality', '画质', [{ v: 'full', l: '全分辨率' }, { v: 'balanced', l: '均衡' }, { v: 'low', l: '省电' }])
+    ],
+    nebbia: [
+      choiceField('appear', '出现', [
+        { v: ['write', 'fade'], l: '书写+显现' },
+        { v: ['write'], l: '手写' },
+        { v: ['fade'], l: '显现' },
+        { v: ['fade', 'breath'], l: '哈气' },
+        { v: ['write', 'fade', 'breath'], l: '全部' }
+      ]),
+      choiceField('fade', '消失', [
+        { v: ['fog'], l: '起雾' },
+        { v: ['fingers'], l: '手指抹' },
+        { v: ['fog', 'fingers'], l: '混合' }
+      ]),
+      choiceField('behind', '窗外', [
+        { v: 'night', l: '雨夜街景' },
+        { v: 'aquarium', l: '水族箱' },
+        { v: 'backdrop', l: '共用背景' }
+      ]),
+      choiceField('glass', '玻璃水珠', [
+        { v: 'rain', l: '雨窗' },
+        { v: 'dew', l: '凝露' }
+      ]),
+      choiceField('rain', '窗外雨', [
+        { v: 'slant', l: '斜雨' },
+        { v: 'straight', l: '直雨' },
+        { v: 'off', l: '无雨' }
+      ]),
+      boolField('credits', '片尾曲名'),
+      rangeField('strokeWidth', '笔画粗细', 0.04, 0.16, 0.005),
+      rangeField('writeSpeed', '书写速度', 0.4, 2.5, 0.05),
+      rangeField('jitter', '手写歪斜', 0, 1.5, 0.05),
+      rangeField('warp', '手写变形', 0, 1.5, 0.05),
+      rangeField('mist', '雾浓度', 0.2, 1, 0.01),
+      rangeField('hold', '写完停留', 0, 6, 0.1),
+      rangeField('refog', '起雾时长', 0.5, 12, 0.5),
+      rangeField('doodle', '句尾涂鸦', 0, 1, 0.05),
+      rangeField('busSpeed', '车速', 0, 3, 0.05),
+      rangeField('neon', '霓虹', 0, 2, 0.05),
+      rangeField('spot', '聚光灯', 0, 2, 0.05),
+      rangeField('spotX', '灯位', 0, 1, 0.01),
+      rangeField('rainHit', '雨点密度', 0, 3, 0.05),
+      rangeField('rainBig', '大雨点', 0, 2, 0.05),
+      rangeField('bump', '颠簸', 0, 2.5, 0.05),
+      rangeField('jellies', '水母数量', 0, 24, 1),
+      rangeField('jellySize', '水母大小', 0.5, 1.8, 0.05),
+      rangeField('bubbles', '气泡', 0, 1, 0.05),
+      rangeField('dew', '凝露密度', 0, 1.5, 0.05),
+      rangeField('dewSize', '凝露大小', 0.5, 2, 0.05),
+      rangeField('dewGlint', '凝露高光', 0, 2, 0.05)
+    ],
+    machi: [
+      choiceField('scene', '场景', [
+        { v: 'auto', l: '自动' },
+        { v: 'konbini', l: '便利店' },
+        { v: 'station', l: '加油站' },
+        { v: 'kowloon', l: '城寨酒吧' }
+      ]),
+      choiceField('timeOfDay', '时间', [
+        { v: 'auto', l: '自动' },
+        { v: 'day', l: '白天' },
+        { v: 'dusk', l: '黄昏' },
+        { v: 'night', l: '夜晚' }
+      ]),
+      choiceField('weather', '天气', [
+        { v: 'auto', l: '自动' },
+        { v: 'clear', l: '晴' },
+        { v: 'rain', l: '雨' },
+        { v: 'snow', l: '雪' },
+        { v: 'fog', l: '雾' }
+      ]),
+      choiceField('camera', '镜头', [
+        { v: 'default', l: '默认' },
+        { v: 'custom', l: '自定义' }
+      ]),
+      boolField('motion', '运镜'),
+      rangeField('motionSpeed', '运镜速度', 0.25, 3, 0.05),
+      rangeField('aperture', '光圈', 1.4, 16, 0.1),
+      rangeField('dof', '景深强度', 0, 2, 0.05),
+      rangeField('dofRange', '清晰范围', 0.3, 3, 0.05),
+      rangeField('tiltShift', '移轴', 0, 1, 0.01),
+      choiceField('focus', '对焦', [
+        { v: 'center', l: '中心' },
+        { v: 'lyrics', l: '歌词屏' },
+        { v: 'manual', l: '手动' }
+      ]),
+      rangeField('focusOffset', '对焦偏移', -10, 10, 0.1),
+      choiceField('quality', '画质', [
+        { v: { renderScale: 'global', antialias: 'global', shadows: 'high', reflections: 'high', glow: true, adaptive: true, revision: 2 }, l: '高' },
+        { v: { renderScale: 'global', antialias: 'fxaa', shadows: 'low', reflections: 'low', glow: true, adaptive: true, revision: 2 }, l: '平衡' },
+        { v: { renderScale: 0.75, antialias: 'off', shadows: 'off', reflections: 'off', glow: false, adaptive: true, revision: 2 }, l: '低' }
+      ])
     ],
   };
   var state = {
@@ -1160,8 +1306,10 @@
       } else if (field.type === 'choice') {
         html += '<div class="fx-section-label">' + field.label + '</div><div class="fx-seg folia-tune-seg">';
         field.options.forEach(function (opt) {
-          var encoded = typeof opt.v === 'string' ? '\'' + opt.v + '\'' : String(opt.v);
-          var active = String(value) === String(opt.v);
+          var encoded = typeof opt.v === 'string'
+            ? '\'' + String(opt.v).replace(/\\/g, '\\\\').replace(/'/g, "\\'") + '\''
+            : JSON.stringify(opt.v);
+          var active = JSON.stringify(value) === JSON.stringify(opt.v);
           html += '<button type="button" class="' + (active ? 'active' : '') + '" onclick="setFoliaTuning(\'' + state.mode + '\',\'' + field.key + '\',' + encoded + ')">' + opt.l + '</button>';
         });
         html += '</div>';
@@ -1238,6 +1386,11 @@
     if (!FOLIA_TUNING_DEFAULTS[mode]) return;
     var next = currentTuning(mode);
     next[key] = value;
+    // Folia's Nebbia pairs window scene with a default glass look.
+    if (mode === 'nebbia' && key === 'behind') {
+      if (value === 'night') next.glass = 'rain';
+      else if (value === 'aquarium') next.glass = 'dew';
+    }
     state.tunings[mode] = next;
     writeStore();
     pushTuning();

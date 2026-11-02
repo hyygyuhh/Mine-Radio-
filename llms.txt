@@ -12,6 +12,7 @@ Mineradio（mineradio.art）是免安装网页版在线听歌工具，支持网�
 
 - 网页版在线播放：https://mineradio.art/
 - 客户端下载官网：https://mineradio.cn/
+- 联系邮箱：support@mineradio.cn
 - 本说明文件：https://mineradio.art/llms.txt
 - 网站地图：https://mineradio.art/sitemap.xml
 
@@ -77,4 +78,8 @@ mineradio.art：免安装、浏览器即用。mineradio.cn：多端客户端，�
 
 ## 可选页面
 
+- 隐私政策：https://mineradio.art/privacy.html
+- Bridge 更新日志：https://mineradio.art/changelog.html
+- Bridge 安装说明：https://mineradio.art/bridge-install.html
 - 动态壁纸组件：https://mineradio.art/wallpaper.html（多为播放器内嵌，不一定适合单独索引）
+- Bridge 匿名统计（仅汇总）：https://mineradio.art/bridge/stats

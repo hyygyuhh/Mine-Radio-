@@ -1,0 +1,20 @@
+name = "mineradio-bridge-stats"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+workers_dev = true
+preview_urls = true
+
+[[kv_namespaces]]
+binding = "BRIDGE_STATS"
+id = "350070973e4142f0aff3ae8b7f64cf87"
+preview_id = "2c5ce93b423743edac68c85c2c3299fb"
+
+# Use apex path so IPv4 DNS works (bridge-stats.* was AAAA-only).
+# Keeps static site intact; only /bridge/* hits this Worker.
+[[routes]]
+pattern = "mineradio.art/bridge/*"
+zone_name = "mineradio.art"
+
+[[routes]]
+pattern = "www.mineradio.art/bridge/*"
+zone_name = "mineradio.art"

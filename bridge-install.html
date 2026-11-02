@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mineradio Bridge 安装说明</title>
+<meta name="description" content="Mineradio Bridge 扩展安装说明：Chrome / Edge 加载已解压扩展、网盘下载、安装后检测与常见问题。">
+<link rel="canonical" href="https://mineradio.art/bridge-install.html">
+<link rel="icon" href="icons/icon32.png" type="image/png">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+  <main class="wrap">
+    <a class="brand" href="/">
+      <img src="icons/icon48.png" width="28" height="28" alt="">
+      <span>Mineradio</span>
+    </a>
+
+    <h1>Mineradio Bridge 安装说明</h1>
+    <p class="lead">网页版搜索、播放与账号同步依赖本机 Bridge 扩展。按下面步骤安装后，回到 <a href="https://mineradio.art/">mineradio.art</a> 即可继续登录听歌。</p>
+
+    <div class="hero-card">
+      <img src="icons/icon128.png" width="56" height="56" alt="Mineradio Bridge">
+      <div>
+        <strong id="hero-version">Mineradio Bridge</strong>
+        <span>Chrome / Edge 扩展 · Cookie 留在本机 · 不上传账号与听歌记录</span>
+      </div>
+    </div>
+
+    <h2><span class="n">1</span>下载扩展包（当前版）</h2>
+    <div class="drives" id="drives" aria-live="polite">
+      <div class="drive"><span class="drive-code">正在加载下载链接…</span></div>
+    </div>
+    <p class="note">电脑请下载 zip 后<strong>解压成文件夹</strong>（不要只打开压缩包内部）。iPhone / iPad 若用 <a href="https://orionbrowser.com/" target="_blank" rel="noopener noreferrer">Orion</a> 浏览器，可直接安装 zip。</p>
+
+    <h2 id="history-heading">历史版本</h2>
+    <p class="meta" style="margin-bottom:12px">一般请用当前版。仅在排查兼容性问题时再装旧版；装完需在扩展管理页移除旧扩展后重新「加载已解压」。</p>
+    <div class="history" id="history" aria-live="polite">
+      <div class="history-item"><span class="history-date">正在加载历史版本…</span></div>
+    </div>
+
+    <h2><span class="n">2</span>在 Chrome / Edge 加载</h2>
+    <ol class="steps">
+      <li><strong>打开扩展管理页</strong><br>地址栏输入 <code>chrome://extensions</code>（Edge 为 <code>edge://extensions</code>）并回车。</li>
+      <li><strong>开启开发者模式</strong><br>页面右上角打开「开发者模式」开关。</li>
+      <li><strong>加载已解压的扩展程序</strong><br>点「加载已解压的扩展程序」，选中<strong>解压后的文件夹</strong>（里面应能看到 <code>manifest.json</code>）。</li>
+      <li><strong>固定到工具栏（推荐）</strong><br>点浏览器工具栏拼图图标，把 Mineradio Bridge 固定出来，方便点「刷新状态」。</li>
+    </ol>
+
+    <h2><span class="n">3</span>登录音乐平台并检测</h2>
+    <ol class="steps">
+      <li>在浏览器中登录需要的平台：
+        <a href="https://music.163.com/" target="_blank" rel="noopener">网易云</a> /
+        <a href="https://y.qq.com/" target="_blank" rel="noopener">QQ 音乐</a> /
+        <a href="https://www.kugou.com/" target="_blank" rel="noopener">酷狗</a>
+      </li>
+      <li>点扩展图标 → <strong>刷新状态</strong>，确认对应平台已显示已登录。</li>
+      <li>打开 <a href="https://mineradio.art/">https://mineradio.art/</a>，在登录面板点「重新检测」。状态变为已连接后即可继续。</li>
+    </ol>
+
+    <h2><span class="n">4</span>手机（可选）</h2>
+    <ol class="steps">
+      <li><strong>iPhone / iPad</strong>：使用支持扩展的 <a href="https://orionbrowser.com/" target="_blank" rel="noopener noreferrer"><strong>Orion</strong></a> 浏览器（官网）→ 扩展 → 从文件安装 Bridge 的 zip。</li>
+      <li><strong>Android 手机 / Pad</strong>：系统 Chrome 通常无法加载未上架扩展；可用支持扩展的 <a href="https://www.lemurbrowser.com/" target="_blank" rel="noopener noreferrer"><strong>狐猴浏览器</strong></a>（官网）安装 Bridge。也可使用电脑浏览器，或 <a href="https://mineradio.cn/" rel="noopener">mineradio.cn</a> 客户端。</li>
+    </ol>
+
+    <h2>常见问题</h2>
+    <div class="faq">
+      <details>
+        <summary>提示「未连接到 Bridge」？</summary>
+        <p>确认扩展已启用且未被浏览器禁用；打开扩展弹窗点「刷新状态」；刷新 mineradio.art 后再点「重新检测」。若刚重装过，需重新「加载已解压的扩展程序」。</p>
+      </details>
+      <details>
+        <summary>加载扩展时报错 / 找不到 manifest？</summary>
+        <p>请选择<strong>解压后的根目录</strong>，该目录下应直接有 <code>manifest.json</code>。不要选 zip 文件本身，也不要多套一层空文件夹。</p>
+      </details>
+      <details>
+        <summary>平台显示未登录，但官网已经登录？</summary>
+        <p>确认登录的是同一浏览器配置文件；点扩展「刷新状态」。从 Mineradio 点「官网登录」完成登录后回到页面，一般会自动同步；也可手动刷新状态。</p>
+      </details>
+      <details>
+        <summary>图标变成青色拼图？</summary>
+        <p>多为未正确加载图标或旧包占位图。请确认使用最新 v1.4.3 包，移除旧扩展后重新加载解压目录。</p>
+      </details>
+      <details>
+        <summary>Cookie 会上传吗？</summary>
+        <p>不会。登录 Cookie 只在本机给网页版代理接口使用。详见 <a href="/privacy.html">隐私政策</a>。</p>
+      </details>
+    </div>
+
+    <div class="actions" style="margin-top:22px">
+      <a class="btn" href="https://mineradio.art/">打开网页版</a>
+      <a class="btn ghost" href="/changelog.html">更新日志</a>
+      <a class="btn ghost" href="/privacy.html">隐私政策</a>
+      <a class="btn ghost" href="mailto:support@mineradio.cn">联系支持</a>
+    </div>
+
+    <p class="nav">
+      <a href="/">返回首页</a> ·
+      当前版本 <span id="nav-version">—</span> ·
+      邮箱 <a href="mailto:support@mineradio.cn">support@mineradio.cn</a>
+    </p>
+  </main>
+  <script>
+    function escapeHtml(s) {
+      return String(s || '').replace(/[&<>"']/g, function (c) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+      });
+    }
+
+    function renderDriveCard(drive) {
+      var name = escapeHtml(drive.name || drive.key || '网盘');
+      var url = String(drive.url || '').trim();
+      var actions = url
+        ? ('<a class="btn" href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer">打开下载</a>')
+        : '<span class="pill-wait">链接待补充</span>';
+      return '' +
+        '<div class="drive">' +
+          '<div class="drive-top">' +
+            '<span class="drive-name">' + name + '</span>' +
+          '</div>' +
+          '<div class="actions">' + actions + '</div>' +
+        '</div>';
+    }
+
+    function renderHistoryDrives(drives) {
+      drives = Array.isArray(drives) ? drives : [];
+      var ready = drives.filter(function (d) { return String(d && d.url || '').trim(); });
+      if (!ready.length) return '<span class="pill-wait">网盘链接待补充</span>';
+      return ready.map(function (d) {
+        var label = escapeHtml(d.name || d.key || '下载');
+        var url = escapeHtml(String(d.url || '').trim());
+        return '<a class="btn ghost" href="' + url + '" target="_blank" rel="noopener noreferrer" title="' + label + '">' + label + '</a>';
+      }).join('');
+    }
+
+    function applyDownloads(data) {
+      var current = String((data && data.current) || '1.4.3');
+      var versions = (data && Array.isArray(data.versions)) ? data.versions.slice() : [];
+      var hero = document.getElementById('hero-version');
+      var nav = document.getElementById('nav-version');
+      if (hero) hero.textContent = 'Mineradio Bridge v' + current;
+      if (nav) nav.textContent = 'v' + current;
+
+      var currentItem = versions.find(function (v) { return String(v.version) === current; }) || versions[0];
+      var drivesEl = document.getElementById('drives');
+      if (drivesEl) {
+        var drives = (currentItem && currentItem.drives) || [];
+        drivesEl.innerHTML = drives.length
+          ? drives.map(renderDriveCard).join('')
+          : '<div class="drive"><span class="drive-name">暂无下载链接</span></div>';
+      }
+
+      var historyEl = document.getElementById('history');
+      if (historyEl) {
+        var older = versions.filter(function (v) { return String(v.version) !== current; });
+        if (!older.length) {
+          historyEl.innerHTML = '<div class="history-item"><span class="history-date">暂无历史版本</span></div>';
+        } else {
+          historyEl.innerHTML = older.map(function (v) {
+            var ver = escapeHtml(v.version || '');
+            var date = escapeHtml(v.date || '日期待补');
+            var note = v.note ? ('<p class="history-note">' + escapeHtml(v.note) + '</p>') : '';
+            return '' +
+              '<div class="history-item">' +
+                '<div class="history-head">' +
+                  '<span class="history-ver">v' + ver + '</span>' +
+                  '<span class="history-date">' + date + '</span>' +
+                '</div>' +
+                note +
+                '<div class="history-drives">' + renderHistoryDrives(v.drives) + '</div>' +
+              '</div>';
+          }).join('');
+        }
+      }
+    }
+
+    fetch('bridge-downloads.json', { cache: 'no-store' })
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(applyDownloads)
+      .catch(function () {
+        var drivesEl = document.getElementById('drives');
+        if (drivesEl) {
+          drivesEl.innerHTML = '<div class="drive"><span class="drive-code">下载配置加载失败，请稍后刷新，或到登录面板查看网盘链接。</span></div>';
+        }
+        var historyEl = document.getElementById('history');
+        if (historyEl) {
+          historyEl.innerHTML = '<div class="history-item"><span class="history-date">历史版本暂不可用</span></div>';
+        }
+      });
+  </script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "bridge-stats-worker",
+  "version": "1.0.0",
+  "description": "匿名心跳 API：活跃人数 + 版本分布。   只存随机安装 ID、扩展版本、UTC 日期；不含 Cookie / 账号 / 听歌记录。",
+  "main": "index.js",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "wrangler": "^4.156.2"
+  }
+}

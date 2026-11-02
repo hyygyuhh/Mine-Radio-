@@ -15583,7 +15583,9 @@ function locateWeatherRadio() {
     ipFallbackStarted = true;
     apiJson('/api/weather/ip-location?t=' + Date.now()).then(function(data){
       var loc = data && data.location;
-      if (!loc || !isFinite(Number(loc.latitude)) || !isFinite(Number(loc.longitude))) throw new Error(data && data.error || 'IP_LOCATION_FAILED');
+      var lat = Number(loc && (loc.latitude != null ? loc.latitude : loc.lat));
+      var lon = Number(loc && (loc.longitude != null ? loc.longitude : loc.lon));
+      if (!loc || !isFinite(lat) || !isFinite(lon)) throw new Error((loc && loc.error) || (data && data.error) || 'IP_LOCATION_FAILED');
       if (locationSettled) return;
       locationSettled = true;
       homeWeatherRadioState.city = loc.city || '当前位置';
@@ -15591,8 +15593,8 @@ function locateWeatherRadio() {
       renderHomeDiscover();
       showToast('已用网络位置定位到 ' + (loc.city || '当前位置'));
       loadHomeWeatherRadio(true, {
-        lat: loc.latitude,
-        lon: loc.longitude,
+        lat: lat,
+        lon: lon,
         city: loc.city || '当前位置',
         timezone: loc.timezone || '',
       });

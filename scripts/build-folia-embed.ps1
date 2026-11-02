@@ -2,10 +2,12 @@
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $candidates = @(
-  (Join-Path $root '..\folia-major-0.7.22'),
   (Join-Path $root '..\folia-major-main'),
-  'd:\Users\z1590\Desktop\folia-major-0.7.22',
-  'd:\Users\z1590\Desktop\folia-major-main'
+  (Join-Path $root '..\folia-major-0.7.25'),
+  (Join-Path $root '..\folia-major-0.7.22'),
+  'd:\Users\z1590\Desktop\folia-major-main',
+  'd:\Users\z1590\Desktop\folia-major-0.7.25',
+  'd:\Users\z1590\Desktop\folia-major-0.7.22'
 )
 $folia = $null
 foreach ($c in $candidates) {
@@ -18,7 +20,7 @@ foreach ($c in $candidates) {
     }
   }
 }
-if (-not $folia) { throw 'Folia source tree not found (expected folia-major-0.7.22 with vite.mineradio-embed.config.ts)' }
+if (-not $folia) { throw 'Folia source tree not found (expected folia-major-main with vite.mineradio-embed.config.ts)' }
 Write-Host "Building Folia embed from $folia"
 Set-Location $folia
 $env:FOLIA_BUILD_REPO = 'chthollyphile/folia-major'
