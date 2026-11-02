@@ -1,5 +1,5 @@
-/* Shared light theme for privacy / changelog / bridge-install */
-@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;650;700&family=Outfit:wght@560;700&display=swap");
+/* Shared light theme for privacy / changelog / bridge-install.
+   Load fonts via <link> in each HTML head (avoid blocking @import). */
 
 :root {
   --bg: #eef6f3;
@@ -93,6 +93,14 @@ a {
   font-weight: 500;
 }
 a:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+a:focus-visible,
+.brand:focus-visible,
+.btn:focus-visible,
+.faq summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
 
 code {
   font-family: "JetBrains Mono", ui-monospace, Consolas, monospace;
@@ -243,6 +251,9 @@ h2 .n {
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 4px;
+}
+.docs-actions {
+  margin-top: 28px;
 }
 
 .note {

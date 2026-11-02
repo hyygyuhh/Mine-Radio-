@@ -7184,16 +7184,68 @@ function renderUserBtn() {
   updatePlaybackQualityUi();
 }
 var MINERADIO_BRIDGE_EXTENSION_VERSION = '1.4.3';
-// 当前版网盘包。完整版本表见 bridge-downloads.json / bridge-install.html
+// Fallback when bridge-downloads.json is unavailable; live links come from that JSON.
 var BRIDGE_CLOUD_DRIVES = [
   { key: 'quark', name: '夸克网盘', url: 'https://pan.quark.cn/s/bccc79460d77' },
   { key: 'baidu', name: '百度网盘', url: 'https://pan.baidu.com/s/1TlZXYtIJhTEsKwJsRdtppw?pwd=bmcf' }
 ];
-// 上一版回退（当前版可用时优先用 BRIDGE_CLOUD_DRIVES）
 var BRIDGE_LEGACY_CLOUD_DRIVES = [
   { key: 'quark', name: '夸克网盘', url: 'https://pan.quark.cn/s/688b8c18e96c', version: '1.4.2' },
   { key: 'baidu', name: '百度网盘', url: 'https://pan.baidu.com/s/1-mqeiNLGD8LU7zc6GZVbXA?pwd=x5jv', version: '1.4.2' }
 ];
+var bridgeDownloadsLoadPromise = null;
+function normalizeBridgeDownloadDrives(drives, version) {
+  return (Array.isArray(drives) ? drives : []).filter(function (d) {
+    return d && String(d.url || '').trim();
+  }).map(function (d) {
+    var item = {
+      key: String(d.key || ''),
+      name: String(d.name || d.key || '网盘'),
+      url: String(d.url || '').trim()
+    };
+    var ver = String(version || d.version || '').trim();
+    if (ver) item.version = ver;
+    return item;
+  });
+}
+function applyBridgeDownloadsConfig(data) {
+  if (!data || typeof data !== 'object') return false;
+  var current = String(data.current || '').trim();
+  var versions = Array.isArray(data.versions) ? data.versions : [];
+  if (current) MINERADIO_BRIDGE_EXTENSION_VERSION = current;
+  var currentItem = versions.find(function (v) {
+    return String(v && v.version || '') === current;
+  }) || versions[0];
+  if (currentItem) {
+    var currentDrives = normalizeBridgeDownloadDrives(currentItem.drives);
+    if (currentDrives.length) BRIDGE_CLOUD_DRIVES = currentDrives;
+    if (!current && currentItem.version) MINERADIO_BRIDGE_EXTENSION_VERSION = String(currentItem.version);
+  }
+  var older = versions.filter(function (v) {
+    return String(v && v.version || '') !== String(MINERADIO_BRIDGE_EXTENSION_VERSION);
+  });
+  if (older.length) {
+    var legacyDrives = normalizeBridgeDownloadDrives(older[0].drives, older[0].version);
+    if (legacyDrives.length) BRIDGE_LEGACY_CLOUD_DRIVES = legacyDrives;
+  }
+  return true;
+}
+function ensureBridgeDownloadsConfig() {
+  if (bridgeDownloadsLoadPromise) return bridgeDownloadsLoadPromise;
+  bridgeDownloadsLoadPromise = fetch('bridge-downloads.json', { cache: 'no-store' })
+    .then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function (data) {
+      applyBridgeDownloadsConfig(data);
+      return data;
+    })
+    .catch(function () {
+      return null;
+    });
+  return bridgeDownloadsLoadPromise;
+}
 var loginExtensionProbeTimer = null;
 var bridgeExtensionWatchTimer = null;
 var BRIDGE_INSTALL_NOTICE_DISMISS_KEY = 'mineradio-bridge-install-notice-dismissed-v1';
@@ -7253,8 +7305,7 @@ function handleBridgeExtensionNoticePrimary() {
 function handleBridgeExtensionNoticeSecondary() {
   var notice = document.getElementById('bridge-extension-notice');
   if (notice && notice.dataset.mode === 'missing') {
-    // missing 模式下"下载扩展包"改为打开官网 mineradio.cn
-    try { window.open('https://mineradio.cn', '_blank', 'noopener,noreferrer'); } catch (_) {}
+    openBridgeExtensionInstallGuide();
     return;
   }
   refreshBridgeExtensionWatch(true);
@@ -7286,7 +7337,7 @@ function renderBridgeExtensionNotice(outdated, installedVersion) {
     }
   }
   if (primary) primary.textContent = mode === 'missing' ? '前往登录页下载' : '下载新版';
-  if (secondary) secondary.textContent = mode === 'missing' ? '打开官网' : '重新检测';
+  if (secondary) secondary.textContent = mode === 'missing' ? '安装说明' : '重新检测';
   if (userBtn) {
     userBtn.classList.toggle('bridge-update-hint', mode === 'outdated');
     userBtn.classList.toggle('bridge-install-hint', mode === 'missing');
@@ -7310,6 +7361,7 @@ function ensureBridgeInstallNoticeFlow() {
   probeBridgeInstallNotice();
 }
 function scheduleBridgeInstallNoticeChecks() {
+  ensureBridgeDownloadsConfig();
   scheduleWebStartupTask(ensureBridgeInstallNoticeFlow, 1200);
   scheduleWebStartupTask(ensureBridgeInstallNoticeFlow, 3200);
   scheduleWebStartupTask(ensureBridgeInstallNoticeFlow, 6200);
@@ -7497,6 +7549,10 @@ function updateLoginExtensionPanel() {
   }
   renderLoginExtensionStatus(false);
   renderBridgeCloudDrives();
+  ensureBridgeDownloadsConfig().then(function () {
+    renderBridgeCloudDrives();
+    renderLoginExtensionStatus(false);
+  });
   if (!window.__mineradioWebBridge || !window.__mineradioWebBridge.isReady || !window.__mineradioWebBridge.isReady()) startLoginExtensionProbe();
 }
 async function refreshLoginExtensionPanel() {
