@@ -36,9 +36,9 @@
     url: { label: '自定义', desc: '地址或本地导入' }
   };
   var FOLIA_TUNING_DEFAULTS = {
-    classic: { enableWordRotation: true, breathingFloatMultiplier: 1, useLegacyLayout: false, wordSpacing: 0.7 },
+    classic: { enableWordRotation: true, breathingFloatMultiplier: 1, useLegacyLayout: false, wordSpacing: 0.7, avoidOverlap: false },
     cadenza: { fontScale: 1.12, widthRatio: 0.72, motionAmount: 1, glowIntensity: 1, beamIntensity: 0 },
-    partita: { showGuideLines: true, useSemanticLayout: true, staggerMin: 20, staggerMax: 100 },
+    partita: { showGuideLines: true, useSemanticLayout: true, staggerMin: 20, staggerMax: 100, avoidOverlap: false },
     tilt: { splitProbability: 0.75, tiltStyleProbability: 0.35, colorScheme: 'default' },
     fume: { hidePrintSymbols: false, disableGeometricBackground: true, backgroundObjectOpacity: 0.5, textHoldRatio: 1, cameraTrackingMode: 'smooth', cameraSpeed: 1, glowIntensity: 1, heroScale: 1 },
     cappella: { showEmoMessages: true, emojiPackSource: 'builtin', avatarSource: 'cover' },
@@ -80,7 +80,10 @@
       bubbles: 0.6,
       dew: 1,
       dewSize: 1,
-      dewGlint: 1
+      dewGlint: 1,
+      snow: 1,
+      snowSize: 1,
+      snowMelt: 1
     },
     machi: {
       scene: 'auto',
@@ -100,6 +103,7 @@
       tiltShift: 0.3,
       focus: 'center',
       focusOffset: 0,
+      simulatedBeat: true,
       quality: { renderScale: 'global', antialias: 'global', shadows: 'high', reflections: 'high', glow: true, adaptive: true, revision: 2 }
     }
   };
@@ -115,6 +119,7 @@
   var FOLIA_TUNING_FIELDS = {
     classic: [
       boolField('enableWordRotation', '逐字旋转'),
+      boolField('avoidOverlap', '防止文字重叠'),
       choiceField('useLegacyLayout', '排版', [{ v: false, l: '自适应' }, { v: true, l: '旧版' }]),
       rangeField('breathingFloatMultiplier', '呼吸浮动', 0, 2, 0.05),
       rangeField('wordSpacing', '单词间距', 0, 2, 0.05)
@@ -129,6 +134,7 @@
     partita: [
       boolField('showGuideLines', '引导线'),
       boolField('useSemanticLayout', '语义排列'),
+      boolField('avoidOverlap', '防止文字重叠'),
       rangeField('staggerMin', '错位最小', 0, 180, 1),
       rangeField('staggerMax', '错位最大', 0, 180, 1)
     ],
@@ -314,7 +320,8 @@
       ]),
       choiceField('glass', '玻璃水珠', [
         { v: 'rain', l: '雨窗' },
-        { v: 'dew', l: '凝露' }
+        { v: 'dew', l: '凝露' },
+        { v: 'snow', l: '雪窗' }
       ]),
       choiceField('rain', '窗外雨', [
         { v: 'slant', l: '斜雨' },
@@ -342,7 +349,10 @@
       rangeField('bubbles', '气泡', 0, 1, 0.05),
       rangeField('dew', '凝露密度', 0, 1.5, 0.05),
       rangeField('dewSize', '凝露大小', 0.5, 2, 0.05),
-      rangeField('dewGlint', '凝露高光', 0, 2, 0.05)
+      rangeField('dewGlint', '凝露高光', 0, 2, 0.05),
+      rangeField('snow', '雪量', 0, 3, 0.05),
+      rangeField('snowSize', '雪花大小', 0.5, 2, 0.05),
+      rangeField('snowMelt', '融化速度', 0.25, 3, 0.05)
     ],
     machi: [
       choiceField('scene', '场景', [
@@ -368,6 +378,7 @@
         { v: 'default', l: '默认' },
         { v: 'custom', l: '自定义' }
       ]),
+      boolField('simulatedBeat', '模拟节拍'),
       boolField('motion', '运镜'),
       rangeField('motionSpeed', '运镜速度', 0.25, 3, 0.05),
       rangeField('aperture', '光圈', 1.4, 16, 0.1),
@@ -401,6 +412,7 @@
     },
     homeStyle: 'mr',
     wallOpen: false,
+    badgeCurrentOnly: false,
     lastWallItems: [],
     lastWallPlaylistId: '',
     tunings: {},
@@ -430,6 +442,11 @@
         state.bgCommon.opacity = 0.75;
       }
       if (raw.homeStyle === 'wall' || raw.homeStyle === 'mr') state.homeStyle = raw.homeStyle;
+      else if (raw.homeStyle === 'rhine') {
+        state.homeStyle = 'mr';
+        writeStore();
+      }
+      state.badgeCurrentOnly = raw.badgeCurrentOnly === true;
       if (raw.tunings && typeof raw.tunings === 'object') state.tunings = raw.tunings;
     } catch (_) {}
   }
@@ -445,6 +462,7 @@
         backgroundFromImport: fromImport,
         bgCommon: state.bgCommon,
         homeStyle: state.homeStyle,
+        badgeCurrentOnly: !!state.badgeCurrentOnly,
         tunings: state.tunings
       }));
     } catch (_) {}
@@ -454,7 +472,7 @@
       var parsed = new URL(url, window.location.href);
       if (parsed.searchParams.get('mineradio') !== '1') parsed.searchParams.set('mineradio', '1');
       // Bust iframe cache when vendor/folia embed is rebuilt.
-      if (parsed.searchParams.get('v') !== '20261025a') parsed.searchParams.set('v', '20261025a');
+      if (parsed.searchParams.get('v') !== '20261106g') parsed.searchParams.set('v', '20261106g');
       return parsed.href;
     } catch (_) {
       return String(url || '');
@@ -524,7 +542,7 @@
   }
   // Poster-wall: match Folia library wall — playlists first, ~300px covers, theme on open.
   var WALL_COVER_SIZE = 300;
-  var WALL_ITEM_LIMIT = 80;
+  var WALL_ITEM_LIMIT = 200;
   var WALL_PREFETCH_FIRST = 36;
   var WALL_PREFETCH_CONCURRENCY = 8;
   var wallCoverPrefetchToken = 0;
@@ -567,23 +585,34 @@
     } catch (_) {}
     return String(pl.id || '');
   }
+  function wallSigHash(parts) {
+    var h = 2166136261;
+    for (var i = 0; i < parts.length; i++) {
+      var text = String(parts[i] || '');
+      for (var j = 0; j < text.length; j++) {
+        h ^= text.charCodeAt(j);
+        h = Math.imul(h, 16777619);
+      }
+      h ^= 124;
+    }
+    return (h >>> 0).toString(36);
+  }
   function wallHomeSig(showing) {
     if (!showing) return 'mr';
-    var playlists = wallPlaylistList();
-    if (playlists.length) {
-      var plLimit = Math.min(playlists.length, WALL_ITEM_LIMIT);
-      var plFirst = plLimit ? wallPlaylistId(playlists[0]) : '';
-      var plMid = plLimit > 1 ? wallPlaylistId(playlists[Math.floor(plLimit / 2)]) : '';
-      var plLast = plLimit > 1 ? wallPlaylistId(playlists[plLimit - 1]) : '';
-      return 'wall:pl:' + plLimit + ':' + plFirst + ':' + plMid + ':' + plLast;
-    }
+    var badge = state.badgeCurrentOnly ? '1' : '0';
     var songs = wallSongList();
-    var playing = wallPlayingIndex();
-    var limit = Math.min(songs.length, WALL_ITEM_LIMIT);
-    var first = limit ? wallSongKey(songs[0], 0) : '';
-    var mid = limit > 1 ? wallSongKey(songs[Math.min(limit - 1, Math.floor(limit / 2))], Math.floor(limit / 2)) : '';
-    var last = limit > 1 ? wallSongKey(songs[limit - 1], limit - 1) : '';
-    return 'wall:q:' + playing + ':' + limit + ':' + first + ':' + mid + ':' + last;
+    if (songs.length) {
+      var playing = wallPlayingIndex();
+      var limit = Math.min(songs.length, WALL_ITEM_LIMIT);
+      var keys = [];
+      for (var i = 0; i < limit; i++) keys.push(wallSongKey(songs[i], i));
+      return 'wall:q:' + badge + ':' + playing + ':' + limit + ':' + wallSigHash(keys);
+    }
+    var playlists = wallPlaylistList();
+    var plLimit = Math.min(playlists.length, WALL_ITEM_LIMIT);
+    var ids = [];
+    for (var p = 0; p < plLimit; p++) ids.push(wallPlaylistId(playlists[p]));
+    return 'wall:pl:' + badge + ':' + plLimit + ':' + wallSigHash(ids);
   }
   function resolveWallCoverUrl(song) {
     if (!song) return '';
@@ -627,16 +656,18 @@
         } catch (_) {}
         var durRaw = Number(song.duration || song.durationMs || song.dt || 0) || 0;
         if (durRaw > 1000) durRaw = durRaw / 1000;
+        var isCurrent = j === playing;
         out.push({
           id: 'q:' + j + ':' + wallSongKey(song, j),
           index: out.length,
           name: String(song.name || song.title || '未命名'),
           coverUrl: songCover || undefined,
           description: String(artist || ''),
-          current: j === playing,
+          current: isCurrent,
           type: 'song',
           queueIndex: j,
-          duration: durRaw
+          duration: durRaw,
+          hideIndex: !!(state.badgeCurrentOnly && !isCurrent)
         });
       }
       state.lastWallItems = out;
@@ -1086,7 +1117,11 @@
   }
   function pushTuning() {
     if (!state.ready) return;
-    post('FOLIA_SET_TUNING', { tunings: state.tunings || {} });
+    var tunings = {};
+    Object.keys(FOLIA_TUNING_DEFAULTS).forEach(function (mode) {
+      tunings[mode] = currentTuning(mode);
+    });
+    post('FOLIA_SET_TUNING', { tunings: tunings });
   }
   var ASSET_DB = 'mineradio-folia-assets';
   var ASSET_LIMITS = { avatars: 12, emojis: 24, tempera: 16, backgrounds: 1 };
@@ -1289,6 +1324,17 @@
     Object.keys(saved).forEach(function (key) { out[key] = saved[key]; });
     return out;
   }
+  function jsLiteral(value) {
+    if (typeof value === 'string') return "'" + value.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+    if (Array.isArray(value)) return '[' + value.map(jsLiteral).join(',') + ']';
+    if (value && typeof value === 'object') {
+      return '{' + Object.keys(value).map(function (key) {
+        return jsLiteral(key) + ':' + jsLiteral(value[key]);
+      }).join(',') + '}';
+    }
+    return 'null';
+  }
   function renderTuningPanel() {
     var panel = document.getElementById('folia-tuning-panel');
     if (!panel) return;
@@ -1306,11 +1352,8 @@
       } else if (field.type === 'choice') {
         html += '<div class="fx-section-label">' + field.label + '</div><div class="fx-seg folia-tune-seg">';
         field.options.forEach(function (opt) {
-          var encoded = typeof opt.v === 'string'
-            ? '\'' + String(opt.v).replace(/\\/g, '\\\\').replace(/'/g, "\\'") + '\''
-            : JSON.stringify(opt.v);
           var active = JSON.stringify(value) === JSON.stringify(opt.v);
-          html += '<button type="button" class="' + (active ? 'active' : '') + '" onclick="setFoliaTuning(\'' + state.mode + '\',\'' + field.key + '\',' + encoded + ')">' + opt.l + '</button>';
+          html += '<button type="button" class="' + (active ? 'active' : '') + '" onclick="setFoliaTuning(\'' + state.mode + '\',\'' + field.key + '\',' + jsLiteral(opt.v) + ')">' + opt.l + '</button>';
         });
         html += '</div>';
       } else {
@@ -1430,7 +1473,7 @@
     opts = opts || {};
     state.homeStyle = style === 'wall' ? 'wall' : 'mr';
     state.wallOpen = state.homeStyle === 'wall';
-    if (state.homeStyle === 'wall') suppressMineradioEmptyHome();
+    if (state.homeStyle !== 'mr') suppressMineradioEmptyHome();
     writeStore();
     applyWallVisibility();
     syncUi();
@@ -1460,6 +1503,16 @@
     if (state.homeStyle !== 'wall') return false;
     return setWallOpen(!state.wallOpen, opts);
   }
+  function setBadgeCurrentOnly(on, opts) {
+    opts = opts || {};
+    state.badgeCurrentOnly = !!on;
+    writeStore();
+    if (state.homeStyle === 'wall' && state.wallOpen && state.ready) pushHome(true);
+    syncUi();
+    if (!opts.silent && typeof showToast === 'function') {
+      showToast(state.badgeCurrentOnly ? '海报墙只标记正在播放' : '海报墙显示全部序号');
+    }
+  }
   function wallItemAt(index) {
     index = Number(index);
     if (!isFinite(index) || index < 0) return null;
@@ -1487,8 +1540,16 @@
     }
     if (typeof playQueueAt === 'function') {
       var qi = typeof item.queueIndex === 'number' ? item.queueIndex : index;
-      // Already the playing track: keep position (Lattice open-player / in-wall play).
-      if (qi === wallPlayingIndex()) return;
+      // Playing poster: resume if paused, never pause (Folia 0.7.26 double-click).
+      if (qi === wallPlayingIndex()) {
+        try {
+          if (typeof audio !== 'undefined' && audio && audio.paused) {
+            if (typeof togglePlay === 'function') togglePlay();
+            else audio.play();
+          }
+        } catch (_) {}
+        return;
+      }
       playQueueAt(qi);
     }
   }
@@ -1598,6 +1659,10 @@
     if (!FOLIA_MODES.some(function (m) { return m.id === mode; })) mode = 'off';
     state.mode = mode;
     state.enabled = mode !== 'off';
+    if (state.enabled && state.wallOpen) {
+      state.wallOpen = false;
+      document.body.classList.remove('folia-home-wall');
+    }
     writeStore();
     syncUi();
     if (!state.enabled) {
@@ -1672,6 +1737,10 @@
     for (var h = 0; h < homeButtons.length; h++) {
       homeButtons[h].classList.toggle('active', homeButtons[h].getAttribute('data-folia-home') === state.homeStyle);
     }
+    var wallOptions = document.getElementById('folia-wall-options');
+    if (wallOptions) wallOptions.hidden = state.homeStyle !== 'wall';
+    var badgeBtn = document.getElementById('folia-badge-current');
+    if (badgeBtn) badgeBtn.classList.toggle('active', !!state.badgeCurrentOnly);
     var bgButtons = document.querySelectorAll('[data-folia-bg]');
     for (var b = 0; b < bgButtons.length; b++) {
       bgButtons[b].classList.toggle('active', bgButtons[b].getAttribute('data-folia-bg') === state.background);
@@ -1776,6 +1845,7 @@
     clearBackgroundImport: function () { clearBackgroundImport(); },
     setBgCommon: function (key, value) { setBgCommon(key, value); },
     setHomeStyle: function (style, opts) { setHomeStyle(style, opts); },
+    setBadgeCurrentOnly: function (on, opts) { setBadgeCurrentOnly(on, opts); },
     homeStyle: function () { return state.homeStyle; },
     isWallOpen: function () { return !!(state.homeStyle === 'wall' && state.wallOpen); },
     setWallOpen: function (open, opts) { return setWallOpen(open, opts); },
@@ -1840,6 +1910,9 @@
   };
   global.setFoliaHomeStyle = function (style) {
     setHomeStyle(style);
+  };
+  global.setFoliaBadgeCurrentOnly = function (on) {
+    setBadgeCurrentOnly(on);
   };
   global.setFoliaTuning = function (mode, key, value, fromSlider) {
     setTuning(mode, key, value, fromSlider);

@@ -1973,7 +1973,7 @@ function playMineradioIntroSound() {
   try {
     var AudioContextCtor = window.AudioContext || window.webkitAudioContext;
     if (!AudioContextCtor) return;
-    var ctx = splashAudioCtx || new AudioContextCtor();
+    var ctx = splashAudioCtx || window.__mineradioSplashAudioCtx || new AudioContextCtor();
     splashAudioCtx = ctx;
     if (ctx.state === 'suspended' && ctx.resume) {
       ctx.resume().then(function(){
@@ -2117,7 +2117,7 @@ function markSplashReadyToEnter() {
   s.setAttribute('aria-label', '点击进入 Mineradio');
 }
 
-document.addEventListener('DOMContentLoaded', function(){
+function bootSplashInteraction() {
   var s = document.getElementById('splash');
   if (!s) return;
   markAppPerf('dom-content-loaded');
@@ -2135,14 +2135,21 @@ document.addEventListener('DOMContentLoaded', function(){
       requestSplashEnter();
     }
   });
+  var splashHold = 5200;
+  if (window.__mineradioSplashShownAt) {
+    var splashElapsed = performance.now() - window.__mineradioSplashShownAt;
+    splashHold = Math.max(2400, 5200 - splashElapsed);
+  }
   if (reduceSplashMotion) {
     s.classList.add('reduce-motion');
-    splashTimer = setTimeout(markSplashReadyToEnter, 900);
+    splashTimer = setTimeout(markSplashReadyToEnter, Math.min(900, splashHold));
     return;
   }
   playMineradioIntroSound();
-  splashTimer = setTimeout(markSplashReadyToEnter, 5000);
-});
+  splashTimer = setTimeout(markSplashReadyToEnter, splashHold);
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootSplashInteraction);
+else bootSplashInteraction();
 
 var desktopOverlayPushState = {
   lyricsAt: 0,

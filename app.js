@@ -1210,9 +1210,11 @@ if (window.MineradioThemes && typeof window.MineradioThemes.applyStructure === '
 }
 if ((fx && fx.preset === 7) || playbackVisualPreset === 7) {
   // ensureSonicTopography 在后续脚本里，这里不能直接调用，否则会中断本文件后面的首页逻辑
-  document.addEventListener('DOMContentLoaded', function () {
+  var bootSonic = function () {
     if (typeof ensureSonicTopography === 'function') ensureSonicTopography();
-  });
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootSonic);
+  else setTimeout(bootSonic, 0);
 }
 var presetTransition = { active:false, start:-10, duration:0.92, from:0, to:0 };
 var controlsAutoHide = readBooleanPreference(CONTROLS_AUTO_HIDE_STORE_KEY, false);

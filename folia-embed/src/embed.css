@@ -1,0 +1,4 @@
+/* Folia 的工具类写在下载目录里。嵌入工程单独构建时，Tailwind 只扫本目录，
+   absolute / inset-0 / h-full 这些类不会生成，歌词就会排到可视区域外面。 */
+@import "@/index.css";
+@source "C:/Users/z1590/Downloads/folia-major-0.7.26/folia-major-0.7.26/src";

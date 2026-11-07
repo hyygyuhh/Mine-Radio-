@@ -172,10 +172,10 @@ window.markDonateQrFailed = window.markDonateQrFailed || function () {
 </script>
 <link rel="stylesheet" href="styles/main.css?v=20261103-bridge143" fetchpriority="high">
 <link rel="stylesheet" href="styles/themes.css">
-<link rel="stylesheet" href="styles/home-dashboard-diy.css" id="home-dashboard-diy-css">
-<link rel="stylesheet" href="styles/mobile-home.css" id="mobile-home-css">
-<link rel="stylesheet" href="styles/mobile-shell.css" id="mobile-shell-css">
-<link rel="stylesheet" href="styles/mobile-touch.css" id="mobile-touch-css">
+<link rel="stylesheet" href="styles/home-dashboard-diy.css" id="home-dashboard-diy-css" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="styles/mobile-home.css" id="mobile-home-css" media="(max-width: 960px)">
+<link rel="stylesheet" href="styles/mobile-shell.css" id="mobile-shell-css" media="(max-width: 960px)">
+<link rel="stylesheet" href="styles/mobile-touch.css" id="mobile-touch-css" media="(max-width: 960px)">
 <script>
 (function () {
   function injectDiyCss() {
@@ -903,6 +903,10 @@ var _hmt = _hmt || [];
   <div class="fx-seg folia-home-seg" id="folia-home-seg">
     <button type="button" data-folia-home="mr" class="active" onclick="setFoliaHomeStyle('mr')">Mineradio</button>
     <button type="button" data-folia-home="wall" onclick="setFoliaHomeStyle('wall')">Folia 海报墙</button>
+  </div>
+  <div id="folia-wall-options" hidden>
+    <button type="button" class="fx-mini-btn ghost" id="folia-badge-current" onclick="setFoliaBadgeCurrentOnly(!this.classList.contains('active'))">只标正在播放</button>
+    <p class="folia-bg-hint">单击展开海报，双击播放。正在播放的那首双击只会继续，不会暂停。歌单角标仍显示「歌单」。</p>
   </div>
 
   <div class="fx-section-label" id="fx-presets-surface-label">预设体系</div>
@@ -1918,22 +1922,52 @@ var _hmt = _hmt || [];
 
 </div>
 
-<script src="vendor/three.r128.min.js" defer></script>
-<script src="vendor/gsap.min.js" defer></script>
-<script src="web-bridge.js?v=20261103-bridge143" defer></script>
-<script src="runtime-helpers.js" defer></script>
-<script src="runtime-themes.js" defer></script>
-<script src="app.js?v=20261103-bridge143" defer></script>
-<script src="app-playback.js?v=20261103-bridge143" defer></script>
-<script src="app-shell.js?v=20261103-bridge143" defer></script>
-<script src="listening-pet-skins.js" defer></script>
-<script src="listening-pet.js" defer></script>
-<script src="home-dashboard.js" defer></script>
-<script src="web-diy-bridge.js" defer></script>
+<script>
+(function () {
+  document.body.classList.add('splash-active');
+  window.__mineradioSplashShownAt = performance.now();
+  var scripts = [
+    'vendor/three.r128.min.js',
+    'vendor/gsap.min.js',
+    'web-bridge.js?v=20261103-bridge143',
+    'runtime-helpers.js',
+    'runtime-themes.js',
+    'app.js?v=20261108a',
+    'app-playback.js?v=20261103-bridge143',
+    'app-shell.js?v=20261108b',
+    'listening-pet-skins.js',
+    'listening-pet.js',
+    'home-dashboard.js',
+    'web-diy-bridge.js'
+  ];
+  var started = false;
+  function start() {
+    if (started) return;
+    started = true;
+    window.__mineradioAppStarted = true;
+    window.dispatchEvent(new Event('mineradio-app-start'));
+    for (var i = 0; i < scripts.length; i++) {
+      var node = document.createElement('script');
+      node.src = scripts[i];
+      node.async = false;
+      document.body.appendChild(node);
+    }
+  }
+  window.__mineradioStartApp = start;
+  if (!document.getElementById('splash')) {
+    start();
+    return;
+  }
+  requestAnimationFrame(function () {
+    requestAnimationFrame(start);
+  });
+})();
+</script>
 <script>
 (function () {
   // Folia 已开启则立刻注入；否则空闲后再加载，避免抢占首屏主线程
   var needEarly = false;
+  var wantFoliaSurface = false;
   try {
     var stored = JSON.parse(localStorage.getItem('mineradio-folia-stage-v1') || '{}') || {};
     needEarly = stored.enabled === true && stored.mode && stored.mode !== 'off';
@@ -1942,7 +1976,7 @@ var _hmt = _hmt || [];
     if (document.getElementById('folia-host-script') || window.MineradioFolia) return;
     var s = document.createElement('script');
     s.id = 'folia-host-script';
-    s.src = 'folia-host.js';
+    s.src = 'folia-host.js?v=20261107a';
     document.body.appendChild(s);
   }
   window.__mineradioEnsureFoliaHost = injectFoliaHost;
@@ -1973,7 +2007,16 @@ var _hmt = _hmt || [];
     };
     try {
       var savedSurface = localStorage.getItem('mineradio-presets-surface-v1');
-      if (savedSurface === 'folia' || savedSurface === 'mr') window.setPresetsSurface(savedSurface);
+      if (savedSurface === 'folia' || savedSurface === 'mr') {
+        wantFoliaSurface = savedSurface === 'folia';
+        var mr = document.getElementById('mr-presets-surface');
+        var folia = document.getElementById('folia-presets-surface');
+        if (mr) mr.hidden = wantFoliaSurface;
+        if (folia) folia.hidden = !wantFoliaSurface;
+        document.querySelectorAll('#presets-surface-seg [data-presets-surface]').forEach(function (btn) {
+          btn.classList.toggle('active', btn.getAttribute('data-presets-surface') === savedSurface);
+        });
+      }
     } catch (e1) {}
   }
   if (!window.setFoliaLyricMode) {
@@ -1999,6 +2042,9 @@ var _hmt = _hmt || [];
   if (!window.setFoliaHomeStyle) {
     window.setFoliaHomeStyle = function (style) { whenFolia('setHomeStyle', [style]); };
   }
+  if (!window.setFoliaBadgeCurrentOnly) {
+    window.setFoliaBadgeCurrentOnly = function (on) { whenFolia('setBadgeCurrentOnly', [on]); };
+  }
   if (!window.setFoliaBgCommon) {
     window.setFoliaBgCommon = function (key, value) { whenFolia('setBgCommon', [key, value]); };
   }
@@ -2006,8 +2052,11 @@ var _hmt = _hmt || [];
     var homeStored = JSON.parse(localStorage.getItem('mineradio-folia-stage-v1') || '{}') || {};
     if (homeStored.homeStyle === 'wall') needEarly = true;
   } catch (e2) {}
-  if (needEarly) injectFoliaHost();
-  else {
+  function scheduleFolia() {
+    if (needEarly || wantFoliaSurface) {
+      injectFoliaHost();
+      return;
+    }
     function schedule() {
       if ('requestIdleCallback' in window) requestIdleCallback(injectFoliaHost, { timeout: 4000 });
       else setTimeout(injectFoliaHost, 2200);
@@ -2015,6 +2064,11 @@ var _hmt = _hmt || [];
     if (document.readyState === 'complete') schedule();
     else window.addEventListener('load', schedule, { once: true });
   }
+  if (window.__mineradioAppStarted) scheduleFolia();
+  else window.addEventListener('mineradio-app-start', function () {
+    window.__mineradioAppStarted = true;
+    scheduleFolia();
+  }, { once: true });
 })();
 </script>
 <footer id="seo-site-footer">

@@ -63,10 +63,12 @@ body.folia-stage-active #toast {
   z-index: 40;
 }
 
-/* Only hide the page visuals after Folia has actually connected and painted. */
-/* Home sits under the full-screen stage (z-index 28) unless it is lifted. */
-body.folia-stage-active.empty-home-active #empty-home {
-  z-index: 32;
+/* The home used to sit above the stage, so every lyric mode looked blank
+   behind the dashboard. Once the embed is painting, keep the home underneath. */
+html.folia-stage-live body.folia-lyrics-on:not(.folia-home-wall) #empty-home {
+  z-index: 4;
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* Folia lyrics paint in the iframe (z=28). Keep the Three.js plate under it and

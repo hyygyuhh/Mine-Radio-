@@ -1,0 +1,1 @@
+import{t as e}from"./createLucideIcon-CGSCXUn7.js";var t={name:`circle-letter-j`,size:24,node:[[`path`,{d:`M14 8v5.5a1 1 0 01-5 0V13`,key:`ypelvi`}],[`circle`,{cx:`12`,cy:`12`,r:`10`,key:`1mglay`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

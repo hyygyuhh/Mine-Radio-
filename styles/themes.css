@@ -245,7 +245,13 @@ body {
 }
 
 #folia-home-seg {
-  margin-bottom: 16px;
+  margin-bottom: 10px;
+}
+#folia-wall-options {
+  margin: 0 0 16px;
+}
+#folia-wall-options .fx-mini-btn {
+  margin-bottom: 6px;
 }
 
 @media (max-width: 520px) {

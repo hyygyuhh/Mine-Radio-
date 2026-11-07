@@ -3,3 +3,12 @@ _desktop-ref/
 
 # Maintainer docs (not served by the site)
 docs/
+
+# Cloudflare Worker tooling (not part of the static site)
+bridge-stats-worker/node_modules/
+bridge-stats-worker/.wrangler/
+
+# Folia embed toolchain (source stays; installed packages and the Node zip do not)
+.tools/
+folia-embed/node_modules/
+folia-embed/dist/

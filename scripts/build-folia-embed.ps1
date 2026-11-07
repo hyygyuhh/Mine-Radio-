@@ -1,30 +1,25 @@
-# Build Folia full-screen lyric embed into vendor/folia for Mine-Radio static hosting.
+# Build the Folia 0.7.26 lyric embed into vendor/folia.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
-$candidates = @(
-  (Join-Path $root '..\folia-major-main'),
-  (Join-Path $root '..\folia-major-0.7.25'),
-  (Join-Path $root '..\folia-major-0.7.22'),
-  'd:\Users\z1590\Desktop\folia-major-main',
-  'd:\Users\z1590\Desktop\folia-major-0.7.25',
-  'd:\Users\z1590\Desktop\folia-major-0.7.22'
-)
-$folia = $null
-foreach ($c in $candidates) {
-  $resolved = $null
-  try { $resolved = (Resolve-Path $c -ErrorAction Stop).Path } catch { continue }
-  if (Test-Path (Join-Path $resolved 'package.json')) {
-    if (Test-Path (Join-Path $resolved 'vite.mineradio-embed.config.ts')) {
-      $folia = $resolved
-      break
-    }
-  }
+$embed = Join-Path $root 'folia-embed'
+$nodeHome = Join-Path $root '.tools\node-v24.22.1-win-x64'
+if (Test-Path (Join-Path $nodeHome 'node.exe')) {
+  $env:PATH = "$nodeHome;" + $env:PATH
 }
-if (-not $folia) { throw 'Folia source tree not found (expected folia-major-main with vite.mineradio-embed.config.ts)' }
-Write-Host "Building Folia embed from $folia"
-Set-Location $folia
-$env:FOLIA_BUILD_REPO = 'chthollyphile/folia-major'
-node .\node_modules\vite\bin\vite.js build --config vite.mineradio-embed.config.ts
-$out = Join-Path $root 'vendor\folia'
-Write-Host "Output: $out"
-Get-ChildItem $out | Select-Object Name, Length
+if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+  throw 'node is not on PATH and .tools\node-v24.22.1-win-x64 was not found'
+}
+if (-not (Test-Path (Join-Path $embed 'node_modules\vite\bin\vite.js'))) {
+  Write-Host 'Installing folia-embed dependencies'
+  Push-Location $embed
+  npm install --no-audit --no-fund
+  Pop-Location
+}
+Write-Host "Building Folia embed from $embed"
+Push-Location $embed
+node .\node_modules\vite\bin\vite.js build
+if ($LASTEXITCODE -ne 0) { Pop-Location; exit $LASTEXITCODE }
+node .\publish.mjs
+Pop-Location
+Write-Host "Output: $(Join-Path $root 'vendor\folia')"
+Get-ChildItem (Join-Path $root 'vendor\folia') | Select-Object Name, Length

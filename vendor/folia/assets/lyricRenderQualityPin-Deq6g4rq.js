@@ -1,0 +1,1 @@
+import{r as e}from"./rolldown-runtime-XKyaHtl9.js";import{t}from"./react-DlmbjZJV.js";import{Mt as n}from"./index-BnZpP1EJ.js";var r=e(t(),1),i=(0,r.createContext)(null),a=()=>(0,r.useContext)(i),o=()=>{let e=a(),t=n(e=>e.lyricRenderQuality);return e??t};export{a as n,o as t};
