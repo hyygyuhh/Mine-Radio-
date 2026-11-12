@@ -472,7 +472,7 @@
       var parsed = new URL(url, window.location.href);
       if (parsed.searchParams.get('mineradio') !== '1') parsed.searchParams.set('mineradio', '1');
       // Bust iframe cache when vendor/folia embed is rebuilt.
-      if (parsed.searchParams.get('v') !== '20261106g') parsed.searchParams.set('v', '20261106g');
+      if (parsed.searchParams.get('v') !== '20261112c') parsed.searchParams.set('v', '20261112c');
       return parsed.href;
     } catch (_) {
       return String(url || '');
@@ -772,6 +772,7 @@
     if (showing) {
       // Warm CDN covers as soon as the wall opens, even before FOLIA_READY.
       try { scheduleWallCoverPrefetch(collectWallItems()); } catch (_) {}
+      if (typeof setPeek === 'function') setPeek(document.getElementById('search-area'), true, 'search');
     } else {
       wallCoverPrefetchToken++;
     }

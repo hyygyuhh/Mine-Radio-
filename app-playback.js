@@ -7631,6 +7631,12 @@ async function showLoginModal(opts) {
   closeUserModal({ silent: true });
   var modal = document.getElementById('login-modal');
   openGsapModal(modal);
+  var loginDialog = modal && modal.querySelector('.login-stage-modal');
+  if (loginDialog) {
+    setTimeout(function () {
+      try { loginDialog.focus({ preventScroll: true }); } catch (_) { loginDialog.focus(); }
+    }, 40);
+  }
   updateLoginExtensionPanel();
   updateLoginProviderUi();
   refreshLoginExtensionPanel();
@@ -7744,6 +7750,12 @@ function clearLoginQrHint() {
   loginQrHint = '';
   loginQrHintClass = '';
 }
+var neManualCookieOpen = false;
+function manualCookieOpenFor(provider) {
+  if (provider === 'kg') return kgManualCookieOpen;
+  if (provider === 'qq') return qqManualCookieOpen;
+  return neManualCookieOpen;
+}
 function updateLoginProviderUi() {
   var meta = platformMeta(loginProvider);
   var isQQ = loginProvider === 'qq';
@@ -7759,6 +7771,7 @@ function updateLoginProviderUi() {
   var refreshBtn = document.getElementById('refresh-qr-btn');
   var officialBtn = document.getElementById('login-official-fallback-btn');
   var refreshStatusBtn = document.getElementById('login-refresh-status-btn');
+  var nePanel = document.getElementById('ne-cookie-panel');
   var qqPanel = document.getElementById('qq-cookie-panel');
   var kgPanel = document.getElementById('kg-cookie-panel');
   var qqCookieToggle = document.getElementById('qq-cookie-toggle-btn');
@@ -7768,9 +7781,8 @@ function updateLoginProviderUi() {
   var kgBtn = document.getElementById('login-provider-kg');
   var loginBusy = isQQ ? !!qqWebLoginBusy : (isNE ? !!neteaseWebLoginBusy : false);
   var loggedIn = currentLoginLoggedIn();
-  var qqWebLogin = isQQ && !loggedIn;
   var hasQr = currentLoginHasQr();
-  var preferQr = !loggedIn && !isQQ;
+  var preferQr = !loggedIn;
   var qrReady = preferQr && hasQr && !loginQrError;
   var qrLoading = preferQr && (loginQrBusy || (!hasQr && !loginQrError));
   if (neteaseBtn) {
@@ -7787,33 +7799,29 @@ function updateLoginProviderUi() {
   }
   if (title) title.textContent = '登录' + meta.label;
   if (desc) {
-    if (isKG) {
-      desc.innerHTML = '用 <b>酷狗 App 扫码</b> 登录，可直接拿到安卓凭证。也可官网登录或手动导入 Cookie。';
-    } else if (isQQ) {
-      desc.innerHTML = '在 <b>y.qq.com 官方网页</b> 完成登录，然后回到此页点击「刷新登录状态」。也可手动导入 Cookie。';
-    } else {
-      desc.innerHTML = '用 <b>网易云 App 扫码</b> 登录。扫码失败时可改用官网登录。';
-    }
+    var scanApp = isKG ? '酷狗 App' : (isQQ ? '手机 QQ' : '网易云 App');
+    desc.innerHTML = '用 <b>' + scanApp + ' 扫码</b> 登录。扫码失败时可改用官网登录。';
   }
   if (shell) {
     shell.classList.toggle('qr-mode', preferQr && !loginQrError);
     shell.classList.toggle('qr-loading', !!qrLoading);
-    shell.classList.toggle('web-login-preview', qqWebLogin || !!(preferQr && loginQrError));
+    shell.classList.toggle('web-login-preview', !!(preferQr && loginQrError));
     shell.classList.toggle('netease-preview', isNE);
     shell.classList.toggle('qq-preview', isQQ);
     shell.classList.toggle('kg-preview', isKG);
   }
   if (qrImg) {
-    qrImg.style.display = (qrReady && !qqWebLogin && qrImg.getAttribute('src')) ? 'block' : 'none';
+    qrImg.style.display = (qrReady && qrImg.getAttribute('src')) ? 'block' : 'none';
   }
-  if (qqPanel) qqPanel.classList.toggle('show', isQQ && qqManualCookieOpen);
-  if (kgPanel) kgPanel.classList.toggle('show', isKG && kgManualCookieOpen);
+  if (nePanel) nePanel.classList.toggle('show', isNE && neManualCookieOpen && !loggedIn);
+  if (qqPanel) qqPanel.classList.toggle('show', isQQ && qqManualCookieOpen && !loggedIn);
+  if (kgPanel) kgPanel.classList.toggle('show', isKG && kgManualCookieOpen && !loggedIn);
   if (qqCookieToggle) {
-    qqCookieToggle.classList.toggle('show', isQQ || isKG);
-    qqCookieToggle.textContent = (isQQ ? qqManualCookieOpen : kgManualCookieOpen) ? '收起导入' : '手动导入';
+    qqCookieToggle.textContent = manualCookieOpenFor(loginProvider) ? '收起导入' : '手动导入';
+    qqCookieToggle.style.display = loggedIn ? 'none' : '';
   }
   if (qqCard) {
-    qqCard.style.display = (qqWebLogin || (preferQr && loginQrError)) ? '' : 'none';
+    qqCard.style.display = (preferQr && loginQrError) ? '' : 'none';
     qqCard.disabled = loginBusy;
     var cardMark = qqCard.querySelector('b');
     var cardLabel = qqCard.querySelector('span');
@@ -7835,15 +7843,6 @@ function updateLoginProviderUi() {
         st.textContent = '已登录网易云 · ' + (loginStatus.nickname || '') + (neVip === 'svip' ? ' · SVIP' : (neVip === 'vip' ? ' · VIP' : ''));
         if (neVip !== 'none') st.className = 'scan';
       }
-    } else if (qqWebLogin && qqWebLoginBusy) {
-      st.textContent = '已打开 QQ 音乐官网，请完成登录…';
-      st.className = 'preview';
-    } else if (qqWebLogin && loginQrHint) {
-      st.textContent = loginQrHint;
-      st.className = loginQrHintClass || 'preview';
-    } else if (qqWebLogin) {
-      st.textContent = '点击下方按钮打开 QQ 音乐官网登录';
-      st.className = 'preview';
     } else if (loginQrError) {
       st.textContent = loginQrError;
       st.className = 'fail';
@@ -7861,21 +7860,17 @@ function updateLoginProviderUi() {
   }
   if (refreshBtn) {
     refreshBtn.disabled = loginBusy || loginQrBusy;
-    if (qqWebLogin) {
-      refreshBtn.style.display = 'none';
+    refreshBtn.style.display = '';
+    if (!loggedIn) {
+      refreshBtn.textContent = '刷新二维码';
+      refreshBtn.onclick = isKG ? startKGQrLogin : (isQQ ? startQQQrLogin : startNeteaseQrLogin);
     } else {
-      refreshBtn.style.display = '';
-      if (!loggedIn) {
-        refreshBtn.textContent = '刷新二维码';
-        refreshBtn.onclick = isKG ? startKGQrLogin : startNeteaseQrLogin;
-      } else {
-        refreshBtn.textContent = '官网登录';
-        refreshBtn.onclick = openProviderWebLogin;
-      }
+      refreshBtn.textContent = '官网登录';
+      refreshBtn.onclick = openProviderWebLogin;
     }
   }
   if (officialBtn) {
-    officialBtn.style.display = (loggedIn || qqWebLogin) ? 'none' : '';
+    officialBtn.style.display = loggedIn ? 'none' : '';
     officialBtn.disabled = loginBusy;
   }
   if (refreshStatusBtn) {
@@ -7895,18 +7890,10 @@ async function refreshLoginPanel() {
   updateLoginProviderUi();
   try {
     if (loginProvider === 'qq') {
-      stopQrPoll();
-      qqQrSig = null;
-      qqQrToken = null;
-      loginQrError = '';
-      loginQrBusy = false;
       await refreshQQLoginStatus();
-      if (!qqLoginStatus.loggedIn) {
-        setLoginQrHint('点击下方按钮打开 QQ 音乐官网，登录后点「刷新登录状态」', 'preview');
-      } else {
-        clearLoginQrHint();
-      }
       updateLoginProviderUi();
+      if (!qqLoginStatus.loggedIn) await startQQQrLogin();
+      else loginQrBusy = false;
       return;
     }
     if (loginProvider === 'kg') {
@@ -8266,8 +8253,17 @@ function startQrPoll() {
 function stopQrPoll() { if (qrPollTimer) { clearInterval(qrPollTimer); qrPollTimer = null; } }
 function toggleQQCookiePanel() {
   if (loginProvider === 'kg') kgManualCookieOpen = !kgManualCookieOpen;
-  else qqManualCookieOpen = !qqManualCookieOpen;
+  else if (loginProvider === 'qq') qqManualCookieOpen = !qqManualCookieOpen;
+  else neManualCookieOpen = !neManualCookieOpen;
   updateLoginProviderUi();
+  var open = manualCookieOpenFor(loginProvider);
+  if (!open) return;
+  var inputId = loginProvider === 'kg' ? 'kg-cookie-input' : (loginProvider === 'qq' ? 'qq-cookie-input' : 'ne-cookie-input');
+  var input = document.getElementById(inputId);
+  if (!input) return;
+  setTimeout(function () {
+    try { input.focus({ preventScroll: true }); } catch (_) { input.focus(); }
+  }, 30);
 }
 function openProviderWebLogin() {
   if (loginProvider === 'qq') return openQQWebLogin();
@@ -8279,6 +8275,31 @@ async function openKugouWebLogin() {
   markAuthCookieImportIntent('kg');
   openProviderOfficialPage('kg');
   if (statusEl) { statusEl.textContent = '已打开酷狗官方登录页，完成登录后点击「刷新登录状态」'; statusEl.className = 'preview'; }
+}
+async function submitNECookieLogin() {
+  var input = document.getElementById('ne-cookie-input');
+  var raw = input && input.value ? input.value.trim() : '';
+  if (!raw) { showToast('请先粘贴网易云 Cookie'); return; }
+  var statusEl = document.getElementById('qr-status');
+  try {
+    if (statusEl) { statusEl.textContent = '正在保存网易云 Cookie…'; statusEl.className = 'preview'; }
+    var info = await apiJson('/api/login/cookie', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cookie: raw })
+    });
+    if (!info || !info.loggedIn) throw new Error((info && (info.message || info.error)) || '网易云 Cookie 无效');
+    clearAuthProviderRevoked('netease');
+    loginStatus = info;
+    activeAccountProvider = 'netease';
+    neManualCookieOpen = false;
+    renderUserBtn();
+    refreshUserPlaylists(true);
+    if (statusEl) { statusEl.textContent = '网易云会话已保存'; statusEl.className = 'scan'; }
+    setTimeout(function(){ closeLoginModal({ afterLogin: true }); showToast('网易云已登录: ' + (info.nickname || info.userId || '')); }, 420);
+  } catch (e) {
+    if (statusEl) { statusEl.textContent = friendlyAuthBridgeError(e) || '网易云 Cookie 保存失败'; statusEl.className = 'fail'; }
+  }
 }
 async function submitKGCookieLogin() {
   var input = document.getElementById('kg-cookie-input');
@@ -8442,7 +8463,7 @@ async function submitQQCookieLogin() {
 }
 async function checkQr() {
   if (loginProvider === 'kg') return checkKGQr();
-  if (loginProvider === 'qq') return;
+  if (loginProvider === 'qq') return checkQQQr();
   if (!qrKey) return;
   try {
     var r = await apiJson('/api/login/qr/check?key=' + encodeURIComponent(qrKey) + '&t=' + Date.now());

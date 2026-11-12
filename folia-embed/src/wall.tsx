@@ -128,13 +128,19 @@ export default function Wall({ items, time, paused, duration, onPlay, onToggle, 
   const [view, setView] = useState({ w: 1280, h: 800 });
   const [openId, setOpenId] = useState<string | null>(null);
   const [pan, setPan] = useState<{ x: number; y: number } | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const [hintQuiet, setHintQuiet] = useState(false);
   const pressId = useRef<string | null>(null);
   const dragged = useRef(false);
   const drag = useRef<{ x: number; y: number; px: number; py: number; moved: boolean } | null>(null);
   const collapseTimer = useRef<number | null>(null);
+  const viewRef = useRef(view);
+  const panRef = useRef(pan);
+  const zoomRef = useRef(zoom);
 
   const placed = useMemo(() => placePosters(items, openId), [items, openId]);
-  const scale = scaleFor(view.w);
+  const fit = scaleFor(view.w);
+  const scale = fit * zoom;
   const origin = useMemo(() => {
     const blockW = (BLOCK_COLS * PITCH - GAP) * scale;
     const blockH = (BLOCK_ROWS * PITCH - GAP) * scale;
@@ -144,6 +150,9 @@ export default function Wall({ items, time, paused, duration, onPlay, onToggle, 
     };
   }, [scale, view.w, view.h]);
   const shown = pan || origin;
+  viewRef.current = view;
+  panRef.current = pan;
+  zoomRef.current = zoom;
 
   useEffect(() => {
     const el = stageRef.current;
@@ -159,10 +168,84 @@ export default function Wall({ items, time, paused, duration, onPlay, onToggle, 
     if (collapseTimer.current != null) window.clearTimeout(collapseTimer.current);
   }, []);
 
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el) return;
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      setHintQuiet(true);
+      const rect = el.getBoundingClientRect();
+      const cx = event.clientX - rect.left;
+      const cy = event.clientY - rect.top;
+      const prev = zoomRef.current;
+      const next = Math.max(0.55, Math.min(1.65, prev * (event.deltaY > 0 ? 0.92 : 1.08)));
+      if (next === prev) return;
+      const currentFit = scaleFor(el.clientWidth || viewRef.current.w);
+      const oldScale = currentFit * prev;
+      const newScale = currentFit * next;
+      const base = panRef.current || {
+        x: (el.clientWidth - (BLOCK_COLS * PITCH - GAP) * oldScale) / 2,
+        y: (el.clientHeight - (BLOCK_ROWS * PITCH - GAP) * oldScale) / 2,
+      };
+      const bx = oldScale ? (cx - base.x) / oldScale : 0;
+      const by = oldScale ? (cy - base.y) / oldScale : 0;
+      zoomRef.current = next;
+      setZoom(next);
+      setPan({ x: cx - bx * newScale, y: cy - by * newScale });
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+
+  function quietHint() {
+    setHintQuiet(true);
+  }
+
+  function resetView() {
+    setPan(null);
+    setZoom(1);
+  }
+
+  function revealPoster(poster: PlacedPoster) {
+    const el = stageRef.current;
+    if (!el) return;
+    const nextScale = scaleFor(el.clientWidth || view.w) * zoom;
+    const pad = 28;
+    const left = poster.x * nextScale;
+    const top = poster.y * nextScale;
+    const width = poster.w * nextScale;
+    const height = poster.h * nextScale;
+    const base = pan || {
+      x: (el.clientWidth - (BLOCK_COLS * PITCH - GAP) * nextScale) / 2,
+      y: (el.clientHeight - (BLOCK_ROWS * PITCH - GAP) * nextScale) / 2,
+    };
+    let x = base.x;
+    let y = base.y;
+    if (width + pad * 2 >= el.clientWidth) x = pad - left;
+    else if (x + left < pad) x = pad - left;
+    else if (x + left + width > el.clientWidth - pad) x = el.clientWidth - pad - left - width;
+    if (height + pad * 2 >= el.clientHeight) y = el.clientHeight - pad - top - height;
+    else if (y + top < pad) y = pad - top;
+    else if (y + top + height > el.clientHeight - pad) y = el.clientHeight - pad - top - height;
+    setPan({ x, y });
+  }
+
+  function frameCurrent() {
+    const current = placed.find((poster) => poster.item.current);
+    const el = stageRef.current;
+    if (!current || !el) return;
+    const nextScale = scaleFor(el.clientWidth || view.w) * zoom;
+    setPan({
+      x: el.clientWidth / 2 - (current.x + current.w / 2) * nextScale,
+      y: el.clientHeight / 2 - (current.y + current.h / 2) * nextScale,
+    });
+  }
+
   function onPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
     if (event.button !== 0) return;
     const target = event.target as HTMLElement | null;
     if (target && target.closest('button')) return;
+    quietHint();
     dragged.current = false;
     drag.current = { x: event.clientX, y: event.clientY, px: shown.x, py: shown.y, moved: false };
   }
@@ -186,18 +269,52 @@ export default function Wall({ items, time, paused, duration, onPlay, onToggle, 
     drag.current = null;
   }
 
+  function onStageDoubleClick(event: React.MouseEvent<HTMLDivElement>) {
+    const target = event.target as HTMLElement | null;
+    if (target && target.closest('.mr-poster, button')) return;
+    resetView();
+  }
+
+  function onStageKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    const target = event.target as HTMLElement | null;
+    if (target && target.closest('button, input, a')) return;
+    const step = event.shiftKey ? 160 : 72;
+    if (event.key === 'Escape') {
+      setOpenId(null);
+      return;
+    }
+    if (event.key === '0' || event.key === 'Home') {
+      event.preventDefault();
+      resetView();
+      return;
+    }
+    if (event.key === 'ArrowLeft') setPan({ x: shown.x + step, y: shown.y });
+    else if (event.key === 'ArrowRight') setPan({ x: shown.x - step, y: shown.y });
+    else if (event.key === 'ArrowUp') setPan({ x: shown.x, y: shown.y + step });
+    else if (event.key === 'ArrowDown') setPan({ x: shown.x, y: shown.y - step });
+    else return;
+    event.preventDefault();
+    quietHint();
+  }
+
   return (
     <div className="mr-wall">
       <style>{WALL_CSS}</style>
       <div
         ref={stageRef}
         className="mr-wall-stage"
+        tabIndex={0}
+        aria-label="海报墙。拖动浏览，滚轮缩放，单击展开，双击播放。"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
+        onDoubleClick={onStageDoubleClick}
+        onKeyDown={onStageKeyDown}
       >
-        {items.length === 0 ? <p className="mr-wall-empty">队列里还没有歌曲</p> : null}
+        {items.length === 0 ? (
+          <p className="mr-wall-empty">队列里还没有歌曲。先在首页播放或打开音乐库，海报会铺在这里。</p>
+        ) : null}
         <div
           className="mr-wall-board"
           style={{
@@ -217,6 +334,7 @@ export default function Wall({ items, time, paused, duration, onPlay, onToggle, 
               <article
                 key={item.id}
                 className={'mr-poster' + (item.current ? ' is-current' : '') + (poster.expanded ? ' is-open' : '')}
+                data-cols={poster.cols <= 1 ? 's' : poster.cols <= 3 ? 'm' : 'l'}
                 style={{ left: poster.x, top: poster.y, width: poster.w, height: poster.h }}
                 onClick={(event) => {
                   if (dragged.current) {
@@ -229,6 +347,8 @@ export default function Wall({ items, time, paused, duration, onPlay, onToggle, 
                   pressId.current = item.id;
                   if (openId !== item.id) {
                     setOpenId(item.id);
+                    const opened = placePosters(items, item.id).find((poster) => poster.item.id === item.id);
+                    if (opened) revealPoster(opened);
                     return;
                   }
                   const id = item.id;
@@ -285,6 +405,11 @@ export default function Wall({ items, time, paused, duration, onPlay, onToggle, 
             );
           })}
         </div>
+        <div className={'mr-wall-hint' + (hintQuiet ? ' is-quiet' : '')}>
+          <span>拖动浏览 · 滚轮缩放 · 单击展开 · 双击播放</span>
+          <button type="button" onClick={(event) => { event.stopPropagation(); frameCurrent(); }}>正在播放</button>
+          <button type="button" onClick={(event) => { event.stopPropagation(); resetView(); }}>回到起点</button>
+        </div>
       </div>
     </div>
   );
@@ -294,7 +419,38 @@ const WALL_CSS = `
 .mr-wall { position: fixed; inset: 0; background: #070707; color: #f4f7fb; font-family: "Microsoft YaHei", "PingFang SC", sans-serif; }
 .mr-wall-stage { position: absolute; inset: 0; overflow: hidden; cursor: grab; touch-action: none; }
 .mr-wall-stage:active { cursor: grabbing; }
-.mr-wall-empty { position: absolute; left: 28px; top: 18vh; margin: 0; color: rgba(244,247,251,0.62); font-size: 15px; }
+.mr-wall-empty { position: absolute; left: 28px; right: 28px; top: 22%; margin: 0; max-width: 360px; color: rgba(244,247,251,0.72); font-size: 15px; line-height: 1.6; }
+.mr-wall-hint {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: calc(100% - 32px);
+  padding: 8px 8px 8px 14px;
+  border-radius: 999px;
+  background: rgba(8,10,14,0.72);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: rgba(244,247,251,0.78);
+  font-size: 12px;
+  backdrop-filter: blur(16px);
+}
+.mr-wall-hint.is-quiet { opacity: 0.45; }
+.mr-wall-hint.is-quiet:hover { opacity: 1; }
+.mr-wall-hint button {
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: rgba(255,255,255,0.12);
+  color: #f4f7fb;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.mr-wall-stage:focus-visible { outline: 1px solid rgba(126,200,216,0.7); outline-offset: -3px; }
 .mr-wall-board { position: absolute; top: 0; left: 0; width: 0; height: 0; transform-origin: 0 0; }
 .mr-poster {
   position: absolute;
@@ -369,14 +525,19 @@ const WALL_CSS = `
   overflow: hidden;
   margin-block: -0.14em;
   padding-block: 0.14em;
-  font-size: clamp(22px, 2vw, 36px);
+  font-size: 18px;
   font-weight: 760;
-  line-height: 0.96;
-  letter-spacing: -0.045em;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
+.mr-poster[data-cols="s"] .mr-poster-copy { left: 10px; right: 10px; bottom: 10px; }
+.mr-poster[data-cols="s"] .mr-poster-copy strong { font-size: 15px; }
+.mr-poster[data-cols="s"] .mr-poster-badge { top: 8px; left: 8px; padding: 3px 6px; font-size: 10px; letter-spacing: 0.04em; }
+.mr-poster[data-cols="m"] .mr-poster-copy strong { font-size: 22px; }
+.mr-poster[data-cols="l"] .mr-poster-copy strong { font-size: 32px; -webkit-line-clamp: 3; }
 .mr-poster.is-open .mr-poster-copy strong {
   max-width: 92%;
   font-size: clamp(48px, 6vw, 82px);

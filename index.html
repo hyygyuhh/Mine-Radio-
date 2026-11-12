@@ -172,7 +172,7 @@ window.markDonateQrFailed = window.markDonateQrFailed || function () {
 </script>
 <link rel="stylesheet" href="styles/main.css?v=20261103-bridge143" fetchpriority="high">
 <link rel="stylesheet" href="styles/themes.css">
-<link rel="stylesheet" href="styles/home-dashboard-diy.css" id="home-dashboard-diy-css" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="styles/home-dashboard-diy.css?v=20261112e" id="home-dashboard-diy-css" media="print" onload="this.media='all'">
 <link rel="stylesheet" href="styles/mobile-home.css" id="mobile-home-css" media="(max-width: 960px)">
 <link rel="stylesheet" href="styles/mobile-shell.css" id="mobile-shell-css" media="(max-width: 960px)">
 <link rel="stylesheet" href="styles/mobile-touch.css" id="mobile-touch-css" media="(max-width: 960px)">
@@ -183,7 +183,7 @@ window.markDonateQrFailed = window.markDonateQrFailed || function () {
     var link = document.createElement('link');
     link.id = 'home-dashboard-diy-css';
     link.rel = 'stylesheet';
-    link.href = 'styles/home-dashboard-diy.css';
+    link.href = 'styles/home-dashboard-diy.css?v=20261112e';
     var mobile = document.getElementById('mobile-home-css');
     if (mobile && mobile.parentNode) mobile.parentNode.insertBefore(link, mobile);
     else document.head.appendChild(link);
@@ -191,10 +191,10 @@ window.markDonateQrFailed = window.markDonateQrFailed || function () {
   window.__mineradioEnsureDiyCss = injectDiyCss;
 })();
 </script>
-<link rel="stylesheet" href="styles/login-stage.css" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="styles/login-stage.css?v=20261112k" media="print" onload="this.media='all'">
 <link rel="stylesheet" href="styles/account-stage.css" media="print" onload="this.media='all'">
 <link rel="stylesheet" href="styles/diy-console.css" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="styles/folia-stage.css" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="styles/folia-stage.css?v=20261112c" media="print" onload="this.media='all'">
 <link rel="stylesheet" href="styles/listening-pet.css" media="print" onload="this.media='all'">
 <noscript>
 <link rel="stylesheet" href="styles/home-dashboard-diy.css">
@@ -671,11 +671,11 @@ var _hmt = _hmt || [];
       <input id="search-input" type="text" placeholder="搜索歌曲、歌手..." autocomplete="off" spellcheck="false">
     </div>
     <div id="search-mode-tabs" class="search-mode-tabs" role="tablist" aria-label="Search mode">
-      <button id="search-mode-song" class="active" type="button" onclick="setSearchMode('song')" aria-selected="true">All</button>
-      <button id="search-mode-netease" type="button" onclick="setSearchMode('netease')" aria-selected="false">NE</button>
-      <button id="search-mode-qq" type="button" onclick="setSearchMode('qq')" aria-selected="false">QQ</button>
-      <button id="search-mode-kg" type="button" onclick="setSearchMode('kg')" aria-selected="false">KG</button>
-      <button id="search-mode-podcast" type="button" onclick="setSearchMode('podcast')" aria-selected="false">Podcast</button>
+      <button id="search-mode-song" class="active" type="button" onclick="setSearchMode('song')" aria-selected="true">全部</button>
+      <button id="search-mode-netease" type="button" onclick="setSearchMode('netease')" aria-selected="false">网易云</button>
+      <button id="search-mode-qq" type="button" onclick="setSearchMode('qq')" aria-selected="false">QQ音乐</button>
+      <button id="search-mode-kg" type="button" onclick="setSearchMode('kg')" aria-selected="false">酷狗</button>
+      <button id="search-mode-podcast" type="button" onclick="setSearchMode('podcast')" aria-selected="false">播客</button>
     </div>
     <div id="search-results"></div>
   </div>
@@ -906,7 +906,7 @@ var _hmt = _hmt || [];
   </div>
   <div id="folia-wall-options" hidden>
     <button type="button" class="fx-mini-btn ghost" id="folia-badge-current" onclick="setFoliaBadgeCurrentOnly(!this.classList.contains('active'))">只标正在播放</button>
-    <p class="folia-bg-hint">单击展开海报，双击播放。正在播放的那首双击只会继续，不会暂停。歌单角标仍显示「歌单」。</p>
+    <p class="folia-bg-hint">拖动浏览，滚轮缩放。单击展开，双击播放。双击空白处回到起点。正在播放的那首双击只会继续，不会暂停。</p>
   </div>
 
   <div class="fx-section-label" id="fx-presets-surface-label">预设体系</div>
@@ -1552,8 +1552,8 @@ var _hmt = _hmt || [];
 <canvas id="login-guide-canvas" aria-hidden="true"></canvas>
 
 <!-- 登录模态：舞台式双栏布局 -->
-<div id="login-modal" class="modal-mask">
-  <div class="modal dual-login-modal login-stage-modal">
+<div id="login-modal" class="modal-mask" onclick="if(event.target===this)closeLoginModal({skipAccountReturn:true})">
+  <div class="modal dual-login-modal login-stage-modal" role="dialog" aria-modal="true" aria-labelledby="login-modal-title" tabindex="-1">
     <header class="login-stage-head">
       <div class="login-brand-mark">
         <img class="login-brand-icon" src="icons/icon128.png" width="44" height="44" alt="">
@@ -1580,9 +1580,9 @@ var _hmt = _hmt || [];
         <div class="login-platform-block">
           <div class="login-rail-label">选择平台</div>
           <div class="login-platform-tabs" id="login-platform-tabs" role="tablist" aria-label="登录平台">
-            <button id="login-provider-netease" class="netease active" type="button" role="tab" aria-selected="true" onclick="setLoginProvider('netease')"><span class="login-provider-logo">NE</span><span class="login-provider-name">网易云</span></button>
-            <button id="login-provider-qq" class="qq" type="button" role="tab" aria-selected="false" onclick="setLoginProvider('qq')"><span class="login-provider-logo">QQ</span><span class="login-provider-name">QQ 音乐</span></button>
-            <button id="login-provider-kg" class="kg" type="button" role="tab" aria-selected="false" onclick="setLoginProvider('kg')"><span class="login-provider-logo">KG</span><span class="login-provider-name">酷狗</span></button>
+            <button id="login-provider-netease" class="netease active" type="button" role="tab" aria-selected="true" onclick="setLoginProvider('netease')"><span class="login-provider-logo">NE</span><span class="login-provider-copy"><span class="login-provider-name">网易云</span><span class="login-provider-method">App 扫码</span></span></button>
+            <button id="login-provider-qq" class="qq" type="button" role="tab" aria-selected="false" onclick="setLoginProvider('qq')"><span class="login-provider-logo">QQ</span><span class="login-provider-copy"><span class="login-provider-name">QQ 音乐</span><span class="login-provider-method">App 扫码</span></span></button>
+            <button id="login-provider-kg" class="kg" type="button" role="tab" aria-selected="false" onclick="setLoginProvider('kg')"><span class="login-provider-logo">KG</span><span class="login-provider-copy"><span class="login-provider-name">酷狗</span><span class="login-provider-method">App 扫码</span></span></button>
           </div>
         </div>
 
@@ -1595,12 +1595,15 @@ var _hmt = _hmt || [];
             </div>
             <span id="login-extension-badge" class="login-extension-badge">检测中</span>
           </div>
-          <div class="login-extension-body">网页版搜索、播放和账号同步依赖本机 Bridge 扩展；请先安装后再继续登录。</div>
-          <ol class="login-extension-steps">
-            <li>从下方网盘下载并解压（勿直接加载 zip）</li>
-            <li>Chrome / Edge：开发者模式 → 加载已解压的文件夹</li>
-            <li>点扩展「刷新状态」，再回本页「重新检测」</li>
-          </ol>
+          <details class="login-extension-details">
+            <summary>安装步骤</summary>
+            <div class="login-extension-body">网页版搜索、播放和账号同步依赖本机 Bridge 扩展；请先安装后再继续登录。</div>
+            <ol class="login-extension-steps">
+              <li>从下方网盘下载并解压（勿直接加载 zip）</li>
+              <li>Chrome / Edge：开发者模式 → 加载已解压的文件夹</li>
+              <li>点扩展「刷新状态」，再回本页「重新检测」</li>
+            </ol>
+          </details>
           <div class="login-extension-actions">
             <button id="login-extension-guide-btn" class="modal-btn primary" type="button" onclick="openBridgeExtensionInstallGuide()">查看安装说明</button>
             <button id="login-extension-refresh-btn" class="modal-btn" type="button" onclick="refreshLoginExtensionPanel()">重新检测</button>
@@ -1625,32 +1628,41 @@ var _hmt = _hmt || [];
           <div id="qr-status" class="preview">正在生成扫码…</div>
         </div>
 
-        <div id="qq-cookie-panel" class="qq-cookie-panel">
-          <textarea id="qq-cookie-input" class="qq-cookie-input" spellcheck="false" autocomplete="off" placeholder="uin=...; qqmusic_key=...; qm_keyst=..."></textarea>
-          <div class="qq-cookie-actions">
-            <div class="qq-cookie-note">从 y.qq.com 的登录会话导入。</div>
-            <button id="qq-cookie-save-btn" class="modal-btn primary" type="button" onclick="submitQQCookieLogin()">保存</button>
-          </div>
-        </div>
-        <div id="kg-cookie-panel" class="qq-cookie-panel">
-          <textarea id="kg-cookie-input" class="qq-cookie-input" spellcheck="false" autocomplete="off" placeholder="userid=...; token=...; NickName=..."></textarea>
-          <div class="qq-cookie-actions">
-            <div class="qq-cookie-note">从 kugou.com 的登录会话导入。</div>
-            <button id="kg-cookie-save-btn" class="modal-btn primary" type="button" onclick="submitKGCookieLogin()">保存</button>
-          </div>
-        </div>
-
         <div class="login-auth-actions btn-row">
           <button id="refresh-qr-btn" class="modal-btn primary" type="button" onclick="refreshQr()">刷新二维码</button>
           <button id="login-official-fallback-btn" class="modal-btn" type="button" onclick="openProviderWebLogin()">官网登录</button>
-          <button id="qq-cookie-toggle-btn" class="modal-btn" type="button" onclick="toggleQQCookiePanel()">手动导入</button>
           <button id="login-refresh-status-btn" class="modal-btn ghost-link" type="button" onclick="refreshProviderLoginStatus()">刷新状态</button>
         </div>
 
         <div class="login-auth-secondary">
           <button class="login-text-btn" type="button" onclick="skipLoginAndFocusSearch()">先搜索一首歌</button>
-          <button id="login-both-btn" class="login-text-btn" type="button" onclick="requestDualLoginMode()">我两个都要</button>
+          <button id="login-both-btn" class="login-text-btn" type="button" onclick="requestDualLoginMode()">同时登录多个平台</button>
           <button class="login-text-btn" type="button" onclick="closeLoginModal()">取消</button>
+        </div>
+
+        <div class="login-manual-import">
+          <button id="qq-cookie-toggle-btn" class="login-text-btn login-manual-toggle" type="button" onclick="toggleQQCookiePanel()">手动导入</button>
+          <div id="ne-cookie-panel" class="qq-cookie-panel">
+            <textarea id="ne-cookie-input" class="qq-cookie-input" spellcheck="false" autocomplete="off" aria-label="网易云 Cookie" placeholder="MUSIC_U=..."></textarea>
+            <div class="qq-cookie-actions">
+              <div class="qq-cookie-note">从 music.163.com 的登录会话导入。</div>
+              <button id="ne-cookie-save-btn" class="modal-btn" type="button" onclick="submitNECookieLogin()">保存</button>
+            </div>
+          </div>
+          <div id="qq-cookie-panel" class="qq-cookie-panel">
+            <textarea id="qq-cookie-input" class="qq-cookie-input" spellcheck="false" autocomplete="off" aria-label="QQ 音乐 Cookie" placeholder="uin=...; qqmusic_key=...; qm_keyst=..."></textarea>
+            <div class="qq-cookie-actions">
+              <div class="qq-cookie-note">从 y.qq.com 的登录会话导入。</div>
+              <button id="qq-cookie-save-btn" class="modal-btn" type="button" onclick="submitQQCookieLogin()">保存</button>
+            </div>
+          </div>
+          <div id="kg-cookie-panel" class="qq-cookie-panel">
+            <textarea id="kg-cookie-input" class="qq-cookie-input" spellcheck="false" autocomplete="off" aria-label="酷狗 Cookie" placeholder="userid=...; token=...; NickName=..."></textarea>
+            <div class="qq-cookie-actions">
+              <div class="qq-cookie-note">从 kugou.com 的登录会话导入。</div>
+              <button id="kg-cookie-save-btn" class="modal-btn" type="button" onclick="submitKGCookieLogin()">保存</button>
+            </div>
+          </div>
         </div>
       </section>
     </div>
@@ -1933,8 +1945,8 @@ var _hmt = _hmt || [];
     'runtime-helpers.js',
     'runtime-themes.js',
     'app.js?v=20261108a',
-    'app-playback.js?v=20261103-bridge143',
-    'app-shell.js?v=20261108b',
+    'app-playback.js?v=20261112b',
+    'app-shell.js?v=20261112b',
     'listening-pet-skins.js',
     'listening-pet.js',
     'home-dashboard.js',
@@ -1976,7 +1988,7 @@ var _hmt = _hmt || [];
     if (document.getElementById('folia-host-script') || window.MineradioFolia) return;
     var s = document.createElement('script');
     s.id = 'folia-host-script';
-    s.src = 'folia-host.js?v=20261107a';
+    s.src = 'folia-host.js?v=20261112d';
     document.body.appendChild(s);
   }
   window.__mineradioEnsureFoliaHost = injectFoliaHost;

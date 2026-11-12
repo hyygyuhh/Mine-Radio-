@@ -1181,6 +1181,12 @@ document.addEventListener('keydown', function(e){
       closeTrackDetailModal();
       return;
     }
+    var loginModal = document.getElementById('login-modal');
+    if (loginModal && loginModal.classList.contains('show')) {
+      e.preventDefault();
+      closeLoginModal({ skipAccountReturn: true });
+      return;
+    }
     if (miniQueueOpen) { closeMiniQueue(); return; }
     if (shelfManager && shelfManager.hasOpenContent()) { safeShelfCloseContent('escape-key'); return; }
     var fxPanel = document.getElementById('fx-panel');
@@ -1221,7 +1227,7 @@ function setPeek(el, on, key) {
   if (!el) return;
   if (immersiveMode && on && (key === 'search' || key === 'fx')) return;
   if (on && !diyPlayerMode && key === 'fx') return;
-  if (!on && key === 'search' && emptyHomeActive && !immersiveMode) return;
+  if (!on && key === 'search' && !immersiveMode && (emptyHomeActive || document.body.classList.contains('folia-home-wall'))) return;
   if (!on && key === 'pl' && playlistPanelPinned) return;
   if (!on && key === 'fx' && fxPanelPinned) return;
   if (on && key === 'fx') document.body.classList.remove('fullscreen-diy-peek');

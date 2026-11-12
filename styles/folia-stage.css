@@ -32,6 +32,54 @@ body.folia-home-wall #folia-stage {
   z-index: 34;
 }
 
+@media (min-width: 761px) {
+  body.folia-home-wall #folia-stage {
+    top: 108px;
+    right: 18px;
+    bottom: 28px;
+    left: 18px;
+    width: auto;
+    height: auto;
+    border-radius: 22px;
+    overflow: hidden;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, .35);
+  }
+
+  body.folia-home-wall.controls-visible #folia-stage {
+    bottom: 118px;
+  }
+}
+
+body.folia-home-wall:not(.controls-visible) #bottom-handle {
+  opacity: .78;
+}
+
+@media (min-width: 761px) {
+  body.folia-home-wall #search-area.peek,
+  body.desktop-shell.folia-home-wall #search-area.peek,
+  body.simple-mode.folia-home-wall #search-area.peek,
+  body.desktop-shell.simple-mode.folia-home-wall #search-area.peek {
+    left: 24px;
+    right: auto;
+    top: 16px;
+    width: min(680px, calc(100vw - 300px));
+    transform: none;
+  }
+
+  body.folia-home-wall #search-stack {
+    width: min(520px, 100%);
+    flex: 1 1 auto;
+  }
+
+  body.folia-home-wall #top-right {
+    top: 16px;
+  }
+
+  body.folia-home-wall.diy-mode #search-area:not(.has-results) #search-mode-tabs {
+    display: flex !important;
+  }
+}
+
 body.folia-home-wall #folia-stage-frame {
   pointer-events: auto;
 }

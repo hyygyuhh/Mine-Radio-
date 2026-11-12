@@ -66,7 +66,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 18px 22px 14px;
+  padding: 12px 22px 10px;
   border-bottom: 1px solid rgba(255, 255, 255, .06);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, .03), transparent);
@@ -143,7 +143,7 @@
 }
 
 .login-stage-rail {
-  padding: 18px 18px 16px 22px;
+  padding: 14px 18px 14px 22px;
   border-right: 1px solid rgba(255, 255, 255, .06);
   background:
     radial-gradient(420px 280px at 12% 0%, rgba(255, 83, 103, .10), transparent 60%),
@@ -194,11 +194,11 @@
 
 .login-perk-list {
   list-style: none;
-  margin: 0 0 16px;
+  margin: 0 0 10px;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 
 .login-perk-list li {
@@ -248,7 +248,7 @@
 }
 
 .login-platform-block {
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 
 .login-stage-modal .login-platform-tabs {
@@ -267,7 +267,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 48px;
+  height: 52px;
   padding: 0 12px;
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, .08);
@@ -345,7 +345,7 @@
 
 .login-stage-modal .login-extension-panel {
   margin: 0;
-  padding: 12px;
+  padding: 8px 12px 10px;
   border-radius: 16px;
 }
 
@@ -486,9 +486,43 @@
   transition: color .2s, text-decoration-color .2s;
 }
 
+.login-manual-import {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.login-manual-import .qq-cookie-panel {
+  align-self: stretch;
+  width: 100%;
+  margin-top: 0;
+}
+
+.login-manual-toggle {
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, .28);
+  text-decoration: none;
+}
+
+.login-manual-toggle:hover {
+  color: rgba(255, 255, 255, .52);
+  text-decoration: none;
+}
+
+#qq-cookie-toggle-btn.login-manual-toggle {
+  display: inline-flex;
+}
+
 .login-text-btn:hover {
   color: rgba(244, 210, 138, .92);
   text-decoration-color: rgba(244, 210, 138, .5);
+}
+
+.login-manual-toggle.login-text-btn:hover {
+  color: rgba(255, 255, 255, .52);
+  text-decoration: none;
 }
 
 .login-stage-modal .login-donate-row {
@@ -500,13 +534,20 @@
 
 @media (max-width: 820px) {
   .dual-login-modal.login-stage-modal {
+    display: block;
     width: min(520px, calc(100vw - 24px));
     max-height: min(calc(100vh - 28px), 900px);
     overflow-y: auto;
   }
 
   .login-stage-grid {
-    grid-template-columns: 1fr;
+    display: block;
+    overflow: visible;
+  }
+
+  .login-stage-rail,
+  .login-stage-auth {
+    overflow: visible;
   }
 
   .login-stage-rail {
@@ -563,5 +604,138 @@
   .dual-login-modal.login-stage-modal,
   .login-stage-modal .qr-shell {
     animation: none;
+  }
+}
+
+.login-provider-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+}
+
+.login-stage-modal .login-provider-method {
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0;
+  color: rgba(255, 255, 255, .38);
+}
+
+.login-stage-modal .login-platform-tabs button.active .login-provider-method {
+  color: rgba(255, 255, 255, .66);
+}
+
+.login-stage-modal #qr-status {
+  display: block;
+  width: 100%;
+  align-self: stretch;
+  text-align: left;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, .08);
+  background: rgba(255, 255, 255, .045);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.login-stage-modal #qr-status.fail {
+  border-color: rgba(255, 83, 103, .28);
+  background: rgba(255, 83, 103, .08);
+}
+
+.login-stage-modal #qr-status.scan {
+  border-color: rgba(0, 245, 212, .28);
+  background: rgba(0, 245, 212, .08);
+}
+
+.login-auth-actions.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.login-auth-actions #refresh-qr-btn,
+body.phone-shell .login-auth-actions #refresh-qr-btn {
+  grid-column: 1 / -1;
+}
+
+.login-auth-actions #refresh-qr-btn {
+  flex: 1 1 100%;
+  min-height: 42px;
+  background: linear-gradient(180deg, #f6e2b4, #e2c17a) !important;
+  color: #24180a !important;
+  border-color: transparent !important;
+  font-weight: 760;
+}
+
+.login-auth-actions #refresh-qr-btn:hover {
+  background: linear-gradient(180deg, #fff0cc, #ebcd8c) !important;
+  color: #24180a !important;
+}
+
+.login-auth-actions .modal-btn {
+  flex: 1 1 0;
+  min-width: 120px;
+  min-height: 36px;
+}
+
+.login-extension-panel.ready .login-extension-details {
+  display: none;
+}
+
+.login-extension-details {
+  margin: 0 0 10px;
+}
+
+.login-extension-details summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, .68);
+  list-style: none;
+}
+
+.login-extension-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.login-extension-details summary::before {
+  content: '▸ ';
+  color: rgba(0, 245, 212, .7);
+}
+
+.login-extension-details[open] summary::before {
+  content: '▾ ';
+}
+
+.login-extension-details[open] .login-extension-steps {
+  margin-top: 8px;
+}
+
+.login-stage-modal:focus {
+  outline: none;
+}
+
+.login-stage-close:focus-visible,
+.login-stage-modal button:focus-visible,
+.login-stage-modal a:focus-visible,
+.login-stage-modal summary:focus-visible,
+.qq-cookie-input:focus-visible {
+  outline: 1px solid rgba(244, 210, 138, .85);
+  outline-offset: 2px;
+}
+
+@media (max-width: 820px) {
+  .login-stage-modal .login-platform-tabs button {
+    height: auto;
+    min-height: 76px;
+  }
+
+  .login-stage-modal .login-provider-copy {
+    align-items: center;
+  }
+
+  .login-stage-modal .login-provider-method {
+    font-size: 9px;
   }
 }

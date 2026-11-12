@@ -1,1 +1,0 @@
-import{r as e}from"./rolldown-runtime-XKyaHtl9.js";import{t}from"./react-DlmbjZJV.js";import{d as n}from"./lyricRenderQuality-MuCcCtwi.js";import{n as r,t as i}from"./lyricRenderQualityPin-Deq6g4rq.js";var a=e(t(),1),o=e=>{let t=r(),o=i(),s=t?void 0:e?.scale,c=t?void 0:e?.antialias;return(0,a.useMemo)(()=>n(o,s&&c?{scale:s,antialias:c}:null),[o,s,c])};export{o as t};
